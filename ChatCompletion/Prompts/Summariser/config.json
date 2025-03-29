@@ -1,0 +1,21 @@
+{
+    "type": "completion",
+    "description": "Summarise the text provided in the input. in 5 words",
+    "execution_settings": {
+        "default": {
+        "max_tokens": 4096,
+        "temperature": 0.5
+      }
+   },
+
+   "iput_variables": [
+    {
+        "name": "$textToSummarise",
+        "description": "The text to summarise",
+        "required": true
+    }
+   ]
+
+ 
+}
+
