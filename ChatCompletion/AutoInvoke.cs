@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,16 +6,4 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using ChatCompletion;
 
-public class Program
-{
-    public static async Task Main(string[] args)
-    {
-        var chatComplete = new ChatComplete();
-        await chatComplete.PerformChat();
-       
-    }
-}
-
-    

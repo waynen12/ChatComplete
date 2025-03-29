@@ -57,3 +57,6 @@ ChatCompletion/obj/Debug/net8.0/ChatCompletion.pdb
 ChatCompletion/obj/Debug/net8.0/ref/ChatCompletion.dll
 ChatCompletion/obj/Debug/net8.0/refint/ChatCompletion.dll
 ChatCompletion/launch.json
+NativePlugins2.linq
+ChatCompletion/bin/Debug/net8.0/YamlDotNet.dll
+ChatCompletion/bin/Debug/net8.0/Microsoft.SemanticKernel.Yaml.dll
