@@ -60,3 +60,6 @@ ChatCompletion/launch.json
 NativePlugins2.linq
 ChatCompletion/bin/Debug/net8.0/YamlDotNet.dll
 ChatCompletion/bin/Debug/net8.0/Microsoft.SemanticKernel.Yaml.dll
+ChatCompletion/AutoInvoke2.linq
+ChatCompletion/AutoInvoke.linq
+ChatCompletion/obj/Debug/net8.0/ChatCompletion.sourcelink.json

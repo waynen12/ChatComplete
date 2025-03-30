@@ -11,18 +11,10 @@ namespace ChatCompletion
 {
     public class ChatComplete
     {
-        IKernelBuilder builder;
         IChatCompletionService _chatCompletionService;
         public ChatComplete()
         {
-            builder = Kernel.CreateBuilder();
-            var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-            if (string.IsNullOrEmpty(openAiApiKey))
-            {
-                throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
-            }
-            builder.AddOpenAIChatCompletion("gpt-4o", openAiApiKey);
-            Kernel kernel = builder.Build();
+            var kernel = KernelHelper.GetKernel();
             _chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
         }
 

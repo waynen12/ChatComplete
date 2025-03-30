@@ -1,0 +1,18 @@
+{
+    "type": "completion",
+    "description": "Initial prompt after the user's request! Reads users intent and classifies if above 18 years old confirmation is required due to explicit content",
+    "execution_settings": {
+      "default": {
+        "max_tokens": 4096,
+        "temperature": 0
+      }
+    },
+  
+    "input_variables": [
+      {
+        "name": "$usersInput",
+        "description": "Users entered request",
+        "required": true
+      }
+    ]
+  }
