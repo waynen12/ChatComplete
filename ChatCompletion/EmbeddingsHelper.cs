@@ -13,7 +13,7 @@ using Refit;
 
 public static class EmbeddingsHelper
 {
-    public static async Task GetEmbeddings()
+    public static async Task<double[]> GetEmbeddings(string text)
     {
         IKernelBuilder builder;
         builder = Kernel.CreateBuilder();
@@ -27,11 +27,13 @@ public static class EmbeddingsHelper
         }, OpenAiRefitSettings.RefitSettings);
 
         var response = await completionApi.GetEmbeddingAsync(new EmbeddingRequest {
-            Input = "This is just me testing embeddings!!",
+            Input = text,
             Model = "text-embedding-3-small",
         }, $"Bearer {openAiApiKey}");
         Console.WriteLine($"Vector length {response.Content!.Data.First().Embedding.Length}");
         Console.WriteLine($"Vector {string.Join(",", response.Content.Data.First().Embedding.Take(100))}");
+
+        return response.Content!.Data.First().Embedding;
     }
         
 }

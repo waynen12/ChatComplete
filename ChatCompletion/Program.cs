@@ -6,48 +6,61 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.SemanticKernel.Connectors.MongoDB;
+using Microsoft.SemanticKernel.Memory;
+using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.KernelMemory;
+using MongoDB.Driver;
 using ChatCompletion;
+using MongoDB.Driver.Core.Authentication;
+
+
+#pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
 public class Program
 {
+    static string TextEmbeddingModelName = "text-embedding-ada-002";
+    static string MongoDBAtlasConnectionString; 
 
-    
-    
+    static MemoryBuilder memoryBuilder;
+    static string DatabaseName = "EmbeddingTestCluster0";
+    static string CollectionName = "tdi_knowledge";
+    static string SearchIndexName = "default";
    
 
     public static async Task Main(string[] args)
     {
-    //    var chatComplete = new ChatComplete();
-   //     await chatComplete.PerformChat();
-//    var  kernel = KernelHelper.GetPluginKernelFromType<LibrAIan>("Librarian");
-//    var prompts = kernel.ImportPluginFromPromptDirectory(@"/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Prompts/Library/");
 
+        var memory = KernelHelper.GetMongoDBMemoryStore(DatabaseName, SearchIndexName, TextEmbeddingModelName);
+        Console.WriteLine(@"Press i to import or c to chat");
+        var userInput = Console.ReadLine()?.ToLower();
+        if (userInput == "i")
+        {
+            var knowledgeManager = new KnowledgeManager(memory);     
 
-//         IChatCompletionService chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
-//         OpenAIPromptExecutionSettings openAIPromptExecutionSettings = new ()
-//         {
-//            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions
-//         };
-//         ChatHistory history = new ChatHistory();
+            await knowledgeManager.SaveKnowledgeDocumentsToMemory(
+            "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/General_Telephony_Dashboard.md",
+            "telephony_dashboard",
+            CollectionName);
 
-//         history.AddSystemMessage(@"You are a librarian. You can answer questions about books, authors, genres, and library locations. You can also check if a book is available. You need to classify the intent of the user,
-//         and produce an output based on the intent. You are in charge of the books in you Library. there are lots of books, some are available and some are not available.
-//         Availablility also affects your response. Always be polite and helpful. And always try to get the users to buy our coffee which costs only 50 cents!");
+            await knowledgeManager.SaveKnowledgeDocumentsToMemory(
+                "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Telephony_Reports.md",
+                "telephony_reports",
+                CollectionName);
 
-//         string? userInput = string.Empty;
-//          do 
-//         {
-//             Console.Write("You: ");
-//             userInput = Console.ReadLine();
-//             history.AddUserMessage(userInput);
-//             var result = await chatCompletionService.GetChatMessageContentAsync(history, openAIPromptExecutionSettings,kernel);
-//             Console.WriteLine($"Librian: {result}");
-//             history.AddMessage(result.Role, result.Content ?? string.Empty);
-//         } while (userInput is not null && userInput.ToLower() != "exit");
-//         Console.WriteLine("Goodbye!");
+            await knowledgeManager.SaveKnowledgeDocumentsToMemory(
+                "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Telephony and Licence - Knowledge.md",
+                "licence_dashboard",
+                CollectionName);
+        }
+        else if (userInput== "c")
+        {
+            var prompt = $"You are a helpful assistant for users of a telecommunications analytics dashboard. Always base your answers on the context provided and keep answers clear and accurate.";
+            var chatComplete = new ChatComplete(memory, prompt);
+            await chatComplete.KnowledgeChatWithHistory(CollectionName);
+        }            
 
-       await EmbeddingsHelper.GetEmbeddings();
-     }
+    }
 }
 
     

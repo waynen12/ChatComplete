@@ -6,6 +6,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.SemanticKernel.Memory;
+using Microsoft.SemanticKernel.Connectors.MongoDB;
+using MongoDB.Driver;
+using MongoDB.Driver.Core.Authentication;
+using HandlebarsDotNet.Helpers.BlockHelpers;
+
+
+#pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
 
 public static class KernelHelper
@@ -51,6 +59,33 @@ public static class KernelHelper
         }
         builder.AddOpenAIChatCompletion("gpt-4o", openAiApiKey);
         return builder;
+    }
+
+
+    public static ISemanticTextMemory GetMongoDBMemoryStore(string databaseName, string searchIndexName, string textEmbeddingModelName)
+    {
+        var mongoDBAtlasConnectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") 
+            ?? throw new InvalidOperationException("The MongoDB Atlas connection string is not set in the environment variables.");
+
+        var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        if (string.IsNullOrEmpty(openAiApiKey))
+        {
+            throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
+        }
+
+        var memoryBuilder= new MemoryBuilder();
+        memoryBuilder.WithOpenAITextEmbeddingGeneration(
+            textEmbeddingModelName,
+            openAiApiKey);
+
+        var mongoDBMemoryStore = new MongoDBMemoryStore(
+            mongoDBAtlasConnectionString,
+            databaseName,
+            searchIndexName);
+        memoryBuilder.WithMemoryStore(mongoDBMemoryStore);
+        var memory = memoryBuilder.Build();
+
+        return memory;
     }
     
 }
