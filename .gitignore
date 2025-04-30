@@ -136,3 +136,8 @@ ChatCompletion/bin/Debug/net8.0/runtimes/win/native/mongocrypt.dll
 ChatCompletion/Docs/General_Telephony_Dashboard.md
 ChatCompletion/Docs/Telephony and Licence - Knowledge.md
 ChatCompletion/Docs/Telephony_Reports.md
+
+.fake
+ChatCompletion/Docs/Processed_Transcript_Document.docx
+ChatCompletion/Docs/New_System_Installation_Guide.md
+ChatCompletion/Docs/LicenceDashboard_Test.docx

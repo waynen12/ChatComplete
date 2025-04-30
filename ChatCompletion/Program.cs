@@ -20,11 +20,9 @@ using MongoDB.Driver.Core.Authentication;
 public class Program
 {
     static string TextEmbeddingModelName = "text-embedding-ada-002";
-    static string MongoDBAtlasConnectionString; 
 
-    static MemoryBuilder memoryBuilder;
     static string DatabaseName = "EmbeddingTestCluster0";
-    static string CollectionName = "tdi_knowledge";
+    static string CollectionName = "Tracker";
     static string SearchIndexName = "default";
    
 
@@ -36,26 +34,34 @@ public class Program
         var userInput = Console.ReadLine()?.ToLower();
         if (userInput == "i")
         {
+            // DocxToDocumentConverter docxToDocumentConverter = new DocxToDocumentConverter();
+            // var document = docxToDocumentConverter.Convert("/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/LicenceDashboard_Test.docx", "licence_dashboard");
+            // DocumentToTextConverter.Convert(document);
+
             var knowledgeManager = new KnowledgeManager(memory);     
 
-            await knowledgeManager.SaveKnowledgeDocumentsToMemory(
-            "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/General_Telephony_Dashboard.md",
-            "telephony_dashboard",
+            await knowledgeManager.SaveMarkDownToMemory(
+                "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Deployment_Script_QA.md",
+                CollectionName,
+                CollectionName);
+
+            await knowledgeManager.SaveMarkDownToMemory(
+            "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Deployment_Script_TS.md",
+            CollectionName,
             CollectionName);
 
-            await knowledgeManager.SaveKnowledgeDocumentsToMemory(
-                "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Telephony_Reports.md",
-                "telephony_reports",
+
+            await knowledgeManager.SaveMarkDownToMemory(
+                "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/New_System_Installation_Guide.md",
+                CollectionName,
                 CollectionName);
 
-            await knowledgeManager.SaveKnowledgeDocumentsToMemory(
-                "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Telephony and Licence - Knowledge.md",
-                "licence_dashboard",
-                CollectionName);
+            var indexManager = new AtlasIndexManager("67f12c40132f5d7cf8229d09", DatabaseName, DatabaseName, CollectionName);
+            await indexManager.CreateIndexAsync("default");
         }
         else if (userInput== "c")
         {
-            var prompt = $"You are a helpful assistant for users of a telecommunications analytics dashboard. Always base your answers on the context provided and keep answers clear and accurate.";
+            var prompt = $"You are a helpful assistant for users on a web portal. Always base your answers on the context provided and keep answers clear and accurate. Never provide awnsers that are not based on the context. If you don't know the answer, say 'I don't know'. Do not make up answers. Do not engage in Roleplay'.";
             var chatComplete = new ChatComplete(memory, prompt);
             await chatComplete.KnowledgeChatWithHistory(CollectionName);
         }            

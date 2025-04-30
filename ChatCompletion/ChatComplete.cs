@@ -64,7 +64,7 @@ namespace ChatCompletion
         var chatService = kernel.GetRequiredService<IChatCompletionService>();
         var history = new ChatHistory();
         history.AddSystemMessage(_systemPrompt);
-        Console.WriteLine("Telecom Assistant with Memory Mode. Type 'exit' to quit.\n");
+        Console.WriteLine("Assistant with Memory Mode. Type 'exit' to quit.\n");
 
         while (true)
         {

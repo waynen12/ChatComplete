@@ -13,18 +13,18 @@ using MongoDB.Driver.Core.Authentication;
 
 public class KnowledgeManager
 {
-    MemoryBuilder _memoryBuilder; 
-    string _openAiApiKey;
+    private readonly AtlasIndexManager _indexManager;
     const string TextEmbeddingModelName = "text-embedding-ada-002";
 
     ISemanticTextMemory _memory;
 
-    public KnowledgeManager(ISemanticTextMemory memory)
+    public KnowledgeManager(ISemanticTextMemory memory/*, AtlasIndexManager indexManager*/)
     {
         _memory = memory;
+     //   _indexManager = indexManager;
     }
 
-    public async Task<ISemanticTextMemory> SaveKnowledgeDocumentsToMemory(
+    public async Task<ISemanticTextMemory> SaveMarkDownToMemory(
     string documentPath,
     string sourceName,
     string collectionName)
@@ -32,7 +32,44 @@ public class KnowledgeManager
         Console.WriteLine($"Importing chunks from '{documentPath}' into collection '{collectionName}'...");
 
         var markdown = File.ReadAllText(documentPath);
-        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, sourceName);
+        var markdownChunks = KnowledgeChunker.ChunkFromMarkdown(markdown, sourceName);
+        return await SaveKnowledgeDocumentsToMemory(markdownChunks, sourceName, collectionName);
+
+    }
+
+    public async Task<ISemanticTextMemory> SaveDocxToMemory(
+        string documentPath,
+        string sourceName,
+        string collectionName)
+    {
+        ISemanticTextMemory memory;
+        Console.WriteLine($"Importing chunks from '{documentPath}' into collection '{collectionName}'...");
+
+        DocxToDocumentConverter docxToDocumentConverter = new DocxToDocumentConverter();
+        var document = docxToDocumentConverter.Convert(documentPath, sourceName);
+
+        var isStructured = document.Elements.Any(e => e is IHeadingElement);
+        if (isStructured)
+        {
+            var markdown = DocumentToTextConverter.Convert(document);
+            var markdownChunks = KnowledgeChunker.ChunkFromMarkdown(markdown, sourceName);
+            memory = await SaveKnowledgeDocumentsToMemory(markdownChunks, sourceName, collectionName);
+         //   await _indexManager.CreateIndexAsync(collectionName);
+
+        }
+        else
+        {
+            var textChunks= KnowledgeChunker.ChunkFromPlainText(document?.ToString(), sourceName);
+            memory =  await SaveKnowledgeDocumentsToMemory(textChunks, sourceName, collectionName);
+        //    await _indexManager.CreateIndexAsync(collectionName);
+
+        }
+        return memory;
+        
+    }
+
+    public async Task<ISemanticTextMemory> SaveKnowledgeDocumentsToMemory(List<KnowledgeChunk> chunks, string sourceName, string collectionName)
+    {
 
         foreach (var chunk in chunks)
         {
