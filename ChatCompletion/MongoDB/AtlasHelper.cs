@@ -8,9 +8,8 @@ using System.Threading.Tasks;
 
 public static class AtlasHelper
 {
-    public static string? GetProjectIdByNameAsync(string projectName, HttpClient httpClient)
+    public static async Task<string?> GetProjectIdByNameAsync(string projectName, HttpClient httpClient)
     {
-     //   string url = $"{MongoConstants}/groups";
         var response = httpClient.GetAsync(MongoConstants.AtlasProjectUrl).Result;
 
         if (!response.IsSuccessStatusCode)
@@ -21,7 +20,7 @@ public static class AtlasHelper
             return null;
         }
 
-        var content = response.Content.ReadAsStringAsync().Result;
+        var content = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(content);
 
         foreach (var project in doc.RootElement.GetProperty("results").EnumerateArray())

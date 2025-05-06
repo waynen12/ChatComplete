@@ -14,7 +14,7 @@ public class DocxKnowledgeSourceTests
         }
 
         // Create a sample DOCX file for testing
-        DocxTestHelper.CreateSampleDocx(testDirectory);
+        TestHelper.CreateSampleDocx(testDirectory);
     }
     [Fact]
     public async Task ParseAsync_WithValidDocx_ReturnsSuccess()

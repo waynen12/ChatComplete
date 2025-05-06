@@ -38,7 +38,13 @@ public class Program
             // var document = docxToDocumentConverter.Convert("/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/LicenceDashboard_Test.docx", "licence_dashboard");
             // DocumentToTextConverter.Convert(document);
 
-            var indexManager = new AtlasIndexManager("Project 0", DatabaseName, DatabaseName, CollectionName);
+            var indexManager = await AtlasIndexManager.CreateAsync("Project 0", DatabaseName, DatabaseName, CollectionName);
+             // *** Check if creation was successful ***
+            if (indexManager == null)
+            {
+                 Console.WriteLine("Failed to initialize Atlas Index Manager. Aborting import.");
+                 return; // or handle error appropriately
+            }
             var knowledgeManager = new KnowledgeManager(memory, indexManager);     
 
             await knowledgeManager.SaveMarkDownToMemory(

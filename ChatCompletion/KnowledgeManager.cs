@@ -53,9 +53,16 @@ public class KnowledgeManager
 
         DocxToDocumentConverter docxToDocumentConverter = new DocxToDocumentConverter();
         DocxKnowledgeSource docxKnowledgeSource = new DocxKnowledgeSource();
-        var fileStream = new FileStream(documentPath, FileMode.Open, FileAccess.Read);
-        var result = await docxKnowledgeSource.ParseAsync(fileStream);
-        fileStream.Close();
+        KnowledgeParseResult result;
+
+        await using (var fileStream = new FileStream(documentPath, FileMode.Open, FileAccess.Read)) // Use 'using'
+        {
+            result = await docxKnowledgeSource.ParseAsync(fileStream);
+        }
+        if (result == null)
+        {
+            throw new Exception("SaveDocxToMemory -> Parse result is null");
+        }
         var document = result?.Document;
         if (document == null)
         {

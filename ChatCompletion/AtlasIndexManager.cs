@@ -24,36 +24,63 @@ public class AtlasIndexManager
     private string _commandUrl;
 
     private readonly HttpClient _httpClient;
+    private string _projectId = string.Empty; // Store projectId if needed later
 
-    public AtlasIndexManager(string projectName, string clusterName, string databaseName, string collectionName)
+    private AtlasIndexManager(string clusterName, string databaseName, string collectionName, HttpClient httpClient, string projectId)
     {
-        _projectName = projectName;
         _clusterName = clusterName;
         _databaseName = databaseName;
         _collectionName = collectionName;
-        _publicKey = Environment.GetEnvironmentVariable("MONGODB_PUBLIC_API_KEY") ?? "";
-        _privateKey = Environment.GetEnvironmentVariable("MONGODB_API_KEY") ?? "";
+        _httpClient = httpClient; // Use the HttpClient passed in
+        _projectId = projectId;
 
-        if (string.IsNullOrEmpty(_publicKey))
+        // Set URLs now that we have the projectId
+        _indexUrl = $"{_baseUrl}{string.Format(_indexSubUrl, _projectId, _clusterName, _databaseName, _collectionName)}";
+        _commandUrl = $"{_baseUrl}{string.Format(_commandSubUrl, _projectId, _clusterName)}";
+    }
+
+    // Public static factory method for asynchronous creation
+    public static async Task<AtlasIndexManager?> CreateAsync(string projectName, string clusterName, string databaseName, string collectionName)
+    {
+        // --- Moved logic from original constructor ---
+        var publicKey = Environment.GetEnvironmentVariable("MONGODB_PUBLIC_API_KEY") ?? "";
+        var privateKey = Environment.GetEnvironmentVariable("MONGODB_API_KEY") ?? "";
+
+        if (string.IsNullOrEmpty(publicKey))
         {
-            throw new InvalidOperationException("The MongoDB public API key is not set in the environment variables.");
+            Console.WriteLine("Error: The MongoDB public API key is not set in the environment variables.");
+            // throw new InvalidOperationException("The MongoDB public API key is not set in the environment variables.");
+            return null; // Return null or throw depending on desired handling
         }
-        if (string.IsNullOrEmpty(_privateKey))
+        if (string.IsNullOrEmpty(privateKey))
         {
-            throw new InvalidOperationException("The MongoDB private API key is not set in the environment variables.");
+             Console.WriteLine("Error: The MongoDB private API key is not set in the environment variables.");
+            // throw new InvalidOperationException("The MongoDB private API key is not set in the environment variables.");
+             return null; // Return null or throw
         }
 
         var handler = new HttpClientHandler
         {
-            Credentials = new NetworkCredential(_publicKey, _privateKey)
+            Credentials = new NetworkCredential(publicKey, privateKey)
         };
 
-        _httpClient = new HttpClient(handler);
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        string? projectId = AtlasHelper.GetProjectIdByNameAsync(_projectName, _httpClient);
-        _indexUrl = $"{_baseUrl}{string.Format(_indexSubUrl, projectId, _clusterName, _databaseName, _collectionName)}";
-        _commandUrl = $"{_baseUrl}{string.Format(_commandSubUrl, projectId, _clusterName)}";
-   }
+        var httpClient = new HttpClient(handler); // Create HttpClient here
+        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        // --- End of moved logic ---
+
+        // *** Perform the async operation ***
+        string? projectId = await AtlasHelper.GetProjectIdByNameAsync(projectName, httpClient);
+
+        if (string.IsNullOrEmpty(projectId))
+        {
+            Console.WriteLine($"Error: Could not retrieve Project ID for project '{projectName}'. Cannot create AtlasIndexManager.");
+            httpClient.Dispose(); // Dispose HttpClient if creation fails
+            return null; // Indicate failure
+        }
+
+        // Call the private constructor with the HttpClient and projectId
+        return new AtlasIndexManager(clusterName, databaseName, collectionName, httpClient, projectId);
+    }
 
 
     public async Task<bool> IndexExistsAsync(string indexName)
@@ -189,7 +216,8 @@ public class AtlasIndexManager
     {
         if (await IndexExistsAsync(indexName))
         {
-            await DeleteIndexAsync(indexName);
+            Console.WriteLine($"Index '{indexName}' already exists. Skipping creation.");
+            return;
         }
         await CreateVectorSearchIndexAsync(indexName, "embedding", 1536, "cosine");
     }
