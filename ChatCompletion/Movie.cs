@@ -83,25 +83,25 @@ public class Awards
     public int Nominations { get; set; }
 
     [BsonElement("text")]
-    public string Text { get; set; }
+    public string? Text { get; set; }
 }
 
 public class Imdb
 {
     [BsonElement("id")]
-    public object ImdbId { get; set; }
+    public object? ImdbId { get; set; }
 
     [BsonElement("votes")]
-    public object Votes { get; set; }
+    public object? Votes { get; set; }
 
     [BsonElement("rating")]
-    public object Rating { get; set; }
+    public object? Rating { get; set; }
 }
 
 public class Tomatoes
 {
     [BsonElement("viewer")]
-    public Viewer Viewer { get; set; }
+    public Viewer? Viewer { get; set; }
 
     [BsonElement("lastUpdated")]
     public DateTime LastUpdated { get; set; }

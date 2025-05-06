@@ -38,7 +38,8 @@ public class Program
             // var document = docxToDocumentConverter.Convert("/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/LicenceDashboard_Test.docx", "licence_dashboard");
             // DocumentToTextConverter.Convert(document);
 
-            var knowledgeManager = new KnowledgeManager(memory);     
+            var indexManager = new AtlasIndexManager("Project 0", DatabaseName, DatabaseName, CollectionName);
+            var knowledgeManager = new KnowledgeManager(memory, indexManager);     
 
             await knowledgeManager.SaveMarkDownToMemory(
                 "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Deployment_Script_QA.md",
@@ -56,8 +57,8 @@ public class Program
                 CollectionName,
                 CollectionName);
 
-            var indexManager = new AtlasIndexManager("67f12c40132f5d7cf8229d09", DatabaseName, DatabaseName, CollectionName);
-            await indexManager.CreateIndexAsync("default");
+            await knowledgeManager.CreateIndexAsync(CollectionName);
+
         }
         else if (userInput== "c")
         {

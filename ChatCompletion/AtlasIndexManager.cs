@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 public class AtlasIndexManager
 {
-    private readonly string _projectId;
+    private readonly string _projectName;
     private readonly string _clusterName;
     private readonly string _databaseName;
     private readonly string _collectionName;
@@ -25,35 +25,35 @@ public class AtlasIndexManager
 
     private readonly HttpClient _httpClient;
 
-    public AtlasIndexManager(string projectId, string clusterName, string databaseName, string collectionName)
-{
-    _projectId = projectId;
-    _clusterName = clusterName;
-    _databaseName = databaseName;
-    _collectionName = collectionName;
-    _publicKey = Environment.GetEnvironmentVariable("MONGODB_PUBLIC_API_KEY") ?? "";
-    _privateKey = Environment.GetEnvironmentVariable("MONGODB_API_KEY") ?? "";
-
-    if (string.IsNullOrEmpty(_publicKey))
+    public AtlasIndexManager(string projectName, string clusterName, string databaseName, string collectionName)
     {
-        throw new InvalidOperationException("The MongoDB public API key is not set in the environment variables.");
-    }
-    if (string.IsNullOrEmpty(_privateKey))
-    {
-        throw new InvalidOperationException("The MongoDB private API key is not set in the environment variables.");
-    }
+        _projectName = projectName;
+        _clusterName = clusterName;
+        _databaseName = databaseName;
+        _collectionName = collectionName;
+        _publicKey = Environment.GetEnvironmentVariable("MONGODB_PUBLIC_API_KEY") ?? "";
+        _privateKey = Environment.GetEnvironmentVariable("MONGODB_API_KEY") ?? "";
 
-    var handler = new HttpClientHandler
-    {
-        Credentials = new NetworkCredential(_publicKey, _privateKey)
-    };
+        if (string.IsNullOrEmpty(_publicKey))
+        {
+            throw new InvalidOperationException("The MongoDB public API key is not set in the environment variables.");
+        }
+        if (string.IsNullOrEmpty(_privateKey))
+        {
+            throw new InvalidOperationException("The MongoDB private API key is not set in the environment variables.");
+        }
 
-    _httpClient = new HttpClient(handler);
-    _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        var handler = new HttpClientHandler
+        {
+            Credentials = new NetworkCredential(_publicKey, _privateKey)
+        };
 
-    _indexUrl = $"{_baseUrl}{string.Format(_indexSubUrl, _projectId, _clusterName, _databaseName, _collectionName)}";
-    _commandUrl = $"{_baseUrl}{string.Format(_commandSubUrl, _projectId, _clusterName)}";
-}
+        _httpClient = new HttpClient(handler);
+        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        string? projectId = AtlasHelper.GetProjectIdByNameAsync(_projectName, _httpClient);
+        _indexUrl = $"{_baseUrl}{string.Format(_indexSubUrl, projectId, _clusterName, _databaseName, _collectionName)}";
+        _commandUrl = $"{_baseUrl}{string.Format(_commandSubUrl, projectId, _clusterName)}";
+   }
 
 
     public async Task<bool> IndexExistsAsync(string indexName)
@@ -109,6 +109,35 @@ public class AtlasIndexManager
 
         return null;
     }
+
+    public async Task<string?> GetProjectIdByNameAsync(string projectName)
+    {
+        string url = $"{_baseUrl}/groups";
+        var response = await _httpClient.GetAsync(MongoConstants.AtlasProjectUrl);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"Failed to retrieve project list. Status: {response.StatusCode}");
+            string error = await response.Content.ReadAsStringAsync();
+            Console.WriteLine(error);
+            return null;
+        }
+
+        var content = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(content);
+
+        foreach (var project in doc.RootElement.GetProperty("results").EnumerateArray())
+        {
+            if (project.GetProperty("name").GetString()?.Equals(projectName, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return project.GetProperty("id").GetString(); // This is the Group ID (aka Project ID)
+            }
+        }
+
+        Console.WriteLine($"Project '{projectName}' not found.");
+        return null;
+    }
+
 
     public async Task CreateVectorSearchIndexAsync(string indexName, string vectorField, int numDimensions, string similarityFunction)
     {

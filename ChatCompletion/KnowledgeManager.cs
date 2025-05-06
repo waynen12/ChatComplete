@@ -18,10 +18,10 @@ public class KnowledgeManager
 
     ISemanticTextMemory _memory;
 
-    public KnowledgeManager(ISemanticTextMemory memory/*, AtlasIndexManager indexManager*/)
+    public KnowledgeManager(ISemanticTextMemory memory, AtlasIndexManager indexManager)
     {
         _memory = memory;
-     //   _indexManager = indexManager;
+        _indexManager = indexManager;
     }
 
     public async Task<ISemanticTextMemory> SaveMarkDownToMemory(
@@ -33,8 +33,14 @@ public class KnowledgeManager
 
         var markdown = File.ReadAllText(documentPath);
         var markdownChunks = KnowledgeChunker.ChunkFromMarkdown(markdown, sourceName);
-        return await SaveKnowledgeDocumentsToMemory(markdownChunks, sourceName, collectionName);
+        ISemanticTextMemory memory = await SaveKnowledgeDocumentsToMemory(markdownChunks, sourceName, collectionName);
+        return memory;
 
+    }
+
+    public async Task CreateIndexAsync(string collectionName)
+    {
+        await _indexManager.CreateIndexAsync(collectionName);
     }
 
     public async Task<ISemanticTextMemory> SaveDocxToMemory(
@@ -46,22 +52,29 @@ public class KnowledgeManager
         Console.WriteLine($"Importing chunks from '{documentPath}' into collection '{collectionName}'...");
 
         DocxToDocumentConverter docxToDocumentConverter = new DocxToDocumentConverter();
-        var document = docxToDocumentConverter.Convert(documentPath, sourceName);
-
+        DocxKnowledgeSource docxKnowledgeSource = new DocxKnowledgeSource();
+        var fileStream = new FileStream(documentPath, FileMode.Open, FileAccess.Read);
+        var result = await docxKnowledgeSource.ParseAsync(fileStream);
+        fileStream.Close();
+        var document = result?.Document;
+        if (document == null)
+        {
+            throw new Exception("SaveDocxToMemory -> Parsed Document is null");
+        }
         var isStructured = document.Elements.Any(e => e is IHeadingElement);
         if (isStructured)
         {
             var markdown = DocumentToTextConverter.Convert(document);
             var markdownChunks = KnowledgeChunker.ChunkFromMarkdown(markdown, sourceName);
             memory = await SaveKnowledgeDocumentsToMemory(markdownChunks, sourceName, collectionName);
-         //   await _indexManager.CreateIndexAsync(collectionName);
+            await _indexManager.CreateIndexAsync(collectionName);
 
         }
         else
         {
             var textChunks= KnowledgeChunker.ChunkFromPlainText(document?.ToString(), sourceName);
             memory =  await SaveKnowledgeDocumentsToMemory(textChunks, sourceName, collectionName);
-        //    await _indexManager.CreateIndexAsync(collectionName);
+            await _indexManager.CreateIndexAsync(collectionName);
 
         }
         return memory;

@@ -7,7 +7,7 @@ using System.Linq;
 
 public class DocxToDocumentConverter
 {
-    public Document Convert(string filePath, string sourceName, List<string>? tags = null)
+    public Document Convert(Stream stream, string sourceName, List<string>? tags = null)
     {
         var document = new Document
         {
@@ -15,7 +15,7 @@ public class DocxToDocumentConverter
             Tags = tags ?? new List<string>()
         };
 
-        using var wordDoc = WordprocessingDocument.Open(filePath, false);
+        using var wordDoc = WordprocessingDocument.Open(stream, false);
         var body = wordDoc?.MainDocumentPart?.Document.Body;
 
         if (body != null)
@@ -24,7 +24,7 @@ public class DocxToDocumentConverter
             {
                 if (element is Paragraph para)
                 {
-                    var text = ExtractText((OpenXmlElement)para);
+                    var text = ExtractText(para);
 
                     if (string.IsNullOrWhiteSpace(text))
                         continue;
@@ -33,7 +33,7 @@ public class DocxToDocumentConverter
                     {
                         document.Elements.Add(new HeadingElement(level, text));
                         if (string.IsNullOrWhiteSpace(document.Title))
-                            document.Title = text; // first heading becomes title
+                            document.Title = text;
                     }
                     else if (IsListItem(para, out bool ordered))
                     {
@@ -69,7 +69,7 @@ public class DocxToDocumentConverter
                             rows.Add(cells);
                     }
                     if (headers != null && rows.Count > 0)
-                    {                        
+                    {
                         document.Elements.Add(new TableElement(headers, rows));
                     }
                 }
@@ -78,6 +78,7 @@ public class DocxToDocumentConverter
 
         return document;
     }
+
 
     private string ExtractText(OpenXmlElement element)
     {

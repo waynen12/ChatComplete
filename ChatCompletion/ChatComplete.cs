@@ -34,7 +34,7 @@ namespace ChatCompletion
             while(true)
             {
                 Console.Write("You: ");
-                string userMessage = Console.ReadLine();
+                string? userMessage = Console.ReadLine();
                 if (!string.IsNullOrEmpty(userMessage))
                 {
                     if (userMessage.ToLower() == "exit")
@@ -69,7 +69,7 @@ namespace ChatCompletion
         while (true)
         {
             Console.Write("You: ");
-            string userInput = Console.ReadLine();
+            string? userInput = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(userInput) || userInput.ToLower() == "exit")
             {
                 Console.WriteLine("👋 Goodbye!");
