@@ -18,11 +18,64 @@ public class KnowledgeManager
 
     ISemanticTextMemory _memory;
 
+    private KnowledgeSourceResolver _knowledgeSourceResolver;
+
     public KnowledgeManager(ISemanticTextMemory memory, AtlasIndexManager indexManager)
     {
         _memory = memory;
         _indexManager = indexManager;
+        _knowledgeSourceResolver = new KnowledgeSourceResolver(new KnowledgeSourceFactory());
     }
+
+    public async Task<ISemanticTextMemory> SaveToMemoryAsync(string documentPath, string collectionName)
+{
+    Console.WriteLine($"Importing chunks from '{documentPath}' into collection '{collectionName}'...");
+
+    KnowledgeParseResult result;
+    await using (var fileStream = new FileStream(documentPath, FileMode.Open, FileAccess.Read))
+    {
+        result = await _knowledgeSourceResolver.ParseAsync(fileStream, documentPath);
+    }
+
+    if (!result.Success || result.Document == null)
+    {
+        throw new Exception($"Failed to parse document '{documentPath}': {result.Error}");
+    }
+
+    var document = result.Document;
+    var isStructured = document.Elements.Any(e => e is IHeadingElement);
+
+    List<KnowledgeChunk> chunks;
+    if (isStructured)
+    {
+        var markdown = DocumentToTextConverter.Convert(document);
+        chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, document.Source);
+    }
+    else
+    {
+        chunks = KnowledgeChunker.ChunkFromPlainText(document.ToString(), document.Source);
+    }
+
+    foreach (var chunk in chunks)
+    {
+        await _memory.SaveReferenceAsync(
+            collection: collectionName,
+            description: chunk.Content,
+            text: chunk.Content,
+            externalId: chunk.Metadata.Section,
+            externalSourceName: chunk.Metadata.Source,
+            additionalMetadata: string.Join(", ", chunk.Metadata.Tags)
+        );
+        Console.WriteLine($"✅ Saved chunk: {chunk.Metadata.Section} ({chunk.Content.Length} chars)");
+    }
+
+    Console.WriteLine("✅ All chunks imported successfully.");
+
+    await _indexManager.CreateIndexAsync(collectionName);
+
+    return _memory;
+}
+
 
     public async Task<ISemanticTextMemory> SaveMarkDownToMemory(
     string documentPath,

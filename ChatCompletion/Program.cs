@@ -47,20 +47,17 @@ public class Program
             }
             var knowledgeManager = new KnowledgeManager(memory, indexManager);     
 
-            await knowledgeManager.SaveMarkDownToMemory(
+            await knowledgeManager.SaveToMemoryAsync(
                 "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Deployment_Script_QA.md",
-                CollectionName,
                 CollectionName);
 
-            await knowledgeManager.SaveMarkDownToMemory(
+            await knowledgeManager.SaveToMemoryAsync(
             "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Deployment_Script_TS.md",
-            CollectionName,
             CollectionName);
 
 
-            await knowledgeManager.SaveMarkDownToMemory(
+            await knowledgeManager.SaveToMemoryAsync(
                 "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/New_System_Installation_Guide.md",
-                CollectionName,
                 CollectionName);
 
             await knowledgeManager.CreateIndexAsync(CollectionName);
