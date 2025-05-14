@@ -44,7 +44,7 @@ public class Program
 
         _logger.Information("Starting ChatComplete application...");
 
-        var memory = KernelHelper.GetMongoDBMemoryStore(SettingsProvider.Settings.Atlas.DatabaseName, SettingsProvider.Settings.Atlas.SearchIndexName, SettingsProvider.Settings.TextEmbeddingModelName);
+        var memory = KernelHelper.GetMongoDBMemoryStore(SettingsProvider.Settings.Atlas.ClusterName, SettingsProvider.Settings.Atlas.SearchIndexName, SettingsProvider.Settings.TextEmbeddingModelName);
         Console.WriteLine(@"Press i to import or c to chat");
         var userInput = Console.ReadLine()?.ToLower();
         if (userInput == "i")
@@ -75,7 +75,6 @@ public class Program
                 Path.Combine(SettingsProvider.Settings.FilePath, "New_System_Installation_Guide.md"),
                 CollectionName);
 
-            await knowledgeManager.CreateIndexAsync();
 
         }
         else if (userInput== "c")

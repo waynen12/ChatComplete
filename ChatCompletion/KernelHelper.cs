@@ -62,7 +62,7 @@ public static class KernelHelper
     }
 
 
-    public static ISemanticTextMemory GetMongoDBMemoryStore(string databaseName, string searchIndexName, string textEmbeddingModelName)
+    public static ISemanticTextMemory GetMongoDBMemoryStore(string clusterName, string searchIndexName, string textEmbeddingModelName)
     {
         var mongoDBAtlasConnectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") 
             ?? throw new InvalidOperationException("The MongoDB Atlas connection string is not set in the environment variables.");
@@ -81,7 +81,7 @@ public static class KernelHelper
 
         var mongoDBMemoryStore = new MongoDBMemoryStore(
             mongoDBAtlasConnectionString,
-            databaseName,
+            clusterName,
             searchIndexName);
         memoryBuilder.WithMemoryStore(mongoDBMemoryStore);
         var memory = memoryBuilder.Build();

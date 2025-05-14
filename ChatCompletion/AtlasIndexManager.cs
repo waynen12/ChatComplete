@@ -27,7 +27,7 @@ public class AtlasIndexManager
     private AtlasIndexManager(string collectionName, HttpClient httpClient, string projectId)
     {
         _clusterName = SettingsProvider.Settings.Atlas.ClusterName;
-        _databaseName = SettingsProvider.Settings.Atlas.DatabaseName;
+        _databaseName = SettingsProvider.Settings.Atlas.ClusterName;
         _collectionName = collectionName;
         _httpClient = httpClient; // Use the HttpClient passed in
         _projectId = projectId;
