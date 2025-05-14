@@ -70,6 +70,7 @@ public static class KernelHelper
         var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         if (string.IsNullOrEmpty(openAiApiKey))
         {
+            LoggerProvider.Logger.Error("The OpenAI API key is not set in the environment variables.");
             throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
         }
 

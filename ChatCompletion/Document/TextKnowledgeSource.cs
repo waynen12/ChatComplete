@@ -26,6 +26,7 @@ public class TextKnowledgeSource : IKnowledgeSource
         }
         catch (Exception ex)
         {
+            LoggerProvider.Logger.Error($"Error parsing text file", ex);
             return KnowledgeParseResult.Fail($"Error parsing text file: {ex.Message}");
         }
     }

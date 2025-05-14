@@ -20,6 +20,7 @@ public static class EmbeddingsHelper
         var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         if (string.IsNullOrEmpty(openAiApiKey))
         {
+            
             throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
         }
         var completionApi = RestService.For<IEmbedding>(new HttpClient {

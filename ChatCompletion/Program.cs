@@ -2,7 +2,7 @@
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Serilog;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -13,23 +13,38 @@ using Microsoft.KernelMemory;
 using MongoDB.Driver;
 using ChatCompletion;
 using MongoDB.Driver.Core.Authentication;
+using Microsoft.Extensions.Configuration;
+using ChatCompletion.Config;
+
+
 
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
 public class Program
 {
-    static string TextEmbeddingModelName = "text-embedding-ada-002";
-
-    static string DatabaseName = "EmbeddingTestCluster0";
     static string CollectionName = "Tracker";
-    static string SearchIndexName = "default";
-   
+    static ILogger _logger;
 
     public static async Task Main(string[] args)
     {
 
-        var memory = KernelHelper.GetMongoDBMemoryStore(DatabaseName, SearchIndexName, TextEmbeddingModelName);
+        var config = new ConfigurationBuilder()
+        .SetBasePath(Directory.GetCurrentDirectory())
+        .AddJsonFile("appsettings.json", optional: false)
+        .AddEnvironmentVariables()
+        .Build();
+
+        var settings = config.Get<ChatCompleteSettings>();
+        SettingsProvider.Initialize(settings);  // Register globally
+
+        // Initialize the logger
+        LoggerProvider.ConfigureLogger();
+        _logger = LoggerProvider.Logger;
+
+        _logger.Information("Starting ChatComplete application...");
+
+        var memory = KernelHelper.GetMongoDBMemoryStore(SettingsProvider.Settings.Atlas.DatabaseName, SettingsProvider.Settings.Atlas.SearchIndexName, SettingsProvider.Settings.TextEmbeddingModelName);
         Console.WriteLine(@"Press i to import or c to chat");
         var userInput = Console.ReadLine()?.ToLower();
         if (userInput == "i")
@@ -38,7 +53,7 @@ public class Program
             // var document = docxToDocumentConverter.Convert("/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/LicenceDashboard_Test.docx", "licence_dashboard");
             // DocumentToTextConverter.Convert(document);
 
-            var indexManager = await AtlasIndexManager.CreateAsync("Project 0", DatabaseName, DatabaseName, CollectionName);
+            var indexManager = await AtlasIndexManager.CreateAsync(CollectionName);
              // *** Check if creation was successful ***
             if (indexManager == null)
             {
@@ -48,19 +63,19 @@ public class Program
             var knowledgeManager = new KnowledgeManager(memory, indexManager);     
 
             await knowledgeManager.SaveToMemoryAsync(
-                "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Deployment_Script_QA.md",
+                Path.Combine(SettingsProvider.Settings.FilePath, "Deployment_Script_QA.md"),
                 CollectionName);
 
             await knowledgeManager.SaveToMemoryAsync(
-            "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/Deployment_Script_TS.md",
+            Path.Combine(SettingsProvider.Settings.FilePath,"Deployment_Script_TS.md"),
             CollectionName);
 
 
             await knowledgeManager.SaveToMemoryAsync(
-                "/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/New_System_Installation_Guide.md",
+                Path.Combine(SettingsProvider.Settings.FilePath, "New_System_Installation_Guide.md"),
                 CollectionName);
 
-            await knowledgeManager.CreateIndexAsync(CollectionName);
+            await knowledgeManager.CreateIndexAsync();
 
         }
         else if (userInput== "c")

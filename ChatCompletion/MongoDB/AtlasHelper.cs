@@ -5,18 +5,21 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Amazon.Runtime.Internal.Util;
 
 public static class AtlasHelper
 {
     public static async Task<string?> GetProjectIdByNameAsync(string projectName, HttpClient httpClient)
     {
-        var response = httpClient.GetAsync(MongoConstants.AtlasProjectUrl).Result;
+        var response = await httpClient.GetAsync(MongoConstants.AtlasProjectUrl);
 
         if (!response.IsSuccessStatusCode)
         {
             Console.WriteLine($"Failed to retrieve project list. Status: {response.StatusCode}");
-            string error = response.Content.ReadAsStringAsync().Result;
+            string error = await response.Content.ReadAsStringAsync();
             Console.WriteLine(error);
+            LoggerProvider.Logger.Error($"Failed to retrieve project list. Status: {response.StatusCode}");
+            LoggerProvider.Logger.Error(error);
             return null;
         }
 

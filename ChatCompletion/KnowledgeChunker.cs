@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using ChatCompletion.Config;
 
 public static class KnowledgeChunker
 {
@@ -37,7 +38,7 @@ public static class KnowledgeChunker
             return new List<KnowledgeChunk>();
         }
         // Split by paragraphs or custom logic
-        // ensure each chunk is <= 4096 tokens
+        // ensure each chunk is <= SettingsProvider.Settings.ChunkCharacterLimit tokens
         var chunks = new List<KnowledgeChunk>();
         var paragraphs = text.Split("\n\n").Where(p => !string.IsNullOrWhiteSpace(p));
         var currentChunk = new StringBuilder();
@@ -50,7 +51,7 @@ public static class KnowledgeChunker
 
         foreach (var paragraph in paragraphs)
         {
-            if (currentChunk.Length + paragraph.Length > 4096)
+            if (currentChunk.Length + paragraph.Length > SettingsProvider.Settings.ChunkCharacterLimit)
             {
                 chunks.Add(new KnowledgeChunk
                 {

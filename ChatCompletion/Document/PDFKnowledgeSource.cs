@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Amazon.Runtime.Internal.Util;
 using UglyToad.PdfPig;
 
 public class PDFKnowledgeSource : IKnowledgeSource
@@ -42,6 +43,7 @@ public class PDFKnowledgeSource : IKnowledgeSource
         }
         catch (Exception ex)
         {
+            LoggerProvider.Logger.Error($"Error parsing PDF", ex);
             return Task.FromResult(KnowledgeParseResult.Fail($"Error parsing PDF: {ex.Message}"));
         }
         

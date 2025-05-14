@@ -8,14 +8,13 @@ using Microsoft.KernelMemory;
 using MongoDB.Driver;
 using ChatCompletion;
 using MongoDB.Driver.Core.Authentication;
+using Microsoft.Extensions.Logging;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
 public class KnowledgeManager
 {
     private readonly AtlasIndexManager _indexManager;
-    const string TextEmbeddingModelName = "text-embedding-ada-002";
-
     ISemanticTextMemory _memory;
 
     private KnowledgeSourceResolver _knowledgeSourceResolver;
@@ -39,6 +38,7 @@ public class KnowledgeManager
 
     if (!result.Success || result.Document == null)
     {
+        LoggerProvider.Logger.Error($"Failed to parse document '{documentPath}': {result.Error}");
         throw new Exception($"Failed to parse document '{documentPath}': {result.Error}");
     }
 
@@ -70,76 +70,21 @@ public class KnowledgeManager
     }
 
     Console.WriteLine("✅ All chunks imported successfully.");
+    LoggerProvider.Logger.Information("All chunks imported successfully.");
 
-    await _indexManager.CreateIndexAsync(collectionName);
+    await _indexManager.CreateIndexAsync();
 
     return _memory;
 }
 
 
-    public async Task<ISemanticTextMemory> SaveMarkDownToMemory(
-    string documentPath,
-    string sourceName,
-    string collectionName)
+
+    public async Task CreateIndexAsync()
     {
-        Console.WriteLine($"Importing chunks from '{documentPath}' into collection '{collectionName}'...");
-
-        var markdown = File.ReadAllText(documentPath);
-        var markdownChunks = KnowledgeChunker.ChunkFromMarkdown(markdown, sourceName);
-        ISemanticTextMemory memory = await SaveKnowledgeDocumentsToMemory(markdownChunks, sourceName, collectionName);
-        return memory;
-
+        await _indexManager.CreateIndexAsync();
     }
 
-    public async Task CreateIndexAsync(string collectionName)
-    {
-        await _indexManager.CreateIndexAsync(collectionName);
-    }
-
-    public async Task<ISemanticTextMemory> SaveDocxToMemory(
-        string documentPath,
-        string sourceName,
-        string collectionName)
-    {
-        ISemanticTextMemory memory;
-        Console.WriteLine($"Importing chunks from '{documentPath}' into collection '{collectionName}'...");
-
-        DocxToDocumentConverter docxToDocumentConverter = new DocxToDocumentConverter();
-        DocxKnowledgeSource docxKnowledgeSource = new DocxKnowledgeSource();
-        KnowledgeParseResult result;
-
-        await using (var fileStream = new FileStream(documentPath, FileMode.Open, FileAccess.Read)) // Use 'using'
-        {
-            result = await docxKnowledgeSource.ParseAsync(fileStream);
-        }
-        if (result == null)
-        {
-            throw new Exception("SaveDocxToMemory -> Parse result is null");
-        }
-        var document = result?.Document;
-        if (document == null)
-        {
-            throw new Exception("SaveDocxToMemory -> Parsed Document is null");
-        }
-        var isStructured = document.Elements.Any(e => e is IHeadingElement);
-        if (isStructured)
-        {
-            var markdown = DocumentToTextConverter.Convert(document);
-            var markdownChunks = KnowledgeChunker.ChunkFromMarkdown(markdown, sourceName);
-            memory = await SaveKnowledgeDocumentsToMemory(markdownChunks, sourceName, collectionName);
-            await _indexManager.CreateIndexAsync(collectionName);
-
-        }
-        else
-        {
-            var textChunks= KnowledgeChunker.ChunkFromPlainText(document?.ToString(), sourceName);
-            memory =  await SaveKnowledgeDocumentsToMemory(textChunks, sourceName, collectionName);
-            await _indexManager.CreateIndexAsync(collectionName);
-
-        }
-        return memory;
-        
-    }
+   
 
     public async Task<ISemanticTextMemory> SaveKnowledgeDocumentsToMemory(List<KnowledgeChunk> chunks, string sourceName, string collectionName)
     {

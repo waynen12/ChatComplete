@@ -1,3 +1,5 @@
+using Amazon.Runtime.Internal.Util;
+
 public class KnowledgeSourceResolver
 {
     private readonly KnowledgeSourceFactory _factory;
@@ -20,6 +22,7 @@ public class KnowledgeSourceResolver
 
         if (source == null)
         {
+            LoggerProvider.Logger.Error($"No knowledge source registered for extension '{extension}'. Supported extensions: {string.Join(", ", _factory.GetSupportedExtensions())}");
             return KnowledgeParseResult.Fail(
                 $"No knowledge source registered for extension '{extension}'. Supported extensions: {string.Join(", ", _factory.GetSupportedExtensions())}");
         }

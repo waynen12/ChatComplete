@@ -1,3 +1,5 @@
+using Amazon.Runtime.Internal.Util;
+
 public class DocxKnowledgeSource : IKnowledgeSource
 {
     public string SupportedFileExtension => ".docx";
@@ -12,6 +14,7 @@ public class DocxKnowledgeSource : IKnowledgeSource
         }
         catch(Exception ex)
         {
+            LoggerProvider.Logger.Error($"Error parsing DOCX", ex);
             return KnowledgeParseResult.Fail($"Error parsing DOCX: {ex.Message}");
         }
         

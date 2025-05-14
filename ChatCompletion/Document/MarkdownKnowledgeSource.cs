@@ -15,6 +15,7 @@ public class MarkdownKnowledgeSource : IKnowledgeSource
         }
         catch (Exception ex)
         {
+            LoggerProvider.Logger.Error($"Error parsing markdown", ex);
             return KnowledgeParseResult.Fail($"Error parsing markdown: {ex.Message}");
         }
 
