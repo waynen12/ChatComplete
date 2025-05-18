@@ -1,16 +1,8 @@
-using System;
-using System.ComponentModel;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
-using MongoDB.Driver;
-using MongoDB.Driver.Core.Authentication;
-using HandlebarsDotNet.Helpers.BlockHelpers;
+using ChatCompletion.Config;
 
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
@@ -27,7 +19,7 @@ public static class KernelHelper
         {
             throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
         }
-        builder.AddOpenAIChatCompletion("gpt-4o", openAiApiKey);
+        builder.AddOpenAIChatCompletion(SettingsProvider.Settings.OpenAIModel, openAiApiKey);
         Kernel kernel = builder.Build();
         return kernel;
     }
@@ -41,8 +33,7 @@ public static class KernelHelper
         {
             throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
         }
-        builder.AddOpenAIChatCompletion("gpt-4o", openAiApiKey);
-        builder.Services.AddLogging(configure => configure.AddConsole().SetMinimumLevel(LogLevel.Trace));
+        builder.AddOpenAIChatCompletion(SettingsProvider.Settings.OpenAIModel, openAiApiKey);
         builder.Plugins.AddFromType<T>(typeName);
         Kernel kernel = builder.Build();
         return kernel;
@@ -57,7 +48,7 @@ public static class KernelHelper
         {
             throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
         }
-        builder.AddOpenAIChatCompletion("gpt-4o", openAiApiKey);
+        builder.AddOpenAIChatCompletion(SettingsProvider.Settings.OpenAIModel, openAiApiKey);
         return builder;
     }
 

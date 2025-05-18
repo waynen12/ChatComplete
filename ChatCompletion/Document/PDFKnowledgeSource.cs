@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Amazon.Runtime.Internal.Util;
 using UglyToad.PdfPig;
 
 public class PDFKnowledgeSource : IKnowledgeSource

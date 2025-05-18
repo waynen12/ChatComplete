@@ -24,7 +24,7 @@ using ChatCompletion.Config;
 public class Program
 {
     static string CollectionName = "Tracker";
-    static ILogger _logger;
+    static ILogger _logger = null!;
 
     public static async Task Main(string[] args)
     {
@@ -36,6 +36,11 @@ public class Program
         .Build();
 
         var settings = config.Get<ChatCompleteSettings>();
+        if (settings == null)
+        {
+            Console.WriteLine("Failed to load settings from appsettings.json");
+            return;
+        }
         SettingsProvider.Initialize(settings);  // Register globally
 
         // Initialize the logger

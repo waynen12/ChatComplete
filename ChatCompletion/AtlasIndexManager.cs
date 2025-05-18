@@ -47,14 +47,14 @@ public class AtlasIndexManager
         if (string.IsNullOrEmpty(publicKey))
         {
             Console.WriteLine("Error: The MongoDB public API key is not set in the environment variables.");
-            // throw new InvalidOperationException("The MongoDB public API key is not set in the environment variables.");
-            return null; // Return null or throw depending on desired handling
+            LoggerProvider.Logger.Error("The MongoDB public API key is not set in the environment variables.");
+            throw new InvalidOperationException("The MongoDB public API key is not set in the environment variables.");            
         }
         if (string.IsNullOrEmpty(privateKey))
         {
              Console.WriteLine("Error: The MongoDB private API key is not set in the environment variables.");
              LoggerProvider.Logger.Error("The MongoDB private API key is not set in the environment variables.");
-             return null; // Return null or throw
+             throw new InvalidOperationException("The MongoDB private API key is not set in the environment variables.");
         }
 
         var handler = new HttpClientHandler
@@ -102,7 +102,7 @@ public class AtlasIndexManager
         {
             if (index.GetProperty("collectionName").GetString() == _collectionName &&
                 index.GetProperty("database").GetString() == _databaseName &&
-                index.GetProperty("name").GetString() == MongoConstants.AtlasSearchIndexName)
+                index.GetProperty("name").GetString() == SettingsProvider.Settings.Atlas.SearchIndexName)
             {
                 return true;
             }
@@ -131,7 +131,7 @@ public class AtlasIndexManager
         {
             if (index.GetProperty("collectionName").GetString() == _collectionName &&
                 index.GetProperty("database").GetString() == _databaseName &&
-                index.GetProperty("name").GetString() == MongoConstants.AtlasSearchIndexName)
+                index.GetProperty("name").GetString() == SettingsProvider.Settings.Atlas.SearchIndexName)
             {
                 return index.GetProperty("indexID").GetString();
             }
@@ -176,8 +176,8 @@ public class AtlasIndexManager
     {
         if (await IndexExistsAsync())
         {
-            Console.WriteLine($"Index '{MongoConstants.AtlasSearchIndexName}' already exists. Skipping creation.");
-            LoggerProvider.Logger.Information($"Index '{MongoConstants.AtlasSearchIndexName}' already exists. Skipping creation.");
+            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
+            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
             return;
         }
 
@@ -185,7 +185,7 @@ public class AtlasIndexManager
         {
             collectionName = _collectionName,
             database = _databaseName,
-            name = MongoConstants.AtlasSearchIndexName,
+            name = SettingsProvider.Settings.Atlas.SearchIndexName,
             mappings = new
             {
                 dynamic = false,
@@ -208,15 +208,15 @@ public class AtlasIndexManager
 
         if (response.IsSuccessStatusCode)
         {
-            Console.WriteLine($"Successfully created index '{MongoConstants.AtlasSearchIndexName}'.");
-            LoggerProvider.Logger.Information($"Successfully created index '{MongoConstants.AtlasSearchIndexName}'.");
+            Console.WriteLine($"Successfully created index '{SettingsProvider.Settings.Atlas.SearchIndexName}'.");
+            LoggerProvider.Logger.Information($"Successfully created index '{SettingsProvider.Settings.Atlas.SearchIndexName}'.");
         }
         else
         {
-            Console.WriteLine($"Failed to create index '{MongoConstants.AtlasSearchIndexName}'. Status: {response.StatusCode}");
+            Console.WriteLine($"Failed to create index '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Status: {response.StatusCode}");
             string error = await response.Content.ReadAsStringAsync();
             Console.WriteLine(error);
-            LoggerProvider.Logger.Error($"Failed to create index '{MongoConstants.AtlasSearchIndexName}'. Status: {response.StatusCode}");
+            LoggerProvider.Logger.Error($"Failed to create index '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Status: {response.StatusCode}");
             LoggerProvider.Logger.Error(error);
         }
     }
@@ -226,8 +226,8 @@ public class AtlasIndexManager
     {
         if (await IndexExistsAsync())
         {
-            Console.WriteLine($"Index '{MongoConstants.AtlasSearchIndexName}' already exists. Skipping creation.");
-            LoggerProvider.Logger.Information($"Index '{MongoConstants.AtlasSearchIndexName}' already exists. Skipping creation.");
+            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
+            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
             return;
         }
         await CreateVectorSearchIndexAsync("embedding", 1536, "cosine");
@@ -237,16 +237,16 @@ public class AtlasIndexManager
     {
         if (!await IndexExistsAsync())
         {
-            Console.WriteLine($"Index '{MongoConstants.AtlasSearchIndexName}' does not exist. Cannot delete.");
-            LoggerProvider.Logger.Information($"Index '{MongoConstants.AtlasSearchIndexName}' does not exist. Cannot delete.");
+            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' does not exist. Cannot delete.");
+            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' does not exist. Cannot delete.");
             return;
         }
 
         string? indexId = await GetIndexIdAsync();
         if (indexId == null)
         {
-            Console.WriteLine($"Failed to retrieve index ID for '{MongoConstants.AtlasSearchIndexName}'. Cannot delete.");
-            LoggerProvider.Logger.Error($"Failed to retrieve index ID for '{MongoConstants.AtlasSearchIndexName}'. Cannot delete.");
+            Console.WriteLine($"Failed to retrieve index ID for '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Cannot delete.");
+            LoggerProvider.Logger.Error($"Failed to retrieve index ID for '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Cannot delete.");
             return;
         }
        // string deleteBaseUrl = $"{_baseUrl}/groups/{_projectId}/clusters/{_clusterName}/fts/indexes";
@@ -255,15 +255,15 @@ public class AtlasIndexManager
 
         if (response.IsSuccessStatusCode)
         {
-            Console.WriteLine($"Successfully deleted index '{MongoConstants.AtlasSearchIndexName}'.");
-            LoggerProvider.Logger.Information($"Successfully deleted index '{MongoConstants.AtlasSearchIndexName}'.");
+            Console.WriteLine($"Successfully deleted index '{SettingsProvider.Settings.Atlas.SearchIndexName}'.");
+            LoggerProvider.Logger.Information($"Successfully deleted index '{SettingsProvider.Settings.Atlas.SearchIndexName}'.");
         }
         else
         {
-            Console.WriteLine($"Failed to delete index '{MongoConstants.AtlasSearchIndexName}'. Status: {response.StatusCode}");
+            Console.WriteLine($"Failed to delete index '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Status: {response.StatusCode}");
             string error = await response.Content.ReadAsStringAsync();
             Console.WriteLine(error);
-            LoggerProvider.Logger.Error($"Failed to delete index '{MongoConstants.AtlasSearchIndexName}'. Status: {response.StatusCode}");
+            LoggerProvider.Logger.Error($"Failed to delete index '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Status: {response.StatusCode}");
             LoggerProvider.Logger.Error(error);
         }
     }

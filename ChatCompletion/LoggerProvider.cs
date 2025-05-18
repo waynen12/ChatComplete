@@ -17,7 +17,6 @@ public static class LoggerProvider
             .WriteTo.File(
                 path: logFilePath,
                 rollingInterval: RollingInterval.Hour,
-                fileSizeLimitBytes: SettingsProvider.Settings.LogFileSizeLimit,
                 rollOnFileSizeLimit: true,
                 retainedFileCountLimit: 10,
                 shared: true,

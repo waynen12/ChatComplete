@@ -1,4 +1,4 @@
-using Amazon.Runtime.Internal.Util;
+
 
 public class DocxKnowledgeSource : IKnowledgeSource
 {

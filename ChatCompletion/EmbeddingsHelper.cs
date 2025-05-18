@@ -5,7 +5,6 @@ using ConnectingApps.Refit.OpenAI;
 using ConnectingApps.Refit.OpenAI.Embeddings;
 using ConnectingApps.Refit.OpenAI.Embeddings.Request;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -20,7 +19,7 @@ public static class EmbeddingsHelper
         var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         if (string.IsNullOrEmpty(openAiApiKey))
         {
-            
+
             throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
         }
         var completionApi = RestService.For<IEmbedding>(new HttpClient {

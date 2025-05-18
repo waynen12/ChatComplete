@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using ChatCompletion.Config;
+using Microsoft.SemanticKernel.Text;   
+
 
 public static class KnowledgeChunker
 {
