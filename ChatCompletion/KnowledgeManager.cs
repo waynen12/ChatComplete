@@ -10,6 +10,8 @@ using ChatCompletion;
 using Microsoft.SemanticKernel.Text;   // NEW
 using ChatCompletion.Config;           // to reach SettingsProvider
 using MongoDB.Driver.Core.Authentication;
+using System.Diagnostics;
+using Serilog;
 
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
@@ -33,90 +35,65 @@ public class KnowledgeManager
 
     public async Task<ISemanticTextMemory> SaveToMemoryAsync(string documentPath, string collectionName)
     {
-        LoggerProvider.Logger.Information(
-            "Importing {File} into collection {Collection}",
-            documentPath, collectionName);
+        var sw = Stopwatch.StartNew();
+        LoggerProvider.Logger.Information("⏫ Importing {File} into {Collection}", documentPath, collectionName);
 
-        // ─── 1. Parse the document ────────────────────────────────────────────────
-        KnowledgeParseResult parseResult;
-        await using (var fs = new FileStream(documentPath, FileMode.Open, FileAccess.Read))
-        {
-            parseResult = await _knowledgeSourceResolver.ParseAsync(fs, documentPath);
-        }
+        // 1. Parse
+        KnowledgeParseResult parse;
+        await using var fs = File.OpenRead(documentPath);
+        parse = await _knowledgeSourceResolver.ParseAsync(fs, documentPath);
 
-        if (!parseResult.Success || parseResult.Document is null)
-        {
-            LoggerProvider.Logger.Error(
-                "Failed to parse {File}: {Err}", documentPath, parseResult.Error);
-            throw new InvalidOperationException(
-                $"Failed to parse {documentPath}: {parseResult.Error}");
-        }
+        if (!parse.Success || parse.Document is null)
+            throw new InvalidOperationException($"Failed to parse {documentPath}: {parse.Error}");
 
-        var doc          = parseResult.Document;
-        bool isStructured = doc.Elements.Any(e => e is IHeadingElement);
-
-        // ─── 2. Convert to raw text (markdown if structured) ──────────────────────
-        string? rawText = isStructured
-            ? DocumentToTextConverter.Convert(doc)   // headings preserved as "## …"
-            : doc.ToString();
-
-        // Chunking parameters from configuration (with safe fall-backs)
-        int lineTokens       = SettingsProvider.Settings.ChunkLineTokens      > 0
-                            ? SettingsProvider.Settings.ChunkLineTokens      : 60;
-        int paragraphTokens  = SettingsProvider.Settings.ChunkParagraphTokens > 0
-                            ? SettingsProvider.Settings.ChunkParagraphTokens : 200;
-        int overlapTokens    = SettingsProvider.Settings.ChunkOverlap         >= 0
-                            ? SettingsProvider.Settings.ChunkOverlap         : 0;
-
+        // 2. Convert
+        var doc       = parse.Document;
+        bool markdown = doc.Elements.Any(e => e is IHeadingElement);
+        var rawText   = markdown ? DocumentToTextConverter.Convert(doc) : doc.ToString();
         if (string.IsNullOrWhiteSpace(rawText))
         {
-            LoggerProvider.Logger.Error(
-                "Failed to convert {File} to text", documentPath);
-            throw new InvalidOperationException(
-                $"Failed to convert {documentPath} to text");
-        }                   
+            LoggerProvider.Logger.Warning("Document {File} is empty or invalid", documentPath);
+            throw new InvalidOperationException($"Failed to convert {documentPath} to text");
+        }
 
-        // ─── 3. Token-aware chunking ──────────────────────────────────────────────
-        List<string> lines = isStructured
-            ? TextChunker.SplitMarkDownLines(rawText, lineTokens)
-            : TextChunker.SplitPlainTextLines(rawText, lineTokens);
+        // 3. Chunk
+        int maxLine   = SettingsProvider.Settings.ChunkLineTokens      > 0 ? SettingsProvider.Settings.ChunkLineTokens      : 60;
+        int maxPara   = SettingsProvider.Settings.ChunkParagraphTokens > 0 ? SettingsProvider.Settings.ChunkParagraphTokens : 200;
+        int overlap   = Math.Max(0, SettingsProvider.Settings.ChunkOverlap);
 
-        List<string> paragraphs = isStructured
-            ? TextChunker.SplitMarkdownParagraphs(lines, paragraphTokens, overlapTokens)
-            : TextChunker.SplitPlainTextParagraphs(lines, paragraphTokens, overlapTokens);
+        var lines      = markdown ? TextChunker.SplitMarkDownLines(rawText, maxLine)
+                                : TextChunker.SplitPlainTextLines(rawText, maxLine);
+        var paragraphs = markdown ? TextChunker.SplitMarkdownParagraphs(lines, maxPara, overlap)
+                                : TextChunker.SplitPlainTextParagraphs(lines, maxPara, overlap);
 
-        // ─── 4. Persist chunks to the vector store ────────────────────────────────
-        int chunkIndex = 0;
-        foreach (var paragraph in paragraphs)
+        // 4. Persist
+        string source = doc.Source;
+        string fileId = Path.GetFileNameWithoutExtension(documentPath);
+
+        for (int i = 0; i < paragraphs.Count; i++)
         {
-            var chunk = new KnowledgeChunk
-            {
-                Content = paragraph,
-                Metadata = new KnowledgeMetadata
-                {
-                    Source  = doc.Source,
-                    Section = $"chunk-{chunkIndex++}",
-                    Tags    = Array.Empty<string>() // add your own tag logic if desired
-                }
-            };
-
             await _memory.SaveReferenceAsync(
-                collection:            collectionName,
-                description:           chunk.Content,
-                text:                  chunk.Content,
-                externalId:            chunk.Metadata.Section,
-                externalSourceName:    chunk.Metadata.Source,
-                additionalMetadata:    string.Empty);
+                collection:          collectionName,
+                description:         paragraphs[i],
+                text:                paragraphs[i],
+                externalId:          $"{fileId}-p{i:0000}",
+                externalSourceName:  source,
+                additionalMetadata:  string.Empty);
         }
 
         LoggerProvider.Logger.Information(
-            "Stored {Count} chunks from {File}", paragraphs.Count, documentPath);
+            "✅ Stored {Cnt} chunks from {File} in {Ms} ms",
+            paragraphs.Count, documentPath, sw.ElapsedMilliseconds);
 
-        // ─── 5. Ensure a vector index exists ──────────────────────────────────────
-        await _indexManager.CreateIndexAsync();
+        try { await _indexManager.CreateIndexAsync(); }
+        catch (Exception ex)
+        {
+            LoggerProvider.Logger.Warning(ex, "Index creation failed after import of {File}", documentPath);
+        }
 
         return _memory;
     }
+
 
 
 
@@ -125,27 +102,5 @@ public class KnowledgeManager
     public async Task CreateIndexAsync()
     {
         await _indexManager.CreateIndexAsync();
-    }
-
-   
-
-    public async Task<ISemanticTextMemory> SaveKnowledgeDocumentsToMemory(List<KnowledgeChunk> chunks, string sourceName, string collectionName)
-    {
-
-        foreach (var chunk in chunks)
-        {
-            await _memory.SaveReferenceAsync(
-                collection: collectionName,
-                description: chunk.Content,
-                text: chunk.Content,
-                externalId: chunk.Metadata.Section,
-                externalSourceName: chunk.Metadata.Source,
-                additionalMetadata: string.Join(", ", chunk.Metadata.Tags)
-            );
-            Console.WriteLine($"✅ Saved chunk: {chunk.Metadata.Section} ({chunk.Content.Length} chars)");
-        }
-
-        Console.WriteLine("✅ All chunks imported successfully.");
-        return _memory;
-    }
+    }    
 }
