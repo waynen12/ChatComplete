@@ -1,20 +1,11 @@
-import { Route, Routes, Navigate } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
-import KnowledgeListPage from './pages/KnowledgeListPage';
-import KnowledgeFormPage from './pages/KnowledgeFormPage';
-import ChatPage from './pages/ChatPage';
+import { Button } from "@/components/ui/button"
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/knowledge" element={<KnowledgeListPage />} />
-      <Route path="/knowledge/new" element={<KnowledgeFormPage />} />
-      <Route path="/knowledge/:id/edit" element={<KnowledgeFormPage />} />
-      <Route path="/chat" element={<ChatPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
+    <div className="flex flex-col items-center justify-center min-h-svh">
+      <Button>Click me</Button>
+    </div>
+  )
 }
 
-export default App;
+export default App

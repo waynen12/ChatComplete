@@ -30,8 +30,8 @@ public class KnowledgeManager
         _knowledgeSourceResolver = new KnowledgeSourceResolver(new KnowledgeSourceFactory());
     }
 
-       // to reach SettingsProvider
-// … other usings …
+    // to reach SettingsProvider
+    // … other usings …
 
     public async Task<ISemanticTextMemory> SaveToMemoryAsync(string documentPath, string collectionName)
     {
@@ -40,16 +40,29 @@ public class KnowledgeManager
 
         // 1. Parse
         KnowledgeParseResult parse;
-        await using var fs = File.OpenRead(documentPath);
-        parse = await _knowledgeSourceResolver.ParseAsync(fs, documentPath);
+        try
+        {
+            await using (var fs = File.OpenRead(documentPath))
+            {
+                parse = await _knowledgeSourceResolver.ParseAsync(fs, documentPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerProvider.Logger.Error(ex, "Failed to read or parse the file {File}", documentPath);
+            throw;
+        }
 
         if (!parse.Success || parse.Document is null)
+        {
+            LoggerProvider.Logger.Warning("Document {File} is empty or invalid", documentPath);
             throw new InvalidOperationException($"Failed to parse {documentPath}: {parse.Error}");
+        }
 
         // 2. Convert
-        var doc       = parse.Document;
+            var doc = parse.Document;
         bool markdown = doc.Elements.Any(e => e is IHeadingElement);
-        var rawText   = markdown ? DocumentToTextConverter.Convert(doc) : doc.ToString();
+        var rawText = markdown ? DocumentToTextConverter.Convert(doc) : doc.ToString();
         if (string.IsNullOrWhiteSpace(rawText))
         {
             LoggerProvider.Logger.Warning("Document {File} is empty or invalid", documentPath);
@@ -57,11 +70,11 @@ public class KnowledgeManager
         }
 
         // 3. Chunk
-        int maxLine   = SettingsProvider.Settings.ChunkLineTokens      > 0 ? SettingsProvider.Settings.ChunkLineTokens      : 60;
-        int maxPara   = SettingsProvider.Settings.ChunkParagraphTokens > 0 ? SettingsProvider.Settings.ChunkParagraphTokens : 200;
-        int overlap   = Math.Max(0, SettingsProvider.Settings.ChunkOverlap);
+        int maxLine = SettingsProvider.Settings.ChunkLineTokens > 0 ? SettingsProvider.Settings.ChunkLineTokens : 60;
+        int maxPara = SettingsProvider.Settings.ChunkParagraphTokens > 0 ? SettingsProvider.Settings.ChunkParagraphTokens : 200;
+        int overlap = Math.Max(0, SettingsProvider.Settings.ChunkOverlap);
 
-        var lines      = markdown ? TextChunker.SplitMarkDownLines(rawText, maxLine)
+        var lines = markdown ? TextChunker.SplitMarkDownLines(rawText, maxLine)
                                 : TextChunker.SplitPlainTextLines(rawText, maxLine);
         var paragraphs = markdown ? TextChunker.SplitMarkdownParagraphs(lines, maxPara, overlap)
                                 : TextChunker.SplitPlainTextParagraphs(lines, maxPara, overlap);
@@ -73,12 +86,12 @@ public class KnowledgeManager
         for (int i = 0; i < paragraphs.Count; i++)
         {
             await _memory.SaveReferenceAsync(
-                collection:          collectionName,
-                description:         paragraphs[i],
-                text:                paragraphs[i],
-                externalId:          $"{fileId}-p{i:0000}",
-                externalSourceName:  source,
-                additionalMetadata:  string.Empty);
+                collection: collectionName,
+                description: paragraphs[i],
+                text: paragraphs[i],
+                externalId: $"{fileId}-p{i:0000}",
+                externalSourceName: source,
+                additionalMetadata: string.Empty);
         }
 
         LoggerProvider.Logger.Information(
@@ -102,5 +115,7 @@ public class KnowledgeManager
     public async Task CreateIndexAsync()
     {
         await _indexManager.CreateIndexAsync();
-    }    
+    }   
+    
+     
 }
