@@ -10,6 +10,7 @@ import KnowledgeFormPage from "./pages/KnowledgeFormPage";
 import ChatPage from "./pages/ChatPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import { lazy, Suspense } from "react";
+import {PageWrapper} from "./layouts/PageWrapper";
 
 const routes: RouteObject[] = [
   {
@@ -21,9 +22,9 @@ const routes: RouteObject[] = [
       {
         path: "knowledge",
         children: [
-          { index: true, element: <KnowledgeListPage /> },
-          { path: "new", element: <KnowledgeFormPage /> },
-          { path: ":id/edit", element: <KnowledgeFormPage /> },
+          { index: true, element: <PageWrapper><KnowledgeListPage /></PageWrapper> },
+          { path: "new", element: <PageWrapper><KnowledgeFormPage /></PageWrapper> },
+          { path: ":id/edit", element: <PageWrapper><KnowledgeFormPage /> </PageWrapper>},
         ],
       },
       {

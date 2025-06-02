@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function AppLayout() {
   return (
@@ -16,6 +17,7 @@ export default function AppLayout() {
             <Button asChild variant="ghost" size="sm">
               <NavLink to="/chat">Chat</NavLink>
             </Button>
+            <ThemeToggle />
           </div>
         </nav>
       </header>

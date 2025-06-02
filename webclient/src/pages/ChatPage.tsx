@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { motion, AnimatePresence } from "framer-motion";
+import clsx from "clsx";
 
 interface Message {
   id: string;
@@ -95,20 +97,27 @@ export default function ChatPage() {
       </header>
 
       {/* Messages */}
-      <div className="overflow-y-auto p-6 space-y-4 bg-slate-50">
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`max-w-prose rounded-2xl px-4 py-2 ${
-              m.role === "user"
-                ? "bg-primary text-primary-foreground ml-auto"
-                : "bg-white shadow"
-            }`}
-          >
-            {m.content}
-          </div>
-        ))}
-        <div ref={scrollRef} />
+     <div className="overflow-y-auto p-6 bg-slate-50 flex justify-center">
+       <div className="w-full max-w-2xl space-y-2">
+         <AnimatePresence initial={false}>
+            {messages.map((m) => (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.12 }}
+                className={`max-w-prose rounded-2xl px-4 py-2 ${
+                  m.role === "user"
+                    ? "bg-primary text-primary-foreground ml-auto"
+                    : "bg-white shadow"
+                }`}
+              >
+                {m.content}
+              </motion.div>
+            ))}
+         </AnimatePresence>
+         <div ref={scrollRef} />
+       </div>
       </div>
 
       {/* Input */}

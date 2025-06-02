@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5  via-secondary/20 to-background">
       <section className="text-center space-y-8">
         <h1 className="text-4xl font-semibold tracking-tight">
           ChatComplete&nbsp;<span className="text-primary">AI</span>
