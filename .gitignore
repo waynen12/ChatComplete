@@ -59,3 +59,4 @@ yarn-debug.log
 .env.test.local
 .env.production.local
 .fake
+ChatCompletion/Docs/New_System_Installation_Guide.md
