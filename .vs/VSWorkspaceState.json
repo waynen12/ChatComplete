@@ -1,8 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\ChatComplete.Api"
+    "\\Knowledge.Api"
   ],
-  "SelectedNode": "\\ChatCompletion.sln",
+  "SelectedNode": "\\KnowledgeManager.sln",
   "PreviewInSolutionExplorer": false
 }
