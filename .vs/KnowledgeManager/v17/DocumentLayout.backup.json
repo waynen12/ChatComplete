@@ -1,0 +1,41 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\wayne\\source\\repos\\ChatComplete\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{2555AA23-8BAE-EA2D-ADC7-32D7E5C84FD3}|ChatCompletion\\ChatCompletion.csproj|c:\\users\\wayne\\source\\repos\\chatcomplete\\chatcompletion\\knowledgemanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2555AA23-8BAE-EA2D-ADC7-32D7E5C84FD3}|ChatCompletion\\ChatCompletion.csproj|solutionrelative:chatcompletion\\knowledgemanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "KnowledgeManager.cs",
+              "DocumentMoniker": "C:\\Users\\wayne\\source\\repos\\ChatComplete\\ChatCompletion\\KnowledgeManager.cs",
+              "RelativeDocumentMoniker": "ChatCompletion\\KnowledgeManager.cs",
+              "ToolTip": "C:\\Users\\wayne\\source\\repos\\ChatComplete\\ChatCompletion\\KnowledgeManager.cs",
+              "RelativeToolTip": "ChatCompletion\\KnowledgeManager.cs",
+              "ViewState": "AgIAAB0AAAAAAAAAAAAAACcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-04T16:17:30.128Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
