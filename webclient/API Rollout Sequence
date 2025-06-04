@@ -1,0 +1,16 @@
+Roll-out sequence
+1 Scaffold ChatComplete.Api → plug in CORS & Swagger.
+
+2 Stub endpoints with static responses so the React app can call without crashing.
+
+3 Flesh out KnowledgeService and connect /api/knowledge CRUD.
+
+4 Hook chat endpoint to ChatService (non-streaming first).
+
+5 Verify end-to-end: upload docs → chat grounded answers.
+
+6 Enhance chat with SSE streaming; update React sendMessage to consume stream.
+
+7 Add long-running upload → background processing (step B-6) if needed.
+
+8 Harden: validation errors, 404s, auth toggle, logging.
