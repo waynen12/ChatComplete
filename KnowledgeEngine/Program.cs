@@ -15,7 +15,7 @@ using ChatCompletion;
 using MongoDB.Driver.Core.Authentication;
 using Microsoft.Extensions.Configuration;
 using ChatCompletion.Config;
-
+using KnowledgeEngine.Logging;
 
 
 

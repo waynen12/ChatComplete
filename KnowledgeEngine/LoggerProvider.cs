@@ -1,6 +1,7 @@
 using Serilog;
 using ChatCompletion.Config;
 
+namespace KnowledgeEngine.Logging;
 public static class LoggerProvider
 {
     private static ILogger? _logger;

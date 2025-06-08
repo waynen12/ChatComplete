@@ -1,3 +1,4 @@
+using KnowledgeEngine.Logging;
 public class TextKnowledgeSource : IKnowledgeSource
 {
     public string SupportedFileExtension => ".txt";

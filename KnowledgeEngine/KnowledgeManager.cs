@@ -12,6 +12,7 @@ using ChatCompletion.Config;           // to reach SettingsProvider
 using MongoDB.Driver.Core.Authentication;
 using System.Diagnostics;
 using Serilog;
+using KnowledgeEngine.Logging;
 
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050

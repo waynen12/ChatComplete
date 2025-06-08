@@ -2,9 +2,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KnowledgeEngine", "ChatCompletion\KnowledgeEngine.csproj", "{2555AA23-8BAE-EA2D-ADC7-32D7E5C84FD3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KnowledgeEngine", "KnowledgeEngine\KnowledgeEngine.csproj", "{2555AA23-8BAE-EA2D-ADC7-32D7E5C84FD3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Knowledge.Api", "ChatComplete.Api\Knowledge.Api.csproj", "{E34B8EBF-D0D4-5D9F-2FEB-575D3BCA4898}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Knowledge.Api", "Knowledge.Api\Knowledge.Api.csproj", "{E34B8EBF-D0D4-5D9F-2FEB-575D3BCA4898}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

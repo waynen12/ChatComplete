@@ -1,3 +1,4 @@
+using KnowledgeEngine.Logging;
 public class MarkdownKnowledgeSource : IKnowledgeSource
 {
     public string SupportedFileExtension => ".md";
@@ -5,7 +6,7 @@ public class MarkdownKnowledgeSource : IKnowledgeSource
     public async Task<KnowledgeParseResult> ParseAsync(Stream fileStream)
     {
         try
-        {                       
+        {
             using var reader = new StreamReader(fileStream);
             string markdownText = await reader.ReadToEndAsync();
 

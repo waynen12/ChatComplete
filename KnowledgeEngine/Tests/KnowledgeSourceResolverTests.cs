@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
+using KnowledgeEngine.Logging;
 
 
 public class KnowledgeSourceResolverTests

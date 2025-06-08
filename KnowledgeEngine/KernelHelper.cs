@@ -3,7 +3,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
 using ChatCompletion.Config;
-
+using KnowledgeEngine.Logging;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 

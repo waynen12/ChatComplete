@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
+using KnowledgeEngine.Logging;
 
 public class PDFKnowledgeSource : IKnowledgeSource
 {

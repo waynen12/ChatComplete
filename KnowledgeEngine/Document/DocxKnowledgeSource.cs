@@ -1,5 +1,5 @@
 
-
+using KnowledgeEngine.Logging;
 public class DocxKnowledgeSource : IKnowledgeSource
 {
     public string SupportedFileExtension => ".docx";

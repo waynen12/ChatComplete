@@ -1,4 +1,5 @@
 using Amazon.Runtime.Internal.Util;
+using KnowledgeEngine.Logging;
 
 public class KnowledgeSourceResolver
 {
