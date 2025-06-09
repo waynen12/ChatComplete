@@ -112,6 +112,7 @@ app.MapPost("/api/chat", (ChatRequestDto req) =>
   
 app.MapGet("/api/ping", () => Results.Ok("pong"))
    .WithTags("Health")
-   .WithOpenApi();
+   .WithOpenApi()
+   .Produces<string>(StatusCodes.Status200OK);
 
 app.Run();

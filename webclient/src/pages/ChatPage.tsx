@@ -3,7 +3,9 @@ import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
+import type { ChatResponseDto } from "@/types/api";
 import clsx from "clsx";
 
 interface Message {
@@ -29,7 +31,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/knowledge");
+      const res = await fetch("/api/chat");
       setCollections(await res.json());
     })();
   }, []);
@@ -57,13 +59,14 @@ export default function ChatPage() {
       }),
     });
 
-    const assistantText = await res.text();
+    
+    const { reply } = (await res.json()) as ChatResponseDto;
     setMessages((m) => [
       ...m,
       {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: assistantText,
+        content: reply,
       },
     ]);
   }
@@ -102,18 +105,17 @@ export default function ChatPage() {
          <AnimatePresence initial={false}>
             {messages.map((m) => (
               <motion.div
-                key={m.id}
-                initial={{ opacity: 0, scale: 0.95, y: 4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.12 }}
-                className={`max-w-prose rounded-2xl px-4 py-2 ${
+                className={clsx(
+                  // limit bubble width
+                  "max-w-[90%] sm:max-w-xs md:max-w-md lg:max-w-lg", 
+                  "rounded-2xl px-4 py-2",
                   m.role === "user"
                     ? "bg-primary text-primary-foreground ml-auto"
                     : "bg-white shadow"
-                }`}
+                )}
               >
-                {m.content}
-              </motion.div>
+            {m.content}
+          </motion.div>
             ))}
          </AnimatePresence>
          <div ref={scrollRef} />
@@ -121,14 +123,19 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <footer className="p-4 border-t flex gap-2">
-        <Input
+      <footer className="px-70  border-t flex gap-2">
+        <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           placeholder="Type your question…"
         />
-        <Button onClick={sendMessage}>Send</Button>
+        <Button
+          onClick={sendMessage}
+          disabled={input.trim() === ""}        // ← disables on empty/whitespace
+        >
+        Send
+      </Button>
       </footer>
     </section>
   );
