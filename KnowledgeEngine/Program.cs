@@ -23,14 +23,15 @@ using KnowledgeEngine.Logging;
 
 public class Program
 {
-    static string CollectionName = "Tracker";
+    static string CollectionName = "TrackerSpec";
     static ILogger _logger = null!;
 
     public static async Task Main(string[] args)
     {
+        var test = Directory.GetCurrentDirectory();
 
         var config = new ConfigurationBuilder()
-        .SetBasePath(Directory.GetCurrentDirectory())
+        .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "KnowledgeEngine"))
         .AddJsonFile("appsettings.json", optional: false)
         .AddEnvironmentVariables()
         .Build();
@@ -68,17 +69,17 @@ public class Program
             var knowledgeManager = new KnowledgeManager(memory, indexManager);     
 
             await knowledgeManager.SaveToMemoryAsync(
-                Path.Combine(SettingsProvider.Settings.FilePath, "Deployment_Script_QA.md"),
+                Path.Combine(SettingsProvider.Settings.FilePath, "System_Inventory_Specification.md"),
                 CollectionName);
 
-            await knowledgeManager.SaveToMemoryAsync(
-            Path.Combine(SettingsProvider.Settings.FilePath,"Deployment_Script_TS.md"),
-            CollectionName);
+            // await knowledgeManager.SaveToMemoryAsync(
+            // Path.Combine(SettingsProvider.Settings.FilePath,"Deployment_Script_TS.md"),
+            // CollectionName);
 
 
-            await knowledgeManager.SaveToMemoryAsync(
-                Path.Combine(SettingsProvider.Settings.FilePath, "New_System_Installation_Guide.md"),
-                CollectionName);
+            // await knowledgeManager.SaveToMemoryAsync(
+            //     Path.Combine(SettingsProvider.Settings.FilePath, "New_System_Installation_Guide.md"),
+            //     CollectionName);
 
 
         }

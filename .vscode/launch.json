@@ -7,7 +7,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "dotnet: build",
-            "program": "${workspaceFolder}/ChatCompletion/bin/Debug/net8.0/ChatCompletion.dll",
+            "program": "${workspaceFolder}/KnowledgeEngine/bin/Debug/net8.0/KnowledgeEngine.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

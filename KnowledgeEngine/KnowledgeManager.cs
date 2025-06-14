@@ -86,13 +86,16 @@ public class KnowledgeManager
 
         for (int i = 0; i < paragraphs.Count; i++)
         {
+            var chunkOrder = i.ToString("D4");
+            var metadata = $"ChunkOrder={chunkOrder}";
+
             await _memory.SaveReferenceAsync(
                 collection: collectionName,
                 description: paragraphs[i],
                 text: paragraphs[i],
-                externalId: $"{fileId}-p{i:0000}",
+                externalId: $"{fileId}-p{chunkOrder}",
                 externalSourceName: source,
-                additionalMetadata: string.Empty);
+                additionalMetadata: metadata);
         }
 
         LoggerProvider.Logger.Information(

@@ -5,8 +5,9 @@ using KnowledgeEngine.Logging;   // whatever namespace holds LoggerProvider
 using ChatCompletion.Config;
 using Serilog;
 using Knowledge.Api.Options;
-using Knowledge.Api.Contracts;
+using Knowledge.Contracts;
 using Microsoft.AspNetCore.OpenApi;
+using Knowledge.Api.Filters; 
 
 
 LoggerProvider.ConfigureLogger();   // boots Log.Logger
@@ -55,29 +56,17 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// ── Middleware pipeline ───────────────────────────────────────────────────────
-app.UseSerilogRequestLogging();  // keep logs consistent
-app.UseCors(DevCors);            // CORS must appear before MapXXX
-
-if (app.Environment.IsDevelopment())
-{
-   app.UseSwagger();
-   app.UseSwaggerUI(options =>
-    {
-        // ---- Customisations start here ----
-        options.RoutePrefix = "docs";          // UI will be at /docs
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Knowledge API v1");
-        options.DocumentTitle = "Knowledge API – Swagger";
-        // you can add more tweaks here later
-    });
-}
+// ─── API route group ─────────────────────────────────────────────────────────
+var api = app.MapGroup("/api")
+             .WithOpenApi();
+            // .WithGroupName("api");
 
 
 
 // ─── Stub endpoints (no group) ───────────────────────────────────────────────
 
 // 1) GET /api/knowledge
-app.MapGet("/api/knowledge", () =>
+api.MapGet("/knowledge", () =>
 {
     var demo = new KnowledgeSummaryDto
     {
@@ -87,32 +76,62 @@ app.MapGet("/api/knowledge", () =>
     };
     return Results.Ok(new[] { demo });
 })
+.AddEndpointFilter<ValidationFilter>() 
 .WithOpenApi()
-.Produces<IEnumerable<KnowledgeSummaryDto>>(StatusCodes.Status200OK);
+.Produces<IEnumerable<KnowledgeSummaryDto>>(StatusCodes.Status200OK)
+.WithTags("Knowledge")
+.WithOpenApi();
 
 
 // 2) POST /api/knowledge
-app.MapPost("/api/knowledge", (HttpRequest _) =>
+api.MapPost("/knowledge", (HttpRequest _) =>
 {
     var response = new CreateKnowledgeResponseDto { Id = "demo" };
     return Results.Created($"/api/knowledge/{response.Id}", response);
 })
 .Accepts<IFormFileCollection>("multipart/form-data")
+.AddEndpointFilter<ValidationFilter>() 
 .WithOpenApi()
-.Produces<CreateKnowledgeResponseDto>(StatusCodes.Status201Created);
+.Produces<CreateKnowledgeResponseDto>(StatusCodes.Status201Created)
+.WithTags("Knowledge")
+.WithOpenApi();
 
 // 3) POST /api/chat
-app.MapPost("/api/chat", (ChatRequestDto req) =>
+api.MapPost("/chat", (ChatRequestDto req) =>
 {
     var reply = new ChatResponseDto { Reply = "Hello from stub" };
     return Results.Ok(reply);
 })
+.AddEndpointFilter<ValidationFilter>() 
 .WithOpenApi()
-.Produces<ChatResponseDto>(StatusCodes.Status200OK);
+.Produces<ChatResponseDto>(StatusCodes.Status200OK)
+.WithTags("Chat")
+.WithOpenApi();
+
   
-app.MapGet("/api/ping", () => Results.Ok("pong"))
+api.MapGet("/ping", () => Results.Ok("pong"))
    .WithTags("Health")
    .WithOpenApi()
-   .Produces<string>(StatusCodes.Status200OK);
+   .Produces<string>(StatusCodes.Status200OK)
+   .WithName("Health")
+   .WithOpenApi();
+
+   // ── Middleware pipeline ───────────────────────────────────────────────────────
+app.UseSerilogRequestLogging();  // keep logs consistent
+app.UseCors(DevCors);            // CORS must appear before MapXXX
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+     {
+         // ---- Customisations start here ----
+         options.RoutePrefix = "docs";          // UI will be at /docs
+         options.SwaggerEndpoint("/swagger/v1/swagger.json", "Knowledge API v1");
+         options.DocumentTitle = "Knowledge API – Swagger";
+         // you can add more tweaks here later
+     });
+}
+
 
 app.Run();

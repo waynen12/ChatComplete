@@ -1,5 +1,5 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,7 +7,6 @@
     <Nullable>enable</Nullable>
     <StartupObject>Program</StartupObject>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="ConnectingApps.Refit.OpenAI" Version="1.9.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.4" />
@@ -32,9 +31,17 @@
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-
-
-
+    <Content Include="appsettings.json" />
+    <Content Include="Program.cs" />
+    <Content Include="AtlasIndexManager.cs" />
+    <Content Include="KernelHelper.cs" />
+    <Content Include="KnowledgeChunker.cs" />
+    <Content Include="KnowledgeManager.cs" />
+    <Content Include="LoggerProvider.cs" />
+    <Content Include="Interfaces\IKnowledgeRepository.cs" />
+    <Content Include="Persistence\IKnowledgeRepository.cs" />
   </ItemGroup>
-
+  <ItemGroup>
+    <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
+  </ItemGroup>
 </Project>

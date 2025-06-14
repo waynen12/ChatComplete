@@ -76,19 +76,38 @@ namespace ChatCompletion
             }
 
             // Step 1: Perform vector search
-            var searchResults = _memory.SearchAsync(collection, userInput, limit: 3, minRelevanceScore: 0.6);
-            var contextChunks = new List<string>();
+            var searchResults = _memory.SearchAsync(collection, userInput, limit: 8, minRelevanceScore: 0.6);
+            var contextChunks = new List<(int Order, string Content)>();
 
-            await foreach (var result in searchResults)
-            {
+           await foreach (var result in _memory.SearchAsync(collection, userInput, limit: 10, minRelevanceScore: 0.6))
+           {
                 if (!string.IsNullOrWhiteSpace(result.Metadata.Description))
                 {
-                    contextChunks.Add(result.Metadata.Description);
-                }
-            }
+                    var chunkText = result.Metadata.Description;
+                    var chunkOrderStr = result.Metadata.AdditionalMetadata?
+                        .Split(',') // optional, if multiple values
+                        .FirstOrDefault(m => m.StartsWith("ChunkOrder=", StringComparison.OrdinalIgnoreCase))
+                        ?.Split('=')[1];
 
-            string context = contextChunks.Any()
-            ? string.Join("\n---\n", contextChunks)
+                    if (int.TryParse(chunkOrderStr, out int chunkOrder))
+                    {
+                        contextChunks.Add((chunkOrder, chunkText));
+                    }
+                    else
+                    {
+                        // fallback if missing
+                        contextChunks.Add((int.MaxValue, chunkText));
+                    }
+                }
+            };
+
+            var orderedContext = contextChunks
+            .OrderBy(c => c.Order)
+            .Select(c => c.Content)
+            .Distinct(); 
+
+            string context = orderedContext.Any()
+            ? string.Join("\n---\n", orderedContext)
             : "No relevant documentation was found for this query.";
 
             // Step 2: Add user question and context
