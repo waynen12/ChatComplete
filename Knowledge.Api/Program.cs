@@ -7,14 +7,16 @@ using Serilog;
 using Knowledge.Api.Options;
 using Knowledge.Contracts;
 using Microsoft.AspNetCore.OpenApi;
-using Knowledge.Api.Filters; 
-
+using Knowledge.Api.Filters;
+using KnowledgeEngine.Persistence;
+using MongoDB.Driver;
 
 LoggerProvider.ConfigureLogger();   // boots Log.Logger
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog(LoggerProvider.Logger, dispose: true);
+
 
 // ── Configuration binding ─────────────────────────────────────────────────────
 builder.Services.Configure<ChatCompleteSettings>(
@@ -23,6 +25,17 @@ builder.Services.Configure<ChatCompleteSettings>(
 builder.Services.Configure<CorsOptions>(
     builder.Configuration.GetSection("Cors"));
 
+var settings = builder.Configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>();
+
+var mongoUri = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
+var mongoClient = new MongoClient(mongoUri); 
+builder.Services.AddSingleton<IMongoClient>(mongoClient);
+
+
+
+builder.Services.AddSingleton<IMongoDatabase>(
+    sp => mongoClient.GetDatabase(settings.Atlas.DatabaseName));
+builder.Services.AddSingleton<IKnowledgeRepository, MongoKnowledgeRepository>();
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 const string DevCors = "DevFrontend";
@@ -54,6 +67,9 @@ builder.Services.AddSwaggerGen(options =>
     options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
 });
 
+builder.Services.AddSingleton<IKnowledgeRepository, MongoKnowledgeRepository>();
+
+
 var app = builder.Build();
 
 // ─── API route group ─────────────────────────────────────────────────────────
@@ -66,21 +82,13 @@ var api = app.MapGroup("/api")
 // ─── Stub endpoints (no group) ───────────────────────────────────────────────
 
 // 1) GET /api/knowledge
-api.MapGet("/knowledge", () =>
-{
-    var demo = new KnowledgeSummaryDto
-    {
-        Id = "demo",
-        Name = "Sample Collection",
-        DocumentCount = 4
-    };
-    return Results.Ok(new[] { demo });
-})
-.AddEndpointFilter<ValidationFilter>() 
-.WithOpenApi()
-.Produces<IEnumerable<KnowledgeSummaryDto>>(StatusCodes.Status200OK)
-.WithTags("Knowledge")
-.WithOpenApi();
+api.MapGet("/knowledge",
+    async (IKnowledgeRepository repo, CancellationToken ct) =>
+        Results.Ok(await repo.GetAllAsync(ct)))
+   .WithOpenApi()
+   .Produces<IEnumerable<KnowledgeSummaryDto>>(StatusCodes.Status200OK)
+   .WithTags("Knowledge");
+
 
 
 // 2) POST /api/knowledge

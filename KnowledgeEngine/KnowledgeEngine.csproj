@@ -43,5 +43,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
+    <Content Include="Persistence\MongoKnowledgeRepository.cs" />
   </ItemGroup>
 </Project>
