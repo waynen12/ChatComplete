@@ -1,19 +1,18 @@
+using System.Diagnostics;
+using ChatCompletion;
+using ChatCompletion.Config; // to reach SettingsProvider
+using DocumentFormat.OpenXml.Wordprocessing;
+using KnowledgeEngine.Logging;
+using Microsoft.KernelMemory;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Memory;
-using DocumentFormat.OpenXml.Wordprocessing;
-using Microsoft.KernelMemory;
+using Microsoft.SemanticKernel.Text; // NEW
 using MongoDB.Driver;
-using ChatCompletion;
-using Microsoft.SemanticKernel.Text;   // NEW
-using ChatCompletion.Config;           // to reach SettingsProvider
 using MongoDB.Driver.Core.Authentication;
-using System.Diagnostics;
 using Serilog;
-using KnowledgeEngine.Logging;
-
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
@@ -34,10 +33,17 @@ public class KnowledgeManager
     // to reach SettingsProvider
     // … other usings …
 
-    public async Task<ISemanticTextMemory> SaveToMemoryAsync(string documentPath, string collectionName)
+    public async Task<ISemanticTextMemory> SaveToMemoryAsync(
+        string documentPath,
+        string collectionName
+    )
     {
         var sw = Stopwatch.StartNew();
-        LoggerProvider.Logger.Information("⏫ Importing {File} into {Collection}", documentPath, collectionName);
+        LoggerProvider.Logger.Information(
+            "⏫ Importing {File} into {Collection}",
+            documentPath,
+            collectionName
+        );
 
         // 1. Parse
         KnowledgeParseResult parse;
@@ -50,7 +56,11 @@ public class KnowledgeManager
         }
         catch (Exception ex)
         {
-            LoggerProvider.Logger.Error(ex, "Failed to read or parse the file {File}", documentPath);
+            LoggerProvider.Logger.Error(
+                ex,
+                "Failed to read or parse the file {File}",
+                documentPath
+            );
             throw;
         }
 
@@ -61,7 +71,7 @@ public class KnowledgeManager
         }
 
         // 2. Convert
-            var doc = parse.Document;
+        var doc = parse.Document;
         bool markdown = doc.Elements.Any(e => e is IHeadingElement);
         var rawText = markdown ? DocumentToTextConverter.Convert(doc) : doc.ToString();
         if (string.IsNullOrWhiteSpace(rawText))
@@ -71,14 +81,22 @@ public class KnowledgeManager
         }
 
         // 3. Chunk
-        int maxLine = SettingsProvider.Settings.ChunkLineTokens > 0 ? SettingsProvider.Settings.ChunkLineTokens : 60;
-        int maxPara = SettingsProvider.Settings.ChunkParagraphTokens > 0 ? SettingsProvider.Settings.ChunkParagraphTokens : 200;
+        int maxLine =
+            SettingsProvider.Settings.ChunkLineTokens > 0
+                ? SettingsProvider.Settings.ChunkLineTokens
+                : 60;
+        int maxPara =
+            SettingsProvider.Settings.ChunkParagraphTokens > 0
+                ? SettingsProvider.Settings.ChunkParagraphTokens
+                : 200;
         int overlap = Math.Max(0, SettingsProvider.Settings.ChunkOverlap);
 
-        var lines = markdown ? TextChunker.SplitMarkDownLines(rawText, maxLine)
-                                : TextChunker.SplitPlainTextLines(rawText, maxLine);
-        var paragraphs = markdown ? TextChunker.SplitMarkdownParagraphs(lines, maxPara, overlap)
-                                : TextChunker.SplitPlainTextParagraphs(lines, maxPara, overlap);
+        var lines = markdown
+            ? TextChunker.SplitMarkDownLines(rawText, maxLine)
+            : TextChunker.SplitPlainTextLines(rawText, maxLine);
+        var paragraphs = markdown
+            ? TextChunker.SplitMarkdownParagraphs(lines, maxPara, overlap)
+            : TextChunker.SplitPlainTextParagraphs(lines, maxPara, overlap);
 
         // 4. Persist
         string source = doc.Source;
@@ -95,31 +113,35 @@ public class KnowledgeManager
                 text: paragraphs[i],
                 externalId: $"{fileId}-p{chunkOrder}",
                 externalSourceName: source,
-                additionalMetadata: metadata);
+                additionalMetadata: metadata
+            );
         }
 
         LoggerProvider.Logger.Information(
             "✅ Stored {Cnt} chunks from {File} in {Ms} ms",
-            paragraphs.Count, documentPath, sw.ElapsedMilliseconds);
+            paragraphs.Count,
+            documentPath,
+            sw.ElapsedMilliseconds
+        );
 
-        try { await _indexManager.CreateIndexAsync(); }
+        try
+        {
+            await _indexManager.CreateIndexAsync();
+        }
         catch (Exception ex)
         {
-            LoggerProvider.Logger.Warning(ex, "Index creation failed after import of {File}", documentPath);
+            LoggerProvider.Logger.Warning(
+                ex,
+                "Index creation failed after import of {File}",
+                documentPath
+            );
         }
 
         return _memory;
     }
 
-
-
-
-
-
     public async Task CreateIndexAsync()
     {
         await _indexManager.CreateIndexAsync();
-    }   
-    
-     
+    }
 }

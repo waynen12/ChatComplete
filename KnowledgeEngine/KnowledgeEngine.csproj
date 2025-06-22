@@ -44,5 +44,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
     <Content Include="Persistence\MongoKnowledgeRepository.cs" />
+    <Content Include="ChatComplete.cs" />
+    <Content Include="Config\ChatCompleteSettings.cs" />
   </ItemGroup>
 </Project>

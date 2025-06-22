@@ -4,17 +4,25 @@ using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
 using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
+using System.Reflection.Metadata.Ecma335;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
 
 public static class KernelHelper
 {
+    public static Kernel GetKernel(ChatCompleteSettings settings)
+    {
+        SettingsProvider.Initialize(settings);
+        return GetKernel();
+    }
     public static Kernel GetKernel()
     {
         IKernelBuilder builder;
         builder = Kernel.CreateBuilder();
         var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+       
+
         if (string.IsNullOrEmpty(openAiApiKey))
         {
             throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");

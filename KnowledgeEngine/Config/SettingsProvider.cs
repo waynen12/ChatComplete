@@ -1,6 +1,5 @@
-
 namespace ChatCompletion.Config
-{  
+{
     public static class SettingsProvider
     {
         public static ChatCompleteSettings Settings { get; private set; }

@@ -6,11 +6,14 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.5" />
+    <PackageReference Include="Microsoft.OpenApi" Version="1.6.23" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.4" />
     <Content Include="Properties\launchSettings.json" />
     <Content Include="Program.cs" />
     <Content Include="Filters\ValidationFilter.cs" />
+    <Content Include="Swagger\PythonCodeSampleFilter.cs" />
+    <PackageReference Include="Swashbuckle.AspNetCore.ReDoc" Version="9.0.1" />
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>

@@ -1,58 +1,99 @@
 // Knowledge.Api/Program.cs
-using KnowledgeEngine;                 // namespace where ChatCompleteSettings lives
-using Microsoft.AspNetCore.Mvc;
-using KnowledgeEngine.Logging;   // whatever namespace holds LoggerProvider
+using ChatCompletion;
 using ChatCompletion.Config;
-using Serilog;
+using Knowledge.Api.Filters;
 using Knowledge.Api.Options;
 using Knowledge.Contracts;
-using Microsoft.AspNetCore.OpenApi;
-using Knowledge.Api.Filters;
+using KnowledgeEngine; // namespace where ChatCompleteSettings lives
+using KnowledgeEngine.Chat;
+using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
 using KnowledgeEngine.Persistence;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.Extensions.Options;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Memory;
 using MongoDB.Driver;
+using Serilog;
 
-LoggerProvider.ConfigureLogger();   // boots Log.Logger
+#pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
+
+LoggerProvider.ConfigureLogger(); // boots Log.Logger
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog(LoggerProvider.Logger, dispose: true);
 
-
 // ── Configuration binding ─────────────────────────────────────────────────────
 builder.Services.Configure<ChatCompleteSettings>(
-    builder.Configuration.GetSection(nameof(ChatCompleteSettings)));
+    builder.Configuration.GetSection(nameof(ChatCompleteSettings))
+);
 
-builder.Services.Configure<CorsOptions>(
-    builder.Configuration.GetSection("Cors"));
+builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection("Cors"));
 
 var settings = builder.Configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>();
 
-var mongoUri = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING") ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
-var mongoClient = new MongoClient(mongoUri); 
+var mongoUri =
+    Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
+    ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
+var mongoClient = new MongoClient(mongoUri);
 builder.Services.AddSingleton<IMongoClient>(mongoClient);
 
+// 1. ISemanticTextMemory  (vector store + embeddings)
+builder.Services.AddSingleton<ISemanticTextMemory>(sp =>
+{
+    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
 
+    // reuse your helper to build the memory store
+    return KernelHelper.GetMongoDBMemoryStore(
+        cfg.Atlas.ClusterName, // database == clusterName today
+        cfg.Atlas.SearchIndexName,
+        cfg.TextEmbeddingModelName
+    );
+});
 
-builder.Services.AddSingleton<IMongoDatabase>(
-    sp => mongoClient.GetDatabase(settings.Atlas.DatabaseName));
+// 2. Kernel that uses the memory + OpenAI
+builder.Services.AddSingleton<Kernel>(sp =>
+{
+    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
+    var openAiKey =
+        Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+        ?? throw new InvalidOperationException("OPENAI_API_KEY missing");
+
+    return KernelHelper.GetKernel(cfg);
+});
+
+builder.Services.AddSingleton<ChatComplete>(sp =>
+{
+    var kernel = sp.GetRequiredService<Kernel>();
+    var memory = sp.GetRequiredService<ISemanticTextMemory>();
+    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
+    return new ChatComplete(memory, cfg.SystemPrompt);
+});
+
+builder.Services.AddSingleton<IMongoDatabase>(sp =>
+    mongoClient.GetDatabase(settings.Atlas.DatabaseName)
+);
 builder.Services.AddSingleton<IKnowledgeRepository, MongoKnowledgeRepository>();
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 const string DevCors = "DevFrontend";
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(DevCors, (policyBuilder) =>
-    {
-        var cors = builder.Configuration
-                           .GetSection("Cors")
-                           .Get<CorsOptions>()!;   // safe in dev; validate later
+    options.AddPolicy(
+        DevCors,
+        (policyBuilder) =>
+        {
+            var cors = builder.Configuration.GetSection("Cors").Get<CorsOptions>()!; // safe in dev; validate later
 
-        policyBuilder.WithOrigins(cors.AllowedOrigins)
-                     .WithHeaders(cors.AllowedHeaders)
-                     .AllowAnyMethod()
-                     .SetPreflightMaxAge(TimeSpan.FromHours(cors.MaxAgeHours));
-        // no .AllowCredentials() yet
-    });
+            policyBuilder
+                .WithOrigins(cors.AllowedOrigins)
+                .WithHeaders(cors.AllowedHeaders)
+                .AllowAnyMethod()
+                .SetPreflightMaxAge(TimeSpan.FromHours(cors.MaxAgeHours));
+            // no .AllowCredentials() yet
+        }
+    );
 });
 
 // (later) services for Swagger, endpoints, KnowledgeEngine DI, etc.
@@ -65,81 +106,101 @@ builder.Services.AddSwaggerGen(options =>
     // ✦ XML comments for enriched Swagger descriptions
     var xmlPath = Path.Combine(AppContext.BaseDirectory, "Knowledge.Api.xml");
     options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    options.OperationFilter<PythonCodeSampleFilter>(); //  ← new line
 });
 
-builder.Services.AddSingleton<IKnowledgeRepository, MongoKnowledgeRepository>();
-
+// reuse existing helpers
+builder.Services.AddSingleton<IChatService, MongoChatService>();
 
 var app = builder.Build();
 
 // ─── API route group ─────────────────────────────────────────────────────────
-var api = app.MapGroup("/api")
-             .WithOpenApi();
-            // .WithGroupName("api");
+var api = app.MapGroup("/api").WithOpenApi();
 
-
+// .WithGroupName("api");
 
 // ─── Stub endpoints (no group) ───────────────────────────────────────────────
 
 // 1) GET /api/knowledge
-api.MapGet("/knowledge",
-    async (IKnowledgeRepository repo, CancellationToken ct) =>
-        Results.Ok(await repo.GetAllAsync(ct)))
-   .WithOpenApi()
-   .Produces<IEnumerable<KnowledgeSummaryDto>>(StatusCodes.Status200OK)
-   .WithTags("Knowledge");
-
-
+api.MapGet(
+        "/knowledge",
+        async (IKnowledgeRepository repo, CancellationToken ct) =>
+            Results.Ok(await repo.GetAllAsync(ct))
+    )
+    .WithOpenApi()
+    .Produces<IEnumerable<KnowledgeSummaryDto>>(StatusCodes.Status200OK)
+    .WithTags("Knowledge");
 
 // 2) POST /api/knowledge
-api.MapPost("/knowledge", (HttpRequest _) =>
-{
-    var response = new CreateKnowledgeResponseDto { Id = "demo" };
-    return Results.Created($"/api/knowledge/{response.Id}", response);
-})
-.Accepts<IFormFileCollection>("multipart/form-data")
-.AddEndpointFilter<ValidationFilter>() 
-.WithOpenApi()
-.Produces<CreateKnowledgeResponseDto>(StatusCodes.Status201Created)
-.WithTags("Knowledge")
-.WithOpenApi();
+api.MapPost(
+        "/knowledge",
+        (HttpRequest _) =>
+        {
+            var response = new CreateKnowledgeResponseDto { Id = "demo" };
+            return Results.Created($"/api/knowledge/{response.Id}", response);
+        }
+    )
+    .Accepts<IFormFileCollection>("multipart/form-data")
+    .AddEndpointFilter<ValidationFilter>()
+    .WithOpenApi()
+    .Produces<CreateKnowledgeResponseDto>(StatusCodes.Status201Created)
+    .WithTags("Knowledge")
+    .WithOpenApi();
 
 // 3) POST /api/chat
-api.MapPost("/chat", (ChatRequestDto req) =>
-{
-    var reply = new ChatResponseDto { Reply = "Hello from stub" };
-    return Results.Ok(reply);
-})
-.AddEndpointFilter<ValidationFilter>() 
-.WithOpenApi()
-.Produces<ChatResponseDto>(StatusCodes.Status200OK)
-.WithTags("Chat")
-.WithOpenApi();
+api.MapPost(
+        "/chat",
+        async (ChatRequestDto dto, IChatService chat, CancellationToken ct) =>
+            Results.Ok(new ChatResponseDto { Reply = await chat.GetReplyAsync(dto, ct) })
+    )
+    .WithOpenApi()
+    .Produces<ChatResponseDto>(StatusCodes.Status200OK)
+    .WithTags("Chat");
 
-  
 api.MapGet("/ping", () => Results.Ok("pong"))
-   .WithTags("Health")
-   .WithOpenApi()
-   .Produces<string>(StatusCodes.Status200OK)
-   .WithName("Health")
-   .WithOpenApi();
+    .WithTags("Health")
+    .WithOpenApi()
+    .Produces<string>(StatusCodes.Status200OK)
+    .WithName("Health")
+    .WithOpenApi();
 
-   // ── Middleware pipeline ───────────────────────────────────────────────────────
-app.UseSerilogRequestLogging();  // keep logs consistent
-app.UseCors(DevCors);            // CORS must appear before MapXXX
+// ── Middleware pipeline ───────────────────────────────────────────────────────
+app.UseSerilogRequestLogging(); // keep logs consistent
+app.UseCors(DevCors); // CORS must appear before MapXXX
 
-if (app.Environment.IsDevelopment())
+// if (app.Environment.IsDevelopment())
+// {
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-     {
-         // ---- Customisations start here ----
-         options.RoutePrefix = "docs";          // UI will be at /docs
-         options.SwaggerEndpoint("/swagger/v1/swagger.json", "Knowledge API v1");
-         options.DocumentTitle = "Knowledge API – Swagger";
-         // you can add more tweaks here later
-     });
-}
+    // ---- Customisations start here ----
+    options.RoutePrefix = "docs"; // UI will be at /docs
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Knowledge API v1");
+    options.DocumentTitle = "Knowledge API – Swagger";
 
+    options.ConfigObject.AdditionalItems["requestSnippetsEnabled"] = true;
+    options.ConfigObject.AdditionalItems["requestSnippets"] = new Dictionary<string, object?>
+    {
+        ["defaultExpanded"] = true,
+        ["generators"] = new Dictionary<string, object?>
+        {
+            ["python"] = new Dictionary<string, object?>
+            {
+                ["lang"] = "Python",
+                ["library"] = "requests",
+            },
+        },
+    };
+    options.DocumentTitle = "Knowledge API – Swagger";
+});
+
+app.UseReDoc(options =>
+{
+    options.RoutePrefix = "redoc"; // docs at /redoc
+    options.SpecUrl = "/swagger/v1/swagger.json";
+    options.DocumentTitle = "Knowledge API – ReDoc";
+});
+
+//}
 
 app.Run();
