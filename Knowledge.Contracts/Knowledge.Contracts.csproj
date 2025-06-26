@@ -10,5 +10,9 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="8.1.4" />
+    <Content Include="KnowledgeSummaryDto.cs" />
+    <Content Include="CreateKnowledgeResponseDto.cs" />
+    <Content Include="ChatResponseDto.cs" />
   </ItemGroup>
 </Project>

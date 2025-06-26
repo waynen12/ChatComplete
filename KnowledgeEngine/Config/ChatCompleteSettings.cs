@@ -15,8 +15,8 @@ namespace ChatCompletion.Config
 
         public int LogFileSizeLimit { get; set; } = 10485760; // 10 MB
 
-        public string SystemPrompt { get; set; } =
-            "You are a helpful assistant for users on a web portal. Always base your answers on the context provided and keep answers clear and accurate."
-            + "Never provide awnsers that are not based on the context. If you don't know the answer, say 'I don't know'. Do not make up answers. Do not engage in Roleplay'.";
+        public string SystemPrompt { get; set; }
+
+        public double Temperature { get; set; } = 0.7;
     }
 }

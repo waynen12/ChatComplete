@@ -46,5 +46,7 @@
     <Content Include="Persistence\MongoKnowledgeRepository.cs" />
     <Content Include="ChatComplete.cs" />
     <Content Include="Config\ChatCompleteSettings.cs" />
+    <Content Include="Chat\MongoChatService.cs" />
+    <Content Include="Chat\IChatService.cs" />
   </ItemGroup>
 </Project>

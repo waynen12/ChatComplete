@@ -5,6 +5,7 @@
     <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.41.3" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.5" />
     <PackageReference Include="Microsoft.OpenApi" Version="1.6.23" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
@@ -13,7 +14,9 @@
     <Content Include="Program.cs" />
     <Content Include="Filters\ValidationFilter.cs" />
     <Content Include="Swagger\PythonCodeSampleFilter.cs" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="8.1.4" />
     <PackageReference Include="Swashbuckle.AspNetCore.ReDoc" Version="9.0.1" />
+    <Content Include="MarkDownStripper.cs" />
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>

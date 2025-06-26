@@ -19,21 +19,24 @@ public static class EmbeddingsHelper
         var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         if (string.IsNullOrEmpty(openAiApiKey))
         {
-
-            throw new InvalidOperationException("The OpenAI API key is not set in the environment variables.");
+            throw new InvalidOperationException(
+                "The OpenAI API key is not set in the environment variables."
+            );
         }
-        var completionApi = RestService.For<IEmbedding>(new HttpClient {
-            BaseAddress = new Uri("https://api.openai.com/"),
-        }, OpenAiRefitSettings.RefitSettings);
+        var completionApi = RestService.For<IEmbedding>(
+            new HttpClient { BaseAddress = new Uri("https://api.openai.com/") },
+            OpenAiRefitSettings.RefitSettings
+        );
 
-        var response = await completionApi.GetEmbeddingAsync(new EmbeddingRequest {
-            Input = text,
-            Model = "text-embedding-3-small",
-        }, $"Bearer {openAiApiKey}");
+        var response = await completionApi.GetEmbeddingAsync(
+            new EmbeddingRequest { Input = text, Model = "text-embedding-3-small" },
+            $"Bearer {openAiApiKey}"
+        );
         Console.WriteLine($"Vector length {response.Content!.Data.First().Embedding.Length}");
-        Console.WriteLine($"Vector {string.Join(",", response.Content.Data.First().Embedding.Take(100))}");
+        Console.WriteLine(
+            $"Vector {string.Join(",", response.Content.Data.First().Embedding.Take(100))}"
+        );
 
         return response.Content!.Data.First().Embedding;
     }
-        
 }

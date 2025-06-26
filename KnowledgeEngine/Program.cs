@@ -86,12 +86,12 @@ public class Program
             //     Path.Combine(SettingsProvider.Settings.FilePath, "New_System_Installation_Guide.md"),
             //     CollectionName);
         }
-        else if (userInput == "c")
-        {
-            var prompt =
-                $"You are a helpful assistant for users on a web portal. Always base your answers on the context provided and keep answers clear and accurate. Never provide awnsers that are not based on the context. If you don't know the answer, say 'I don't know'. Do not make up answers. Do not engage in Roleplay'.";
-            var chatComplete = new ChatComplete(memory, prompt);
-            await chatComplete.KnowledgeChatWithHistory(CollectionName);
-        }
+        // else if (userInput == "c")
+        // {
+        //     var prompt =
+        //         $"You are a helpful assistant for users on a web portal. Always base your answers on the context provided and keep answers clear and accurate. Never provide awnsers that are not based on the context. If you don't know the answer, say 'I don't know'. Do not make up answers. Do not engage in Roleplay'.";
+        //     var chatComplete = new ChatComplete(memory, kernel, prompt);
+        //     await chatComplete.KnowledgeChatWithHistory(CollectionName);
+        // }
     }
 }

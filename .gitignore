@@ -61,3 +61,4 @@ yarn-debug.log
 .env.production.local
 .fake
 ChatCompletion/Docs/New_System_Installation_Guide.md
+KnowledgeEngine/Docs/Publish steps.txt

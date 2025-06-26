@@ -68,7 +68,7 @@ builder.Services.AddSingleton<ChatComplete>(sp =>
     var kernel = sp.GetRequiredService<Kernel>();
     var memory = sp.GetRequiredService<ISemanticTextMemory>();
     var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
-    return new ChatComplete(memory, cfg.SystemPrompt);
+    return new ChatComplete(memory, kernel, cfg.SystemPrompt, cfg.Temperature);
 });
 
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
@@ -84,7 +84,13 @@ builder.Services.AddCors(options =>
         DevCors,
         (policyBuilder) =>
         {
-            var cors = builder.Configuration.GetSection("Cors").Get<CorsOptions>()!; // safe in dev; validate later
+            var cors = builder.Configuration.GetSection("Cors").Get<CorsOptions>();
+            if (cors is null)
+            {
+                throw new InvalidOperationException(
+                    "Missing Cors configuration. Please add Cors settings to appsettings.json"
+                );
+            }
 
             policyBuilder
                 .WithOrigins(cors.AllowedOrigins)
@@ -151,7 +157,13 @@ api.MapPost(
 api.MapPost(
         "/chat",
         async (ChatRequestDto dto, IChatService chat, CancellationToken ct) =>
-            Results.Ok(new ChatResponseDto { Reply = await chat.GetReplyAsync(dto, ct) })
+        {
+            var reply = await chat.GetReplyAsync(dto, ct);
+            if (dto.StripMarkdown)
+                reply = MarkdownStripper.ToPlain(reply);
+
+            return Results.Ok(new ChatResponseDto { Reply = reply });
+        }
     )
     .WithOpenApi()
     .Produces<ChatResponseDto>(StatusCodes.Status200OK)
@@ -166,6 +178,17 @@ api.MapGet("/ping", () => Results.Ok("pong"))
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 app.UseSerilogRequestLogging(); // keep logs consistent
+app.Use(
+    (ctx, next) =>
+    {
+        // trim accidental double-slashes in the path
+        if (!string.IsNullOrEmpty(ctx.Request.Path.Value))
+        {
+            ctx.Request.Path = ctx.Request.Path.Value.Replace("//", "/");
+        }
+        return next();
+    }
+);
 app.UseCors(DevCors); // CORS must appear before MapXXX
 
 // if (app.Environment.IsDevelopment())

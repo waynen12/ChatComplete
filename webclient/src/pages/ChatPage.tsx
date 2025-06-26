@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ChatResponseDto } from "@/types/api";
 import clsx from "clsx";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: string;
@@ -23,7 +24,7 @@ export default function ChatPage() {
   const { id: initialKnowledgeId } = useParams();
   const [collections, setCollections] = useState<KnowledgeItem[]>([]);
   const [collectionId, setCollectionId] = useState<string>(
-  initialKnowledgeId ?? ""
+    initialKnowledgeId ?? ""
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -56,10 +57,12 @@ export default function ChatPage() {
       body: JSON.stringify({
         knowledgeId: collectionId || null,   // ""  → null
         message: userMsg.content,
+        temperature: 0.8,
+        stripMarkdown: false
       }),
     });
 
-    
+
     const { reply } = (await res.json()) as ChatResponseDto;
     setMessages((m) => [
       ...m,
@@ -76,50 +79,52 @@ export default function ChatPage() {
       {/* Top bar */}
       <header className="border-b p-4 flex gap-4 items-center">
         {collections.length > 0 ? (
-        <Select
-          value={collectionId}
-          onValueChange={(v) => setCollectionId(v)}   // v is always a string
-        >
-          <SelectTrigger className="w-64">
-            {collectionId
-              ? collections.find((c) => c.id === collectionId)?.name ?? "Unknown"
-              : "🌐 Global chat"}
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">🌐 Global chat</SelectItem>
-            {collections.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select
+            value={collectionId}
+            onValueChange={(v) => setCollectionId(v)}   // v is always a string
+          >
+            <SelectTrigger className="w-64">
+              {collectionId
+                ? collections.find((c) => c.id === collectionId)?.name ?? "Unknown"
+                : "🌐 Global chat"}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">🌐 Global chat</SelectItem>
+              {collections.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : (
           <span className="text-sm text-muted-foreground">🌐 Global chat</span>
         )}
       </header>
 
       {/* Messages */}
-     <div className="overflow-y-auto p-6 bg-slate-50 flex justify-center">
-       <div className="w-full max-w-2xl space-y-2">
-         <AnimatePresence initial={false}>
+      <div className="overflow-y-auto p-6 bg-slate-50 flex justify-center">
+        <div className="w-full max-w-2xl space-y-2">
+          <AnimatePresence initial={false}>
             {messages.map((m) => (
               <motion.div
                 className={clsx(
                   // limit bubble width
-                  "max-w-[90%] sm:max-w-xs md:max-w-md lg:max-w-lg", 
+                  "max-w-[90%] sm:max-w-xs md:max-w-md lg:max-w-lg",
                   "rounded-2xl px-4 py-2",
                   m.role === "user"
                     ? "bg-primary text-primary-foreground ml-auto"
                     : "bg-white shadow"
                 )}
               >
-            {m.content}
-          </motion.div>
+                {m.role === "assistant"
+                  ? <ReactMarkdown>{m.content}</ReactMarkdown>
+                  : m.content}
+              </motion.div>
             ))}
-         </AnimatePresence>
-         <div ref={scrollRef} />
-       </div>
+          </AnimatePresence>
+          <div ref={scrollRef} />
+        </div>
       </div>
 
       {/* Input */}
@@ -134,8 +139,8 @@ export default function ChatPage() {
           onClick={sendMessage}
           disabled={input.trim() === ""}        // ← disables on empty/whitespace
         >
-        Send
-      </Button>
+          Send
+        </Button>
       </footer>
     </section>
   );

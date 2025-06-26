@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Memory;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
@@ -16,19 +17,31 @@ namespace ChatCompletion
         IChatCompletionService _chatCompletionService;
         ISemanticTextMemory _memory;
         string _systemPrompt;
+        double _temperature;
 
-        public ChatComplete(ISemanticTextMemory memory, string systemPrompt)
+        public ChatComplete(
+            ISemanticTextMemory memory,
+            Kernel kernel,
+            string systemPrompt,
+            double temperature = 0.7
+        )
         {
             _memory = memory;
-            var kernel = KernelHelper.GetKernel();
             _chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
             _systemPrompt = systemPrompt;
+            _temperature = temperature;
         }
 
         public async Task PerformChat()
         {
             ChatHistory history = new ChatHistory();
             history.AddSystemMessage("Keep answers at 100 words minimum.");
+            var execSettings = new OpenAIPromptExecutionSettings
+            {
+                Temperature = _temperature, // 0-1 or whatever you passed
+                TopP = 1, // keep defaults or expose later
+                MaxTokens = 1024,
+            };
 
             while (true)
             {
@@ -43,7 +56,7 @@ namespace ChatCompletion
                     Console.WriteLine($"You:{userMessage}");
                     history.AddUserMessage(userMessage);
                     var enumerator = _chatCompletionService
-                        .GetStreamingChatMessageContentsAsync(history)
+                        .GetStreamingChatMessageContentsAsync(history, execSettings)
                         .GetAsyncEnumerator();
                     Console.Write($"Bot: ");
                     while (await enumerator.MoveNextAsync())
@@ -60,6 +73,7 @@ namespace ChatCompletion
         public async Task<string> AskAsync(
             string userMessage,
             string? knowledgeId,
+            double apiTemperature,
             CancellationToken ct = default
         )
         {
@@ -117,9 +131,16 @@ namespace ChatCompletion
                 """
             );
 
+            double resolvedTemperature = apiTemperature == -1 ? _temperature : apiTemperature;
+            var execSettings = new OpenAIPromptExecutionSettings
+            {
+                Temperature = resolvedTemperature, // 0-1 or whatever you passed
+                TopP = 1, // keep defaults or expose later
+                MaxTokens = 4096,
+            };
             var responseStream = chatService.GetStreamingChatMessageContentsAsync(
                 chatHistory,
-                null,
+                execSettings,
                 null,
                 ct
             );
@@ -213,7 +234,10 @@ namespace ChatCompletion
                 );
 
                 // Step 3: Stream GPT response and add to history
-                var responseStream = chatService.GetStreamingChatMessageContentsAsync(history);
+                var responseStream = chatService.GetStreamingChatMessageContentsAsync(
+                    history,
+                    new OpenAIPromptExecutionSettings { Temperature = _temperature }
+                );
                 string assistantResponse = string.Empty;
 
                 Console.Write("Assistant: ");
