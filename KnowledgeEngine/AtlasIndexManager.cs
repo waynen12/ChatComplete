@@ -83,7 +83,7 @@ public class AtlasIndexManager
     }
 
 
-    public async Task<bool> IndexExistsAsync()
+    public async Task<bool> IndexExistsAsync(string collectionName = "")
     {
         var response = await _httpClient.GetAsync(_indexUrl);
 
@@ -101,7 +101,7 @@ public class AtlasIndexManager
         using var doc = JsonDocument.Parse(content);
         foreach (var index in doc.RootElement.EnumerateArray())
         {
-            if (index.GetProperty("collectionName").GetString() == _collectionName &&
+            if (index.GetProperty("collectionName").GetString() == collectionName &&
                 index.GetProperty("database").GetString() == _databaseName &&
                 index.GetProperty("name").GetString() == SettingsProvider.Settings.Atlas.SearchIndexName)
             {
@@ -112,8 +112,7 @@ public class AtlasIndexManager
         return false;
     }
 
-    public async Task<string?> GetIndexIdAsync()
-    {
+    public async Task<string?> GetIndexIdAsync(string collectionName){
         var response = await _httpClient.GetAsync(_indexUrl);
 
         if (!response.IsSuccessStatusCode)
@@ -173,7 +172,7 @@ public class AtlasIndexManager
     }
 
 
-    public async Task CreateVectorSearchIndexAsync(string vectorField, int numDimensions, string similarityFunction)
+    public async Task CreateVectorSearchIndexAsync(string vectorField, int numDimensions, string similarityFunction, string collectionName)
     {
         if (await IndexExistsAsync())
         {
@@ -184,7 +183,7 @@ public class AtlasIndexManager
 
        var body = new
         {
-            collectionName = _collectionName,
+            collectionName = collectionName,
             database = _databaseName,
             name = SettingsProvider.Settings.Atlas.SearchIndexName,
             mappings = new
@@ -223,7 +222,7 @@ public class AtlasIndexManager
     }
 
     
-    public async Task CreateIndexAsync()
+    public async Task CreateIndexAsync(string collectionName)
     {
         if (await IndexExistsAsync())
         {
@@ -231,10 +230,10 @@ public class AtlasIndexManager
             LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
             return;
         }
-        await CreateVectorSearchIndexAsync("embedding", 1536, "cosine");
+        await CreateVectorSearchIndexAsync("embedding", 1536, "cosine", collectionName);
     }
     
-    public async Task DeleteIndexAsync()
+    public async Task DeleteIndexAsync(string collectionName)
     {
         if (!await IndexExistsAsync())
         {
@@ -243,7 +242,7 @@ public class AtlasIndexManager
             return;
         }
 
-        string? indexId = await GetIndexIdAsync();
+        string? indexId = await GetIndexIdAsync(collectionName);
         if (indexId == null)
         {
             Console.WriteLine($"Failed to retrieve index ID for '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Cannot delete.");

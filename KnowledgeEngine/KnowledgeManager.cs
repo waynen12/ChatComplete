@@ -126,7 +126,7 @@ public class KnowledgeManager
 
         try
         {
-            await _indexManager.CreateIndexAsync();
+            await _indexManager.CreateIndexAsync(collectionName);
         }
         catch (Exception ex)
         {
@@ -140,8 +140,8 @@ public class KnowledgeManager
         return _memory;
     }
 
-    public async Task CreateIndexAsync()
-    {
-        await _indexManager.CreateIndexAsync();
-    }
+    // public async Task CreateIndexAsync()
+    // {
+    //     await _indexManager.CreateIndexAsync();
+    // }
 }

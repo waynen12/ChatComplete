@@ -17,6 +17,7 @@
     <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="8.1.4" />
     <PackageReference Include="Swashbuckle.AspNetCore.ReDoc" Version="9.0.1" />
     <Content Include="MarkDownStripper.cs" />
+    <Content Include="Services\KnowledgeIngestService.cs" />
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>

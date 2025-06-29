@@ -3,6 +3,7 @@ using ChatCompletion;
 using ChatCompletion.Config;
 using Knowledge.Api.Filters;
 using Knowledge.Api.Options;
+using Knowledge.Api.Services;
 using Knowledge.Contracts;
 using KnowledgeEngine; // namespace where ChatCompleteSettings lives
 using KnowledgeEngine.Chat;
@@ -32,6 +33,12 @@ builder.Services.Configure<ChatCompleteSettings>(
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection("Cors"));
 
 var settings = builder.Configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>();
+if (settings == null)
+{
+    LoggerProvider.Logger.Error("Missing ChatCompleteSettings");    
+    throw new InvalidOperationException("Missing ChatCompleteSettings");    
+}
+SettingsProvider.Initialize(settings); 
 
 var mongoUri =
     Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
@@ -118,6 +125,32 @@ builder.Services.AddSwaggerGen(options =>
 // reuse existing helpers
 builder.Services.AddSingleton<IChatService, MongoChatService>();
 
+// 1️⃣  AtlasIndexManager (async factory → sync bridge)
+builder.Services.AddSingleton<AtlasIndexManager>(sp =>
+{
+    // Get the default collection name – or pass empty, the ingest step
+    // will call CreateAsync(collectionName) again per import
+    var defaultColl = settings.Atlas.CollectionName;
+    // Safe because this runs only once at startup
+    var mgr = AtlasIndexManager.CreateAsync(defaultColl).GetAwaiter().GetResult();
+
+    if (mgr == null)
+        throw new InvalidOperationException("Failed to create AtlasIndexManager");
+
+    return mgr;
+});
+
+// 2️⃣  KnowledgeManager depends on memory + index-manager
+builder.Services.AddSingleton<KnowledgeManager>(sp =>
+{
+    var memory = sp.GetRequiredService<ISemanticTextMemory>();
+    var index = sp.GetRequiredService<AtlasIndexManager>();
+    return new KnowledgeManager(memory, index);
+});
+
+// 3️⃣  Ingest service (already added earlier)
+builder.Services.AddSingleton<IKnowledgeIngestService, KnowledgeIngestService>();
+
 var app = builder.Build();
 
 // ─── API route group ─────────────────────────────────────────────────────────
@@ -140,18 +173,25 @@ api.MapGet(
 // 2) POST /api/knowledge
 api.MapPost(
         "/knowledge",
-        (HttpRequest _) =>
+        async (
+            [FromForm] string name,
+            [FromForm] IFormFileCollection files,
+            IKnowledgeIngestService ingest,
+            CancellationToken ct
+        ) =>
         {
-            var response = new CreateKnowledgeResponseDto { Id = "demo" };
-            return Results.Created($"/api/knowledge/{response.Id}", response);
+            if (files.Count == 0)
+                return Results.BadRequest("No files uploaded.");
+
+            foreach (var f in files)
+                await ingest.ImportAsync(f, name, ct);
+
+            return Results.Created($"/api/knowledge/{name}", new { id = name });
         }
     )
     .Accepts<IFormFileCollection>("multipart/form-data")
-    .AddEndpointFilter<ValidationFilter>()
-    .WithOpenApi()
-    .Produces<CreateKnowledgeResponseDto>(StatusCodes.Status201Created)
-    .WithTags("Knowledge")
-    .WithOpenApi();
+    .Produces(201)
+    .DisableAntiforgery();
 
 // 3) POST /api/chat
 api.MapPost(
