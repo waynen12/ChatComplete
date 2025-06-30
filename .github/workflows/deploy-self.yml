@@ -23,6 +23,9 @@ jobs:
       #  dotnet test --configuration Release
       # comment out if you have no tests yet
 
+    - name: Clean publish folder
+      run: rm -rf /opt/knowledge-api/out/*
+
     # 3️⃣  Publish the API (self-contained linux-x64)
     - name: Publish Knowledge.Api
       run: |
