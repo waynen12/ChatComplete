@@ -1,0 +1,40 @@
+name: Build & Deploy – self-hosted
+
+# ───── Triggers ──────────────────────────────────────────
+on:
+  push:
+    branches: [ main ]        # build when main is updated
+  workflow_dispatch:          # manual “Run workflow” button
+
+# ───── Single job, single runner ─────────────────────────
+jobs:
+  deploy:
+    runs-on: self-hosted           # 👈 targets knowledge-runner
+    timeout-minutes: 20
+
+    steps:
+    # 1️⃣  Checkout repo
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # 2️⃣  Optional unit tests
+    #- name: dotnet test
+    #  run: |
+      #  dotnet test --configuration Release
+      # comment out if you have no tests yet
+
+    # 3️⃣  Publish the API (self-contained linux-x64)
+    - name: Publish Knowledge.Api
+      run: |
+        cd Knowledge.Api
+        dotnet publish -c Release -r linux-x64 \
+                       --self-contained true \
+                       /p:PublishTrimmed=true \
+                       -o /opt/knowledge-api/out
+      # runner user (chatapi) must have write access to /opt/knowledge-api/out
+
+    # 4️⃣  Restart systemd service
+    - name: Restart service
+      run: |
+        sudo systemctl restart knowledge-api.service
+        sudo systemctl --no-pager status knowledge-api.service
