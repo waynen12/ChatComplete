@@ -24,5 +24,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+     <SelfContained>true</SelfContained>
   </PropertyGroup>
 </Project>
