@@ -29,7 +29,6 @@ jobs:
         cd Knowledge.Api
         dotnet publish -c Release -r linux-x64 \
                        --self-contained true \
-                       /p:PublishTrimmed=true \
                        -o /opt/knowledge-api/out
       # runner user (chatapi) must have write access to /opt/knowledge-api/out
 
