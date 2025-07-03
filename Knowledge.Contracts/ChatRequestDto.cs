@@ -46,4 +46,9 @@ public class ChatRequestDto
     /// </summary>
     [SwaggerSchema(Description = "Return plain-text reply instead of Markdown; default false")]
     public bool StripMarkdown { get; set; } = false;
+    
+    /// <summary>
+    /// When set to true the AI chat will be configured with an extended system prompt
+    /// </summary>
+    public bool UseExtendedInstructions { get; set; } = false;
 }

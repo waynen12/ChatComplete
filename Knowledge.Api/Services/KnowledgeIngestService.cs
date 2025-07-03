@@ -1,9 +1,5 @@
 // Knowledge.Api/Services/KnowledgeIngestService.cs
-using System.IO;
-using Knowledge.Api.Services;
-using KnowledgeEngine; // where SaveToMemoryAsync lives
-using Microsoft.AspNetCore.Http;
-
+using KnowledgeEngine.Logging;
 namespace Knowledge.Api.Services;
 
 /// <summary>
@@ -12,7 +8,6 @@ namespace Knowledge.Api.Services;
 public sealed class KnowledgeIngestService : IKnowledgeIngestService
 {
     private readonly KnowledgeManager _manager; // or the helper owning SaveToMemoryAsync
-
     /// <summary>
     /// Initializes a new instance of the <see cref="KnowledgeIngestService"/> class.
     /// </summary>
@@ -30,6 +25,11 @@ public sealed class KnowledgeIngestService : IKnowledgeIngestService
     /// <param name="ct">The cancellation token.</param>
     public async Task ImportAsync(IFormFile file, string collection, CancellationToken ct)
     {
+        if (FileValidation.Check(file) is { } err)
+        {
+            throw new InvalidOperationException(err);
+        }
+
         // persist to temp file (IFormFile → stream)
         var tmpPath = Path.Combine(Path.GetTempPath(), file.FileName);
         await using (var fs = File.Create(tmpPath))

@@ -1,20 +1,7 @@
-﻿using System;
-using System.ComponentModel;
-using System.Threading.Tasks;
-using ChatCompletion;
-using ChatCompletion.Config;
-using DocumentFormat.OpenXml.Wordprocessing;
+﻿using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.KernelMemory;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.MongoDB;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
-using Microsoft.SemanticKernel.Memory;
-using MongoDB.Driver;
-using MongoDB.Driver.Core.Authentication;
+
 using Serilog;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050

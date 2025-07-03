@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using ChatCompletion.Config;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -16,20 +17,17 @@ namespace ChatCompletion
     {
         IChatCompletionService _chatCompletionService;
         ISemanticTextMemory _memory;
-        string _systemPrompt;
-        double _temperature;
+        ChatCompleteSettings _settings;
 
         public ChatComplete(
             ISemanticTextMemory memory,
             Kernel kernel,
-            string systemPrompt,
-            double temperature = 0.7
+            ChatCompleteSettings settings
         )
         {
             _memory = memory;
             _chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
-            _systemPrompt = systemPrompt;
-            _temperature = temperature;
+           _settings = settings;
         }
 
         public async Task PerformChat()
@@ -38,7 +36,7 @@ namespace ChatCompletion
             history.AddSystemMessage("Keep answers at 100 words minimum.");
             var execSettings = new OpenAIPromptExecutionSettings
             {
-                Temperature = _temperature, // 0-1 or whatever you passed
+                Temperature = _settings.Temperature, // 0-1 or whatever you passed
                 TopP = 1, // keep defaults or expose later
                 MaxTokens = 1024,
             };
@@ -74,13 +72,15 @@ namespace ChatCompletion
             string userMessage,
             string? knowledgeId,
             double apiTemperature,
+            bool useExtendedInstructions = false,
             CancellationToken ct = default
         )
         {
             var kernel = KernelHelper.GetKernel();
             var chatService = kernel.GetRequiredService<IChatCompletionService>();
             var chatHistory = new ChatHistory();
-            chatHistory.AddSystemMessage(_systemPrompt);
+            string systemMessage = useExtendedInstructions ? _settings.SystemPromptWithCoding : _settings.SystemPrompt;
+            chatHistory.AddSystemMessage(systemMessage);
 
             // 1. Vector search and collect tuples
             var temp = new List<(int Order, string Content)>();
@@ -131,7 +131,7 @@ namespace ChatCompletion
                 """
             );
 
-            double resolvedTemperature = apiTemperature == -1 ? _temperature : apiTemperature;
+            double resolvedTemperature = apiTemperature == -1 ? _settings.Temperature : apiTemperature;
             var execSettings = new OpenAIPromptExecutionSettings
             {
                 Temperature = resolvedTemperature, // 0-1 or whatever you passed
@@ -159,7 +159,7 @@ namespace ChatCompletion
             var kernel = KernelHelper.GetKernel();
             var chatService = kernel.GetRequiredService<IChatCompletionService>();
             var history = new ChatHistory();
-            history.AddSystemMessage(_systemPrompt);
+            history.AddSystemMessage(_settings.SystemPrompt);
             Console.WriteLine("Assistant with Memory Mode. Type 'exit' to quit.\n");
 
             while (true)
@@ -236,7 +236,7 @@ namespace ChatCompletion
                 // Step 3: Stream GPT response and add to history
                 var responseStream = chatService.GetStreamingChatMessageContentsAsync(
                     history,
-                    new OpenAIPromptExecutionSettings { Temperature = _temperature }
+                    new OpenAIPromptExecutionSettings { Temperature = _settings.Temperature }
                 );
                 string assistantResponse = string.Empty;
 

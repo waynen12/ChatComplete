@@ -37,6 +37,12 @@ public sealed class MongoChatService : IChatService
         }
 
         // Delegate to ChatComplete's AskAsync
-        return await _core.AskAsync(request.Message, request.KnowledgeId, request.Temperature, ct);
+        return await _core.AskAsync(
+            request.Message,
+            request.KnowledgeId,
+            request.Temperature,
+            request.UseExtendedInstructions,
+            ct
+        );
     }
 }

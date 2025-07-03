@@ -32,7 +32,8 @@ payload = {
     ""knowledgeId"": ""TrackerSpec"", 
     ""message"": ""Hello"", 
     ""temperature"": ""0.7"",
-    ""stripMarkdown"": false
+    ""stripMarkdown"": false,
+    ""useExtendedInstructions"": false,
 }
 print(requests.post(url, json=payload, timeout=30).json()[""reply""])"
             ),

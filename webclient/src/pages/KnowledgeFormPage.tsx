@@ -2,57 +2,64 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { Loader2 } from "lucide-react";
+
+/** allowed extensions w/o dot (lower-case) */
+const ALLOWED_EXT = ["pdf", "docx", "md", "txt"];
+const MAX_MB = 100;
 
 export default function KnowledgeFormPage() {
   const [files, setFiles] = useState<File[]>([]);
-  const [name,  setName]  = useState("");
-  const [pct,   setPct]   = useState(0);          // upload %
-  const [busy,  setBusy]  = useState(false);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files) setFiles(Array.from(e.target.files));
+    if (!e.target.files) return;
+
+    const accepted: File[] = [];
+    for (const f of Array.from(e.target.files)) {
+      const ext = f.name.split(".").pop()?.toLowerCase();
+      if (!ext || !ALLOWED_EXT.includes(ext)) {
+        toast.error(`❌ ${f.name} – unsupported type`);
+        continue;
+      }
+      if (f.size > MAX_MB * 1024 * 1024) {
+        toast.error(`❌ ${f.name} – larger than ${MAX_MB} MB`);
+        continue;
+      }
+      accepted.push(f);
+    }
+    setFiles(prev => [...prev, ...accepted]);
+    // reset the <input> so selecting same file twice fires change event
+    e.target.value = "";
   }
 
   /* ---------- Upload with progress via XMLHttpRequest ---------- */
   async function onSave() {
-    const form = new FormData();
-    form.append("name", name);
-    files.forEach(f => form.append("files", f));
-
     setBusy(true);
-    setPct(0);
+    try {
+      const form = new FormData();
+      form.append("name", name);
+      files.forEach(f => form.append("files", f));
 
-    await new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/knowledge", true);
 
-      xhr.upload.onprogress = e => {
-        if (e.lengthComputable) setPct(Math.round((e.loaded / e.total) * 100));
-      };
+      const res = await fetch("/api/knowledge", { method: "POST", body: form });
 
-      xhr.onload = () => {
-        setBusy(false);
-        if (xhr.status === 201) {
-          toast.success("Uploaded ✓");
-          navigate("/knowledge");
-          resolve();
-        } else {
-          toast.error(`Upload failed ${xhr.status}`);
-          reject();
-        }
-      };
-
-      xhr.onerror = () => {
-        setBusy(false);
-        toast.error("Network error");
-        reject();
-      };
-
-      xhr.send(form);
-    });
+      if (res.ok) {
+        toast.success("Uploaded ✓");
+        navigate("/knowledge");
+      } else {
+        toast.error(`Upload failed (${res.status})`);
+      }
+    } catch (err) {
+      toast.error("Upload failed – network error");
+      console.error(err);
+    } finally {
+      setBusy(false);
+    }
   }
+
 
   /* ---------- UI ---------- */
   return (
@@ -89,13 +96,11 @@ export default function KnowledgeFormPage() {
         ))}
       </ul>
 
-      {/* progress bar – only visible while busy */}
-      {busy && <Progress value={pct} className="h-2" />}
-
       <Button
         onClick={onSave}
         disabled={busy || name.trim() === "" || files.length === 0}>
-        {busy ? `Uploading, Please Wait... ${pct}%` : "Save"}
+        {busy && <Loader2 className="mr-2 animate-spin" />}
+        {busy ? "Uploading…" : "Save"}
       </Button>
     </section>
   );

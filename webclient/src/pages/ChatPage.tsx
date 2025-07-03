@@ -58,7 +58,8 @@ export default function ChatPage() {
         knowledgeId: collectionId || null,   // ""  → null
         message: userMsg.content,
         temperature: 0.8,
-        stripMarkdown: false
+        stripMarkdown: false,
+        useExtendedInstructions: true
       }),
     });
 

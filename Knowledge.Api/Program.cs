@@ -75,7 +75,7 @@ builder.Services.AddSingleton<ChatComplete>(sp =>
     var kernel = sp.GetRequiredService<Kernel>();
     var memory = sp.GetRequiredService<ISemanticTextMemory>();
     var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
-    return new ChatComplete(memory, kernel, cfg.SystemPrompt, cfg.Temperature);
+    return new ChatComplete(memory, kernel, cfg);
 });
 
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
@@ -183,8 +183,18 @@ api.MapPost(
             if (files.Count == 0)
                 return Results.BadRequest("No files uploaded.");
 
+            foreach (var file in files)
+            {
+                if (FileValidation.Check(file) is {} err)
+                {
+                    return Results.BadRequest(err);
+                }
+            }
+
             foreach (var f in files)
+            {
                 await ingest.ImportAsync(f, name, ct);
+            }
 
             return Results.Created($"/api/knowledge/{name}", new { id = name });
         }

@@ -16,6 +16,7 @@ namespace ChatCompletion.Config
         public int LogFileSizeLimit { get; set; } = 10485760; // 10 MB
 
         public string SystemPrompt { get; set; }
+        public string SystemPromptWithCoding { get; set; }
 
         public double Temperature { get; set; } = 0.7;
     }
