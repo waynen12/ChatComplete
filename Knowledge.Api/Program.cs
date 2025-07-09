@@ -12,6 +12,7 @@ using KnowledgeEngine.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Memory;
 using MongoDB.Driver;
@@ -218,6 +219,37 @@ api.MapPost(
     .WithOpenApi()
     .Produces<ChatResponseDto>(StatusCodes.Status200OK)
     .WithTags("Chat");
+
+// 4) DELETE /api/knowledge/{id}
+api.MapDelete(
+        "/knowledge/{id}",
+        async (string id,
+            IKnowledgeRepository repo,
+            AtlasIndexManager indexMgr,
+            CancellationToken ct) =>
+        {
+            // 0. Fast-fail if the collection doesn’t exist
+            if (!await repo.ExistsAsync(id, ct))
+                return Results.NotFound($"Collection “{id}” not found.");
+
+            // 1. Drop the MongoDB collection (+ vector store rows)
+            await repo.DeleteAsync(id, ct);
+
+            // 2. Drop the Atlas search index (ignore 404 – index may not exist)
+            await indexMgr.DeleteIndexAsync(id, ct);
+
+            return Results.NoContent();           // 204
+        })
+    .WithOpenApi(o =>                        // for Swagger
+    {
+        o.Summary     = "Deletes a knowledge collection and its search index";
+        o.Description = "Removes the MongoDB collection and its Atlas vector / search index.";
+        o.Tags = [ new OpenApiTag { Name = "Knowledge" } ];
+        return o;
+    })
+    .Produces(StatusCodes.Status204NoContent)
+    .Produces(StatusCodes.Status404NotFound);
+
 
 api.MapGet("/ping", () => Results.Ok("pong"))
     .WithTags("Health")

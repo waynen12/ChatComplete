@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Trash2 } from "lucide-react";  
 
 interface KnowledgeItem {
   id: string;
@@ -26,6 +28,20 @@ export default function KnowledgeListPage() {
       }
     })();
   }, []);
+
+  async function deleteCollection(id: string) {
+    if (!confirm(`Delete '${id}'? This cannot be undone.`)) return;
+
+    const res = await fetch(`/api/knowledge/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Deleted ✓");
+      setCollections(cols => cols.filter(c => c.id !== id));   // local update
+    } else {
+      const msg = await res.text();
+      toast.error(`Delete failed (${res.status})`);
+      console.error(msg);
+    }
+  }
 
   return (
     <section className="container py-8">
@@ -65,6 +81,13 @@ export default function KnowledgeListPage() {
                     </Button>
                     <Button asChild size="sm">
                       <Link to={`/chat/${c.id}`}>Chat</Link>
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      onClick={() => deleteCollection(c.id)}
+                    >
+                      <Trash2 className="size-4" />
                     </Button>
                   </td>
                 </tr>

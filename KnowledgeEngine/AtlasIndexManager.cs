@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
+using Serilog;
 
 public class AtlasIndexManager
 {
@@ -24,6 +25,7 @@ public class AtlasIndexManager
 
     private readonly HttpClient _httpClient;
     private string _projectId = string.Empty; // Store projectId if needed later
+
 
     private AtlasIndexManager(string collectionName, HttpClient httpClient, string projectId)
     {
@@ -112,7 +114,7 @@ public class AtlasIndexManager
         return false;
     }
 
-    public async Task<string?> GetIndexIdAsync(string collectionName){
+    public async Task<string?> GetIndexIdAsync(string collectionName, CancellationToken ct = default){
         var response = await _httpClient.GetAsync(_indexUrl);
 
         if (!response.IsSuccessStatusCode)
@@ -129,7 +131,7 @@ public class AtlasIndexManager
         using var doc = JsonDocument.Parse(content);
         foreach (var index in doc.RootElement.EnumerateArray())
         {
-            if (index.GetProperty("collectionName").GetString() == _collectionName &&
+            if (index.GetProperty("collectionName").GetString() == collectionName &&
                 index.GetProperty("database").GetString() == _databaseName &&
                 index.GetProperty("name").GetString() == SettingsProvider.Settings.Atlas.SearchIndexName)
             {
@@ -233,16 +235,15 @@ public class AtlasIndexManager
         await CreateVectorSearchIndexAsync("embedding", 1536, "cosine", collectionName);
     }
     
-    public async Task DeleteIndexAsync(string collectionName)
+    public async Task DeleteIndexAsync(string collectionName, CancellationToken ct = default)
     {
         if (!await IndexExistsAsync())
         {
-            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' does not exist. Cannot delete.");
             LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' does not exist. Cannot delete.");
             return;
         }
 
-        string? indexId = await GetIndexIdAsync(collectionName);
+        string? indexId = await GetIndexIdAsync(collectionName, ct);
         if (indexId == null)
         {
             Console.WriteLine($"Failed to retrieve index ID for '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Cannot delete.");
@@ -267,5 +268,4 @@ public class AtlasIndexManager
             LoggerProvider.Logger.Error(error);
         }
     }
-
 }

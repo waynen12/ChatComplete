@@ -37,4 +37,5 @@ public static class AtlasHelper
         Console.WriteLine($"Project '{projectName}' not found.");
         return null;
     }
+    
 }

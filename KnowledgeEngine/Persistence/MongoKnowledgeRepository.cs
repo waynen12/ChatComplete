@@ -14,11 +14,14 @@ public sealed partial class MongoKnowledgeRepository : IKnowledgeRepository
 {
     private readonly IMongoDatabase _database;
     private readonly ILogger<MongoKnowledgeRepository> _log;
+    private AtlasIndexManager _indexManager;
 
-    public MongoKnowledgeRepository(IMongoDatabase database, ILogger<MongoKnowledgeRepository> log)
+    public MongoKnowledgeRepository(IMongoDatabase database, ILogger<MongoKnowledgeRepository> log, AtlasIndexManager indexManager)
     {
         _database = database;
         _log = log;
+        _indexManager = indexManager;
+        
     }
 
     /// <summary>Returns one summary entry per vector-store collection.</summary>
@@ -76,5 +79,27 @@ public sealed partial class MongoKnowledgeRepository : IKnowledgeRepository
         );
 
         return await cursor.AnyAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Deletes a knowledge collection from the database.
+    /// </summary>
+    /// <param name="collectionId"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public async Task DeleteAsync(string collectionId, CancellationToken ct = default)
+    {
+        // drop the vector-store collection itself
+        await _database.DropCollectionAsync(collectionId, ct);
+
+        // drop associated search index (ignore if not present)
+        try
+        {
+            await _indexManager.DeleteIndexAsync(collectionId, ct);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Index drop failed for {Collection}", collectionId);
+        }
     }
 }
