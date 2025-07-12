@@ -2,7 +2,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";  
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 interface KnowledgeItem {
   id: string;
@@ -29,17 +39,15 @@ export default function KnowledgeListPage() {
     })();
   }, []);
 
-  async function deleteCollection(id: string) {
-    if (!confirm(`Delete '${id}'? This cannot be undone.`)) return;
-
+  async function handleDelete(id: string) {
     const res = await fetch(`/api/knowledge/${id}`, { method: "DELETE" });
+
     if (res.ok) {
-      toast.success("Deleted ✓");
-      setCollections(cols => cols.filter(c => c.id !== id));   // local update
+      // optimistic UI update
+      setCollections(prev => prev.filter(c => c.id !== id));
+      toast.success(`Collection ${id} Deleted ✓`);
     } else {
-      const msg = await res.text();
-      toast.error(`Delete failed (${res.status})`);
-      console.error(msg);
+      toast.error(`Failed (${res.status})`);
     }
   }
 
@@ -65,7 +73,6 @@ export default function KnowledgeListPage() {
               <tr className="border-b">
                 <th className="text-left py-2">Name</th>
                 <th className="text-left py-2">Documents</th>
-                <th className="text-left py-2">Created</th>
                 <th />
               </tr>
             </thead>
@@ -74,7 +81,6 @@ export default function KnowledgeListPage() {
                 <tr key={c.id} className="border-b">
                   <td className="py-2">{c.name}</td>
                   <td>{c.documentCount}</td>
-                  <td>{new Date(c.created).toLocaleDateString()}</td>
                   <td className="text-right space-x-2">
                     <Button asChild size="sm" variant="outline">
                       <Link to={`/knowledge/${c.id}/edit`}>Edit</Link>
@@ -82,13 +88,31 @@ export default function KnowledgeListPage() {
                     <Button asChild size="sm">
                       <Link to={`/chat/${c.id}`}>Chat</Link>
                     </Button>
-                    <Button
-                      size="icon"
-                      variant="destructive"
-                      onClick={() => deleteCollection(c.id)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button>Delete</Button>
+                      </AlertDialogTrigger>
+
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete “{c.name}”?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will remove the collection and its search index permanently.
+                            You can’t undo this action.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+
+                          <AlertDialogAction
+                            onClick={() => handleDelete(c.id)}>
+                            Yes, delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
                   </td>
                 </tr>
               ))}
