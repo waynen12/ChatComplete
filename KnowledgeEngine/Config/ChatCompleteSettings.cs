@@ -19,5 +19,7 @@ namespace ChatCompletion.Config
         public string SystemPromptWithCoding { get; set; }
 
         public double Temperature { get; set; } = 0.7;
+        
+        public int ChatMaxTurns { get; set; } = 12;   // assistant+user pairs ⇒ 24 msgs
     }
 }

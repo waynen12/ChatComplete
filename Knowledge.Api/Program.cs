@@ -9,6 +9,7 @@ using KnowledgeEngine; // namespace where ChatCompleteSettings lives
 using KnowledgeEngine.Chat;
 using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
 using KnowledgeEngine.Persistence;
+using KnowledgeEngine.Persistence.Conversations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Options;
@@ -79,10 +80,13 @@ builder.Services.AddSingleton<ChatComplete>(sp =>
     return new ChatComplete(memory, kernel, cfg);
 });
 
+
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
     mongoClient.GetDatabase(settings.Atlas.DatabaseName)
 );
 builder.Services.AddSingleton<IKnowledgeRepository, MongoKnowledgeRepository>();
+builder.Services.AddConversationPersistence();
+
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 const string DevCors = "DevFrontend";
@@ -213,7 +217,11 @@ api.MapPost(
             if (dto.StripMarkdown)
                 reply = MarkdownStripper.ToPlain(reply);
 
-            return Results.Ok(new ChatResponseDto { Reply = reply });
+            return Results.Ok(new ChatResponseDto
+            {
+                  Reply = reply,
+                  ConversationId = dto.ConversationId!
+            });
         }
     )
     .WithOpenApi()

@@ -10,10 +10,12 @@ public class ChatResponseDto
     /// <summary>
     /// A unique identifier for the established chat session, if applicable.
     /// </summary>
-    public string? Id { get; set; }
+    public string ConversationId { get; set; }
 
     /// <summary>
     /// The assistant's reply to the user's message.
     /// </summary>
     public string Reply { get; set; } = string.Empty;
+    
+
 }

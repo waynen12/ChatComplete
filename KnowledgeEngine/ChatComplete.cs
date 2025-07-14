@@ -71,6 +71,7 @@ namespace ChatCompletion
         public async Task<string> AskAsync(
             string userMessage,
             string? knowledgeId,
+            ChatHistory chatHistory,
             double apiTemperature,
             bool useExtendedInstructions = false,
             CancellationToken ct = default
@@ -78,7 +79,6 @@ namespace ChatCompletion
         {
             var kernel = KernelHelper.GetKernel();
             var chatService = kernel.GetRequiredService<IChatCompletionService>();
-            var chatHistory = new ChatHistory();
             string systemMessage = useExtendedInstructions ? _settings.SystemPromptWithCoding : _settings.SystemPrompt;
             chatHistory.AddSystemMessage(systemMessage);
 

@@ -51,4 +51,9 @@ public class ChatRequestDto
     /// When set to true the AI chat will be configured with an extended system prompt
     /// </summary>
     public bool UseExtendedInstructions { get; set; } = false;
+    
+    /// <summary>
+    /// This is an id that will be used to persists the user's conversation in the DB
+    /// </summary>
+    public string? ConversationId { get; set; }
 }

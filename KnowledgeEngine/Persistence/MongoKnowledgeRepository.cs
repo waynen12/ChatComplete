@@ -36,7 +36,7 @@ public sealed partial class MongoKnowledgeRepository : IKnowledgeRepository
 
         var collectionNames = await cursor.ToListAsync(cancellationToken);
 
-        collectionNames = collectionNames.Where(n => !n.StartsWith("system.")).ToList();
+        collectionNames = collectionNames.Where(n => !n.StartsWith("system.", StringComparison.OrdinalIgnoreCase) && !n.Equals("conversations", StringComparison.OrdinalIgnoreCase)).ToList();
 
         // 2 - project each collection into a KnowledgeSummaryDto
         var summaries = new List<KnowledgeSummaryDto>();
