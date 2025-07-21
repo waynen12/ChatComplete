@@ -34,6 +34,8 @@ payload = {
     ""temperature"": ""0.7"",
     ""stripMarkdown"": false,
     ""useExtendedInstructions"": false,
+    ""conversationId"": """",
+    ""provider"": ""Ollama""
 }
 print(requests.post(url, json=payload, timeout=30).json()[""reply""])"
             ),

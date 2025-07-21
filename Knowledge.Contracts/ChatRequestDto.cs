@@ -61,6 +61,9 @@ public class ChatRequestDto
     /// </summary>
     public string? ConversationId { get; set; }
     
+    /// <summary>
+    /// The Ai Provider. This can be one of "OpenAi"  "Google"  "Anthropic" "Ollama"
+    /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]   // enum as string
     public AiProvider Provider { get; set; } = AiProvider.OpenAi;   // default
 }
