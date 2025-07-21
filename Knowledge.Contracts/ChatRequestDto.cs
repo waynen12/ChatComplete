@@ -1,3 +1,7 @@
+using System.Text.Json.Serialization;
+using Knowledge.Contracts.Types;
+using Newtonsoft.Json.Converters;
+
 namespace Knowledge.Contracts;
 
 using System.ComponentModel.DataAnnotations;
@@ -56,4 +60,7 @@ public class ChatRequestDto
     /// This is an id that will be used to persists the user's conversation in the DB
     /// </summary>
     public string? ConversationId { get; set; }
+    
+    [JsonConverter(typeof(JsonStringEnumConverter))]   // enum as string
+    public AiProvider Provider { get; set; } = AiProvider.OpenAi;   // default
 }

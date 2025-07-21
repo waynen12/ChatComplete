@@ -3,6 +3,7 @@ using System.Text;
 using ChatCompletion;
 using ChatCompletion.Config;
 using Knowledge.Contracts;
+using Knowledge.Contracts.Types;
 using KnowledgeEngine.Persistence.Conversations;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
@@ -24,7 +25,7 @@ public sealed class MongoChatService : IChatService
     }
 
     [Experimental("SKEXP0001")]
-    public async Task<string> GetReplyAsync(ChatRequestDto dto, CancellationToken ct)
+    public async Task<string> GetReplyAsync(ChatRequestDto dto, AiProvider provider, CancellationToken ct)
     {
         // 1️⃣  Ensure conversation exists
         if (string.IsNullOrEmpty(dto.ConversationId))
@@ -64,6 +65,7 @@ public sealed class MongoChatService : IChatService
             dto.KnowledgeId,
             historyForLLM,
             dto.Temperature,
+            provider,
             dto.UseExtendedInstructions,
             ct);
 

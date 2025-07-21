@@ -5,6 +5,12 @@ namespace ChatCompletion.Config
         public MongoAtlasSettings Atlas { get; set; } = new();
 
         public string OpenAIModel { get; set; } = "gpt-3.5-turbo";
+        public string GoogleModel { get; set; } = "gemini-2.5-flash";
+        
+        public string OllamaBaseUrl  { get; set; } = "http://localhost:11434";
+        public string OllamaModel    { get; set; } = "gemma3:12b";
+
+        public string AnthropicModel { get; set; } = "claude-sonnet-4-20250514";
 
         public string TextEmbeddingModelName { get; set; } = "text-embedding-ada-002";
         public int ChunkCharacterLimit { get; set; } = 4096;

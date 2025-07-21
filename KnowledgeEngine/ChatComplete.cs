@@ -1,12 +1,16 @@
 using System;
+using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using ChatCompletion.Config;
+using Knowledge.Contracts.Types;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.Anthropic;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.SemanticKernel.Connectors.Google;
 using Microsoft.SemanticKernel.Memory;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
@@ -18,17 +22,20 @@ namespace ChatCompletion
         IChatCompletionService _chatCompletionService;
         ISemanticTextMemory _memory;
         ChatCompleteSettings _settings;
+        private readonly ConcurrentDictionary<AiProvider, Kernel> _kernels = new();
 
         public ChatComplete(
             ISemanticTextMemory memory,
-            Kernel kernel,
             ChatCompleteSettings settings
         )
         {
             _memory = memory;
-            _chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
            _settings = settings;
         }
+        
+        [Experimental("SKEXP0070")]
+        private Kernel GetOrCreateKernel(AiProvider provider)
+            => _kernels.GetOrAdd(provider, p => KernelHelper.GetKernel(_settings, p));
 
         public async Task PerformChat()
         {
@@ -68,16 +75,18 @@ namespace ChatCompletion
             Console.WriteLine("Goodbye!");
         }
 
-        public async Task<string> AskAsync(
+        [Experimental("SKEXP0070")]
+        public virtual async Task<string> AskAsync(
             string userMessage,
             string? knowledgeId,
             ChatHistory chatHistory,
             double apiTemperature,
+            AiProvider provider,
             bool useExtendedInstructions = false,
             CancellationToken ct = default
         )
         {
-            var kernel = KernelHelper.GetKernel();
+            var kernel = GetOrCreateKernel(provider);
             var chatService = kernel.GetRequiredService<IChatCompletionService>();
             string systemMessage = useExtendedInstructions ? _settings.SystemPromptWithCoding : _settings.SystemPrompt;
             chatHistory.AddSystemMessage(systemMessage);
@@ -132,12 +141,37 @@ namespace ChatCompletion
             );
 
             double resolvedTemperature = apiTemperature == -1 ? _settings.Temperature : apiTemperature;
-            var execSettings = new OpenAIPromptExecutionSettings
+            PromptExecutionSettings execSettings;
+
+            switch (provider)
             {
-                Temperature = resolvedTemperature, // 0-1 or whatever you passed
-                TopP = 1, // keep defaults or expose later
-                MaxTokens = 4096,
-            };
+                case AiProvider.OpenAi:
+                default:
+                    execSettings = new OpenAIPromptExecutionSettings
+                    {
+                        Temperature = resolvedTemperature, // 0-1 or whatever you passed
+                        TopP = 1, // keep defaults or expose later
+                        MaxTokens = 4096,
+                    };
+                    break;
+                case AiProvider.Google:
+                    execSettings = new GeminiPromptExecutionSettings()
+                    {
+                        Temperature = resolvedTemperature,
+                        TopP = 1,
+                        MaxTokens = 4096,
+                    };
+                    break;
+                case AiProvider.Anthropic:
+                    execSettings = new AnthropicPromptExecutionSettings()
+                    {
+                        Temperature = resolvedTemperature,
+                        TopP = 1,
+                        MaxTokens = 4096,
+                    };
+                    break;
+            }
+
             var responseStream = chatService.GetStreamingChatMessageContentsAsync(
                 chatHistory,
                 execSettings,
@@ -151,13 +185,13 @@ namespace ChatCompletion
                 assistant.Append(chunk.Content);
             }
 
-            return assistant.ToString().Trim();
+            return assistant.Length > 0 ? assistant.ToString().Trim() : "There was no response from the AI.";
         }
 
         public async Task KnowledgeChatWithHistory(string collection)
         {
-            var kernel = KernelHelper.GetKernel();
-            var chatService = kernel.GetRequiredService<IChatCompletionService>();
+          //  var kernel = KernelHelper.GetKernel();
+          //  var chatService = kernel.GetRequiredService<IChatCompletionService>();
             var history = new ChatHistory();
             history.AddSystemMessage(_settings.SystemPrompt);
             Console.WriteLine("Assistant with Memory Mode. Type 'exit' to quit.\n");
@@ -234,7 +268,7 @@ namespace ChatCompletion
                 );
 
                 // Step 3: Stream GPT response and add to history
-                var responseStream = chatService.GetStreamingChatMessageContentsAsync(
+                var responseStream = _chatCompletionService.GetStreamingChatMessageContentsAsync(
                     history,
                     new OpenAIPromptExecutionSettings { Temperature = _settings.Temperature }
                 );

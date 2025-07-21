@@ -1,6 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Knowledge.Contracts;   // ChatRequestDto
+using Knowledge.Contracts;
+using Knowledge.Contracts.Types;
+
 
 namespace KnowledgeEngine.Chat;
 
@@ -15,5 +17,6 @@ public interface IChatService
     /// </summary>
     Task<string> GetReplyAsync(
         ChatRequestDto request,
+        AiProvider provider,
         CancellationToken cancellationToken = default);
 }

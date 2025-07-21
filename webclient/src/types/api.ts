@@ -1,7 +1,7 @@
 // src/types/api.ts
 export interface ChatResponseDto {
-  id: string | null;
   reply: string;
+  conversationId: string;
 }
 
 export interface KnowledgeSummaryDto {

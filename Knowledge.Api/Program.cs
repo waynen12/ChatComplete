@@ -1,25 +1,27 @@
 // Knowledge.Api/Program.cs
+
 using ChatCompletion;
 using ChatCompletion.Config;
-using Knowledge.Api.Filters;
 using Knowledge.Api.Options;
 using Knowledge.Api.Services;
 using Knowledge.Contracts;
-using KnowledgeEngine; // namespace where ChatCompleteSettings lives
 using KnowledgeEngine.Chat;
 using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
 using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Persistence.Conversations;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Memory;
 using MongoDB.Driver;
 using Serilog;
+using Microsoft.AspNetCore.Http.Json;
+using System.Text.Json.Serialization;
+using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
+
 
 LoggerProvider.ConfigureLogger(); // boots Log.Logger
 
@@ -33,6 +35,11 @@ builder.Services.Configure<ChatCompleteSettings>(
 );
 
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection("Cors"));
+
+builder.Services.Configure<JsonOptions>(opts =>
+{
+    opts.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 var settings = builder.Configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>();
 if (settings == null)
@@ -62,22 +69,19 @@ builder.Services.AddSingleton<ISemanticTextMemory>(sp =>
 });
 
 // 2. Kernel that uses the memory + OpenAI
-builder.Services.AddSingleton<Kernel>(sp =>
-{
-    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
-    var openAiKey =
-        Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-        ?? throw new InvalidOperationException("OPENAI_API_KEY missing");
-
-    return KernelHelper.GetKernel(cfg);
-});
 
 builder.Services.AddSingleton<ChatComplete>(sp =>
 {
-    var kernel = sp.GetRequiredService<Kernel>();
+    var kernel = sp.GetRequiredService<Kernel>(); // gone
     var memory = sp.GetRequiredService<ISemanticTextMemory>();
     var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
-    return new ChatComplete(memory, kernel, cfg);
+    return new ChatComplete(memory, cfg);
+});
+builder.Services.AddSingleton<ChatComplete>(sp =>
+{
+    var memory = sp.GetRequiredService<ISemanticTextMemory>();
+    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
+    return new ChatComplete(memory, cfg);
 });
 
 
@@ -86,6 +90,8 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 );
 builder.Services.AddSingleton<IKnowledgeRepository, MongoKnowledgeRepository>();
 builder.Services.AddConversationPersistence();
+
+
 
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
@@ -213,7 +219,7 @@ api.MapPost(
         "/chat",
         async (ChatRequestDto dto, IChatService chat, CancellationToken ct) =>
         {
-            var reply = await chat.GetReplyAsync(dto, ct);
+            var reply = await chat.GetReplyAsync(dto, dto.Provider, ct);
             if (dto.StripMarkdown)
                 reply = MarkdownStripper.ToPlain(reply);
 
