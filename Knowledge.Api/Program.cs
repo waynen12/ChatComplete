@@ -18,6 +18,7 @@ using MongoDB.Driver;
 using Serilog;
 using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json.Serialization;
+using Microsoft.OpenApi.Any;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
@@ -230,7 +231,34 @@ api.MapPost(
             });
         }
     )
-    .WithOpenApi()
+    .WithOpenApi(op =>
+    {
+        op.Summary = "Chat with a model";
+
+        // Build a sample JSON object
+        var sample = new OpenApiObject
+        {
+            ["knowledgeId"]          = new OpenApiNull(),          // null = global chat
+            ["message"]              = new OpenApiString("Hello"),
+            ["temperature"]          = new OpenApiDouble(0.7),
+            ["stripMarkdown"]        = new OpenApiBoolean(false),
+            ["useExtendedInstructions"] = new OpenApiBoolean(true),
+            ["conversationId"]       = new OpenApiNull(),
+            ["provider"]             = new OpenApiString("Ollama")
+        };
+
+        // Ensure requestBody is present and targeted at application/json
+        op.RequestBody ??= new OpenApiRequestBody
+        {
+            Content = new Dictionary<string, OpenApiMediaType>()
+        };
+        op.RequestBody.Content["application/json"] = new OpenApiMediaType
+        {
+            Example = sample         // 👈 here’s the example
+        };
+
+        return op;
+    })
     .Produces<ChatResponseDto>(StatusCodes.Status200OK)
     .WithTags("Chat");
 

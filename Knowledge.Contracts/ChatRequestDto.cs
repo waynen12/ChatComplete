@@ -64,6 +64,7 @@ public class ChatRequestDto
     /// <summary>
     /// The Ai Provider. This can be one of "OpenAi"  "Google"  "Anthropic" "Ollama"
     /// </summary>
+    [SwaggerSchema(Description = "LLM backend to use (OpenAi, Google, Anthropic, Ollama)")]
     [JsonConverter(typeof(JsonStringEnumConverter))]   // enum as string
     public AiProvider Provider { get; set; } = AiProvider.OpenAi;   // default
 }
