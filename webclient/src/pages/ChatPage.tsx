@@ -128,7 +128,12 @@ export default function ChatPage() {
           )}
           {/* ▼ provider picker – small, after the knowledge dropdown */}
           <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
-            <SelectTrigger className="w-40" />
+            <SelectTrigger className="w-40">
+            {provider === "OpenAi" ? "OpenAI" :
+             provider === "Google" ? "Gemini" :
+             provider === "Anthropic" ? "Anthropic" :
+             provider === "Ollama" ? "Ollama" : "Unknown"}
+          </SelectTrigger>
             <SelectContent>
               <SelectItem value="OpenAi">OpenAI</SelectItem>
               <SelectItem value="Google">Gemini</SelectItem>
