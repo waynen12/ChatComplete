@@ -84,7 +84,7 @@ public static class KernelHelper
                 "The Gemini API key is not set in the environment variables."
             );
         }
-        builder.AddAnthropicChatCompletion(SettingsProvider.Settings.GoogleModel, anthropicApiKey);
+        builder.AddAnthropicChatCompletion(SettingsProvider.Settings.AnthropicModel, anthropicApiKey);
         Kernel kernel = builder.Build();
         return kernel;
     }
