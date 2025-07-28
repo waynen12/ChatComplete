@@ -3,13 +3,19 @@ using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.MongoDB;
+using Microsoft.Extensions.AI;                        
+using Microsoft.SemanticKernel.Connectors.MongoDB;     
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Memory;
+using MongoDB.Driver;
 
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
-
+/// <summary>
+/// Provides helper methods for working with kernels.
+/// </summary>
+[Obsolete]
+//"This class is now obsolete and will be removed in a future release. Please use the new KernelFactory class instead."
 public static class KernelHelper
 {
     [Experimental("SKEXP0070")]
@@ -156,38 +162,11 @@ public static class KernelHelper
 
     public static ISemanticTextMemory GetMongoDBMemoryStore(
         string clusterName,
-        string searchIndexName,
-        string textEmbeddingModelName
-    )
+        string searchIndexName,          // ← still unused; keep for future
+        string textEmbeddingModelName)
     {
-        var mongoDbAtlasConnectionString =
-            Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
-            ?? throw new InvalidOperationException(
-                "The MongoDB Atlas connection string is not set in the environment variables."
-            );
-
-        var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        if (string.IsNullOrEmpty(openAiApiKey))
-        {
-            LoggerProvider.Logger.Error(
-                "The OpenAI API key is not set in the environment variables."
-            );
-            throw new InvalidOperationException(
-                "The OpenAI API key is not set in the environment variables."
-            );
-        }
-
-        var memoryBuilder = new MemoryBuilder();
-        memoryBuilder.WithOpenAITextEmbeddingGeneration(textEmbeddingModelName, openAiApiKey);
-
-        var mongoDbMemoryStore = new MongoDBMemoryStore(
-            mongoDbAtlasConnectionString,
-            clusterName,
-            searchIndexName
-        );
-        memoryBuilder.WithMemoryStore(mongoDbMemoryStore);
-        var memory = memoryBuilder.Build();
-
-        return memory;
+        // TODO: Implement new vector store approach
+        // For now, return a placeholder that will be replaced
+        throw new NotImplementedException("MongoDB memory store needs to be reimplemented with new vector store APIs");
     }
 }

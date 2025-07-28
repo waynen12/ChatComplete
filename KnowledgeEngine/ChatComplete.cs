@@ -5,7 +5,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
+using KnowledgeEngine;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.Anthropic;
@@ -20,22 +22,24 @@ namespace ChatCompletion
     public class ChatComplete
     {
         IChatCompletionService _chatCompletionService;
-        ISemanticTextMemory _memory;
+        private readonly KnowledgeEngine.KnowledgeManager _knowledgeManager;
         ChatCompleteSettings _settings;
+        IOptions<ChatCompleteSettings> _options;
         private readonly ConcurrentDictionary<AiProvider, Kernel> _kernels = new();
 
         public ChatComplete(
-            ISemanticTextMemory memory,
+            KnowledgeEngine.KnowledgeManager knowledgeManager,
             ChatCompleteSettings settings
         )
         {
-            _memory = memory;
+            _knowledgeManager = knowledgeManager;
            _settings = settings;
+           _options = Options.Create(settings);
         }
         
         [Experimental("SKEXP0070")]
         private Kernel GetOrCreateKernel(AiProvider provider)
-            => _kernels.GetOrAdd(provider, p => KernelHelper.GetKernel(_settings, p));
+            => _kernels.GetOrAdd(provider, p => new KernelFactory(_options).Create(p));
 
         public async Task PerformChat()
         {
@@ -91,39 +95,24 @@ namespace ChatCompletion
             string systemMessage = useExtendedInstructions ? _settings.SystemPromptWithCoding : _settings.SystemPrompt;
             chatHistory.AddSystemMessage(systemMessage);
 
-            // 1. Vector search and collect tuples
-            var temp = new List<(int Order, string Content)>();
+            // 1. Vector search using new KnowledgeManager
+            var searchResults = new List<KnowledgeEngine.KnowledgeSearchResult>();
 
             if (!string.IsNullOrEmpty(knowledgeId))
             {
-                await foreach (
-                    var result in _memory.SearchAsync(
-                        knowledgeId,
-                        userMessage,
-                        limit: 10,
-                        minRelevanceScore: 0.6,
-                        cancellationToken: ct
-                    )
-                )
-                {
-                    if (string.IsNullOrWhiteSpace(result.Metadata.Description))
-                        continue;
-
-                    var orderStr = result
-                        .Metadata.AdditionalMetadata?.Split(',')
-                        .FirstOrDefault(m =>
-                            m.StartsWith("ChunkOrder=", StringComparison.OrdinalIgnoreCase)
-                        )
-                        ?.Split('=')[1];
-
-                    int order = int.TryParse(orderStr, out var o) ? o : int.MaxValue;
-                    temp.Add((order, result.Metadata.Description));
-                }
+                searchResults = await _knowledgeManager.SearchAsync(
+                    knowledgeId,
+                    userMessage,
+                    limit: 10,
+                    minRelevanceScore: 0.6,
+                    cancellationToken: ct
+                );
             }
 
             // 2. Convert to ordered distinct strings
-            IEnumerable<string> contextChunks = temp.OrderBy(t => t.Order)
-                .Select(t => t.Content)
+            IEnumerable<string> contextChunks = searchResults
+                .OrderBy(r => r.ChunkOrder)
+                .Select(r => r.Text)
                 .Distinct();
 
             var contextBlock = contextChunks.Any()
@@ -206,50 +195,17 @@ namespace ChatCompletion
                     break;
                 }
 
-                // Step 1: Perform vector search
-                var searchResults = _memory.SearchAsync(
+                // Step 1: Perform vector search using new KnowledgeManager
+                var searchResults = await _knowledgeManager.SearchAsync(
                     collection,
                     userInput,
-                    limit: 8,
+                    limit: 10,
                     minRelevanceScore: 0.6
                 );
-                var contextChunks = new List<(int Order, string Content)>();
 
-                await foreach (
-                    var result in _memory.SearchAsync(
-                        collection,
-                        userInput,
-                        limit: 10,
-                        minRelevanceScore: 0.6
-                    )
-                )
-                {
-                    if (!string.IsNullOrWhiteSpace(result.Metadata.Description))
-                    {
-                        var chunkText = result.Metadata.Description;
-                        var chunkOrderStr = result
-                            .Metadata.AdditionalMetadata?.Split(',') // optional, if multiple values
-                            .FirstOrDefault(m =>
-                                m.StartsWith("ChunkOrder=", StringComparison.OrdinalIgnoreCase)
-                            )
-                            ?.Split('=')[1];
-
-                        if (int.TryParse(chunkOrderStr, out int chunkOrder))
-                        {
-                            contextChunks.Add((chunkOrder, chunkText));
-                        }
-                        else
-                        {
-                            // fallback if missing
-                            contextChunks.Add((int.MaxValue, chunkText));
-                        }
-                    }
-                }
-                ;
-
-                var orderedContext = contextChunks
-                    .OrderBy(c => c.Order)
-                    .Select(c => c.Content)
+                var orderedContext = searchResults
+                    .OrderBy(r => r.ChunkOrder)
+                    .Select(r => r.Text)
                     .Distinct();
 
                 string context = orderedContext.Any()

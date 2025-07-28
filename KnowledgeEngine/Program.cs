@@ -35,19 +35,16 @@ public class Program
 
         _logger.Information("Starting ChatComplete application...");
 
-        var memory = KernelHelper.GetMongoDBMemoryStore(
-            SettingsProvider.Settings.Atlas.ClusterName,
-            SettingsProvider.Settings.Atlas.SearchIndexName,
-            SettingsProvider.Settings.TextEmbeddingModelName
-        );
+        // TODO: Implement new memory store approach
+        // var memory = KernelHelper.GetMongoDBMemoryStore(
+        //     SettingsProvider.Settings.Atlas.ClusterName,
+        //     SettingsProvider.Settings.Atlas.SearchIndexName,
+        //     SettingsProvider.Settings.TextEmbeddingModelName
+        // );
         Console.WriteLine(@"Press i to import or c to chat");
         var userInput = Console.ReadLine()?.ToLower();
         if (userInput == "i")
         {
-            // DocxToDocumentConverter docxToDocumentConverter = new DocxToDocumentConverter();
-            // var document = docxToDocumentConverter.Convert("/home/wayne/repos/Semantic Kernel/ChatComplete/ChatCompletion/Docs/LicenceDashboard_Test.docx", "licence_dashboard");
-            // DocumentToTextConverter.Convert(document);
-
             var indexManager = await AtlasIndexManager.CreateAsync(CollectionName);
             // *** Check if creation was successful ***
             if (indexManager == null)
@@ -55,7 +52,16 @@ public class Program
                 Console.WriteLine("Failed to initialize Atlas Index Manager. Aborting import.");
                 return; // or handle error appropriately
             }
-            var knowledgeManager = new KnowledgeManager(memory, indexManager);
+            // For now, create a simple KnowledgeManager with minimal dependencies
+            var mongoConn = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
+                ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
+            var db = new MongoDB.Driver.MongoClient(mongoConn).GetDatabase(SettingsProvider.Settings.Atlas.ClusterName);
+            var vectorStore = new Microsoft.SemanticKernel.Connectors.MongoDB.MongoVectorStore(db);
+            
+            // Create a placeholder embedding service (will be implemented later)
+            Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>? embeddingService = null;
+            
+            var knowledgeManager = new KnowledgeEngine.KnowledgeManager(vectorStore, embeddingService!, indexManager, db);
 
             await knowledgeManager.SaveToMemoryAsync(
                 Path.Combine(
@@ -64,21 +70,6 @@ public class Program
                 ),
                 CollectionName
             );
-
-            // await knowledgeManager.SaveToMemoryAsync(
-            // Path.Combine(SettingsProvider.Settings.FilePath,"Deployment_Script_TS.md"),
-            // CollectionName);
-
-            // await knowledgeManager.SaveToMemoryAsync(
-            //     Path.Combine(SettingsProvider.Settings.FilePath, "New_System_Installation_Guide.md"),
-            //     CollectionName);
         }
-        // else if (userInput == "c")
-        // {
-        //     var prompt =
-        //         $"You are a helpful assistant for users on a web portal. Always base your answers on the context provided and keep answers clear and accurate. Never provide awnsers that are not based on the context. If you don't know the answer, say 'I don't know'. Do not make up answers. Do not engage in Roleplay'.";
-        //     var chatComplete = new ChatComplete(memory, kernel, prompt);
-        //     await chatComplete.KnowledgeChatWithHistory(CollectionName);
-        // }
     }
 }

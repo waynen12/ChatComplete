@@ -5,6 +5,7 @@ using ChatCompletion.Config;
 using Knowledge.Api.Options;
 using Knowledge.Api.Services;
 using Knowledge.Contracts;
+using KnowledgeEngine;
 using KnowledgeEngine.Chat;
 using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
 using KnowledgeEngine.Persistence;
@@ -12,14 +13,12 @@ using KnowledgeEngine.Persistence.Conversations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Memory;
 using MongoDB.Driver;
 using Serilog;
-using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.OpenApi.Any;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
+ 
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
@@ -53,38 +52,22 @@ SettingsProvider.Initialize(settings);
 var mongoUri =
     Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
     ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
+var openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")!;
 var mongoClient = new MongoClient(mongoUri);
 builder.Services.AddSingleton<IMongoClient>(mongoClient);
+var cfg = builder.Configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>();
 
-// 1. ISemanticTextMemory  (vector store + embeddings)
-builder.Services.AddSingleton<ISemanticTextMemory>(sp =>
-{
-    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
+// 1️⃣  Vector store + embeddings
+var db = mongoClient.GetDatabase(cfg!.Atlas.ClusterName);
+builder.Services.AddSingleton<Microsoft.SemanticKernel.Connectors.MongoDB.MongoVectorStore>(_ => 
+    new Microsoft.SemanticKernel.Connectors.MongoDB.MongoVectorStore(db));
 
-    // reuse your helper to build the memory store
-    return KernelHelper.GetMongoDBMemoryStore(
-        cfg.Atlas.ClusterName, // database == clusterName today
-        cfg.Atlas.SearchIndexName,
-        cfg.TextEmbeddingModelName
-    );
-});
+// Add modern Microsoft.Extensions.AI embedding service directly
+builder.Services.AddOpenAIEmbeddingGenerator(settings.TextEmbeddingModelName, openAiKey);
 
 // 2. Kernel that uses the memory + OpenAI
-
-builder.Services.AddSingleton<ChatComplete>(sp =>
-{
-    var kernel = sp.GetRequiredService<Kernel>(); // gone
-    var memory = sp.GetRequiredService<ISemanticTextMemory>();
-    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
-    return new ChatComplete(memory, cfg);
-});
-builder.Services.AddSingleton<ChatComplete>(sp =>
-{
-    var memory = sp.GetRequiredService<ISemanticTextMemory>();
-    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
-    return new ChatComplete(memory, cfg);
-});
-
+// 2️⃣  Chat-model provider factory (we keep provider switch here)
+builder.Services.AddSingleton<KernelFactory>();
 
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
     mongoClient.GetDatabase(settings.Atlas.DatabaseName)
@@ -92,8 +75,41 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 builder.Services.AddSingleton<IKnowledgeRepository, MongoKnowledgeRepository>();
 builder.Services.AddConversationPersistence();
 
+// 1️⃣  AtlasIndexManager (async factory → sync bridge)
+builder.Services.AddSingleton<AtlasIndexManager>(sp =>
+{
+    // Get the default collection name – or pass empty, the ingest step
+    // will call CreateAsync(collectionName) again per import
+    var defaultColl = settings.Atlas.CollectionName;
+    // Safe because this runs only once at startup
+    var mgr = AtlasIndexManager.CreateAsync(defaultColl).GetAwaiter().GetResult();
 
+    if (mgr == null)
+        throw new InvalidOperationException("Failed to create AtlasIndexManager");
 
+    return mgr;
+});
+
+// 2️⃣  KnowledgeManager depends on vector store + embedding service + index-manager
+builder.Services.AddSingleton<KnowledgeManager>(sp =>
+{
+    var vectorStore = sp.GetRequiredService<Microsoft.SemanticKernel.Connectors.MongoDB.MongoVectorStore>();
+    var embeddingService = sp.GetRequiredService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>();
+    var index = sp.GetRequiredService<AtlasIndexManager>();
+    var mongoDatabase = sp.GetRequiredService<IMongoDatabase>();
+    return new KnowledgeManager(vectorStore, embeddingService, index, mongoDatabase);
+});
+
+// 3️⃣  Ingest service (already added earlier)
+builder.Services.AddSingleton<IKnowledgeIngestService, KnowledgeIngestService>();
+
+// Register ChatComplete service for MongoChatService dependency (after KnowledgeManager)
+builder.Services.AddSingleton<ChatComplete>(sp =>
+{
+    var knowledgeManager = sp.GetRequiredService<KnowledgeManager>();
+    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
+    return new ChatComplete(knowledgeManager, cfg);
+});
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 const string DevCors = "DevFrontend";
@@ -136,32 +152,6 @@ builder.Services.AddSwaggerGen(options =>
 
 // reuse existing helpers
 builder.Services.AddSingleton<IChatService, MongoChatService>();
-
-// 1️⃣  AtlasIndexManager (async factory → sync bridge)
-builder.Services.AddSingleton<AtlasIndexManager>(sp =>
-{
-    // Get the default collection name – or pass empty, the ingest step
-    // will call CreateAsync(collectionName) again per import
-    var defaultColl = settings.Atlas.CollectionName;
-    // Safe because this runs only once at startup
-    var mgr = AtlasIndexManager.CreateAsync(defaultColl).GetAwaiter().GetResult();
-
-    if (mgr == null)
-        throw new InvalidOperationException("Failed to create AtlasIndexManager");
-
-    return mgr;
-});
-
-// 2️⃣  KnowledgeManager depends on memory + index-manager
-builder.Services.AddSingleton<KnowledgeManager>(sp =>
-{
-    var memory = sp.GetRequiredService<ISemanticTextMemory>();
-    var index = sp.GetRequiredService<AtlasIndexManager>();
-    return new KnowledgeManager(memory, index);
-});
-
-// 3️⃣  Ingest service (already added earlier)
-builder.Services.AddSingleton<IKnowledgeIngestService, KnowledgeIngestService>();
 
 var app = builder.Build();
 

@@ -176,10 +176,10 @@ public class AtlasIndexManager
 
     public async Task CreateVectorSearchIndexAsync(string vectorField, int numDimensions, string similarityFunction, string collectionName)
     {
-        if (await IndexExistsAsync())
+        if (await IndexExistsAsync(collectionName))
         {
-            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
-            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
+            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
+            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
             return;
         }
 
@@ -226,20 +226,20 @@ public class AtlasIndexManager
     
     public async Task CreateIndexAsync(string collectionName)
     {
-        if (await IndexExistsAsync())
+        if (await IndexExistsAsync(collectionName))
         {
-            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
-            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists. Skipping creation.");
+            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
+            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
             return;
         }
-        await CreateVectorSearchIndexAsync("embedding", 1536, "cosine", collectionName);
+        await CreateVectorSearchIndexAsync("vector", 1536, "cosine", collectionName);
     }
     
     public async Task DeleteIndexAsync(string collectionName, CancellationToken ct = default)
     {
-        if (!await IndexExistsAsync())
+        if (!await IndexExistsAsync(collectionName))
         {
-            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' does not exist. Cannot delete.");
+            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' does not exist for collection '{collectionName}'. Cannot delete.");
             return;
         }
 

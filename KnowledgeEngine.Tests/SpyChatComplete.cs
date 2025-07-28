@@ -11,7 +11,7 @@ internal sealed class SpyChatComplete : ChatComplete
 
     public SpyChatComplete()
         : base(
-            memory:  null!,                 // not used by spy
+            knowledgeManager:  null!,                 // not used by spy
             settings: new ChatCompleteSettings { Temperature = 0.7 })
     { }
 
