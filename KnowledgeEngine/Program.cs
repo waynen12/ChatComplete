@@ -1,5 +1,7 @@
 ﻿using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
+using KnowledgeEngine.Persistence.IndexManagers;
+using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.Configuration;
 
 using Serilog;
@@ -56,12 +58,14 @@ public class Program
             var mongoConn = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
                 ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
             var db = new MongoDB.Driver.MongoClient(mongoConn).GetDatabase(SettingsProvider.Settings.Atlas.ClusterName);
-            var vectorStore = new Microsoft.SemanticKernel.Connectors.MongoDB.MongoVectorStore(db);
+            
+            // Create MongoDB vector store strategy
+            var vectorStoreStrategy = new MongoVectorStoreStrategy(db, SettingsProvider.Settings.Atlas);
             
             // Create a placeholder embedding service (will be implemented later)
             Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>? embeddingService = null;
             
-            var knowledgeManager = new KnowledgeEngine.KnowledgeManager(vectorStore, embeddingService!, indexManager, db);
+            var knowledgeManager = new KnowledgeEngine.KnowledgeManager(vectorStoreStrategy, embeddingService!, indexManager);
 
             await knowledgeManager.SaveToMemoryAsync(
                 Path.Combine(

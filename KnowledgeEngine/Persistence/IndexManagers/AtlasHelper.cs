@@ -6,6 +6,9 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using KnowledgeEngine.Logging;
+using KnowledgeEngine.MongoDB;
+
+namespace KnowledgeEngine.Persistence.IndexManagers;
 
 public static class AtlasHelper
 {

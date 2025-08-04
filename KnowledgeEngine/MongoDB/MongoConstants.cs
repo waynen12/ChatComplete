@@ -1,4 +1,6 @@
 
+namespace KnowledgeEngine.MongoDB;
+
 public static class MongoConstants
 {
     public const string AtlasBaseUrl = "https://cloud.mongodb.com/api/atlas/v1.0";

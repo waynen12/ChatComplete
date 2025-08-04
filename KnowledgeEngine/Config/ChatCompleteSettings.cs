@@ -3,6 +3,7 @@ namespace ChatCompletion.Config
     public class ChatCompleteSettings
     {
         public MongoAtlasSettings Atlas { get; set; } = new();
+        public VectorStoreSettings VectorStore { get; set; } = new();
 
         public string OpenAIModel { get; set; } = "gpt-3.5-turbo";
         public string GoogleModel { get; set; } = "gemini-2.5-flash";

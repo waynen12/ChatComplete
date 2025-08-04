@@ -65,3 +65,8 @@ KnowledgeEngine/Docs/Publish steps.txt
 KnowledgeEngine/Docs/Heliograph_Test_Document.docx
 KnowledgeEngine/Docs/OpenAI GPTs Creating Your Own Custom AI Assistants.docx
 QDRANT_IMPLEMENTATION_PLAN.md
+AGENT_IMPLEMENTATION_PLAN.md
+.gitignore
+PROJECT_SUMMARY.md
+PROJECT_SUMMARY.md
+LANGCHAIN_IMPLEMENTATION_PLAN.md

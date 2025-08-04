@@ -5,12 +5,16 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
+using KnowledgeEngine.MongoDB;
 using Serilog;
 
-public class AtlasIndexManager
+namespace KnowledgeEngine.Persistence.IndexManagers;
+
+public class AtlasIndexManager : IIndexManager
 {
     private readonly string _clusterName;
     private readonly string _databaseName;
@@ -85,7 +89,7 @@ public class AtlasIndexManager
     }
 
 
-    public async Task<bool> IndexExistsAsync(string collectionName = "")
+    public async Task<bool> IndexExistsAsync(string collectionName, CancellationToken cancellationToken = default)
     {
         var response = await _httpClient.GetAsync(_indexUrl);
 
@@ -114,7 +118,7 @@ public class AtlasIndexManager
         return false;
     }
 
-    public async Task<string?> GetIndexIdAsync(string collectionName, CancellationToken ct = default){
+    public async Task<string?> GetIndexIdAsync(string collectionName, CancellationToken cancellationToken = default){
         var response = await _httpClient.GetAsync(_indexUrl);
 
         if (!response.IsSuccessStatusCode)
@@ -174,9 +178,9 @@ public class AtlasIndexManager
     }
 
 
-    public async Task CreateVectorSearchIndexAsync(string vectorField, int numDimensions, string similarityFunction, string collectionName)
+    public async Task CreateVectorSearchIndexAsync(string vectorField, int numDimensions, string similarityFunction, string collectionName, CancellationToken cancellationToken = default)
     {
-        if (await IndexExistsAsync(collectionName))
+        if (await IndexExistsAsync(collectionName, cancellationToken))
         {
             Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
             LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
@@ -224,18 +228,18 @@ public class AtlasIndexManager
     }
 
     
-    public async Task CreateIndexAsync(string collectionName)
+    public async Task CreateIndexAsync(string collectionName, CancellationToken cancellationToken = default)
     {
-        if (await IndexExistsAsync(collectionName))
+        if (await IndexExistsAsync(collectionName, cancellationToken))
         {
             Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
             LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
             return;
         }
-        await CreateVectorSearchIndexAsync("vector", 1536, "cosine", collectionName);
+        await CreateVectorSearchIndexAsync("vector", 1536, "cosine", collectionName, cancellationToken);
     }
     
-    public async Task DeleteIndexAsync(string collectionName, CancellationToken ct = default)
+    public async Task DeleteIndexAsync(string collectionName, CancellationToken cancellationToken = default)
     {
         if (!await IndexExistsAsync(collectionName))
         {
@@ -243,7 +247,7 @@ public class AtlasIndexManager
             return;
         }
 
-        string? indexId = await GetIndexIdAsync(collectionName, ct);
+        string? indexId = await GetIndexIdAsync(collectionName, cancellationToken);
         if (indexId == null)
         {
             Console.WriteLine($"Failed to retrieve index ID for '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Cannot delete.");

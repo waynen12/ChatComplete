@@ -7,8 +7,11 @@ using Knowledge.Api.Services;
 using Knowledge.Contracts;
 using KnowledgeEngine;
 using KnowledgeEngine.Chat;
+using KnowledgeEngine.Extensions;
 using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
 using KnowledgeEngine.Persistence;
+using KnowledgeEngine.Persistence.IndexManagers;
+using KnowledgeEngine.Persistence.VectorStores;
 using KnowledgeEngine.Persistence.Conversations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -49,62 +52,26 @@ if (settings == null)
 }
 SettingsProvider.Initialize(settings); 
 
-var mongoUri =
-    Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
-    ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
 var openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")!;
-var mongoClient = new MongoClient(mongoUri);
-builder.Services.AddSingleton<IMongoClient>(mongoClient);
-var cfg = builder.Configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>();
-
-// 1️⃣  Vector store + embeddings
-var db = mongoClient.GetDatabase(cfg!.Atlas.ClusterName);
-builder.Services.AddSingleton<Microsoft.SemanticKernel.Connectors.MongoDB.MongoVectorStore>(_ => 
-    new Microsoft.SemanticKernel.Connectors.MongoDB.MongoVectorStore(db));
 
 // Add modern Microsoft.Extensions.AI embedding service directly
 builder.Services.AddOpenAIEmbeddingGenerator(settings.TextEmbeddingModelName, openAiKey);
 
-// 2. Kernel that uses the memory + OpenAI
-// 2️⃣  Chat-model provider factory (we keep provider switch here)
+// Add modern KernelFactory
 builder.Services.AddSingleton<KernelFactory>();
 
-builder.Services.AddSingleton<IMongoDatabase>(sp =>
-    mongoClient.GetDatabase(settings.Atlas.DatabaseName)
-);
-builder.Services.AddSingleton<IKnowledgeRepository, MongoKnowledgeRepository>();
+// Add conversation persistence (MongoDB is always used for conversations)
 builder.Services.AddConversationPersistence();
 
-// 1️⃣  AtlasIndexManager (async factory → sync bridge)
-builder.Services.AddSingleton<AtlasIndexManager>(sp =>
-{
-    // Get the default collection name – or pass empty, the ingest step
-    // will call CreateAsync(collectionName) again per import
-    var defaultColl = settings.Atlas.CollectionName;
-    // Safe because this runs only once at startup
-    var mgr = AtlasIndexManager.CreateAsync(defaultColl).GetAwaiter().GetResult();
+// Use ServiceCollectionExtensions for strategy pattern registration
+builder.Services.AddKnowledgeServices(settings);
 
-    if (mgr == null)
-        throw new InvalidOperationException("Failed to create AtlasIndexManager");
-
-    return mgr;
-});
-
-// 2️⃣  KnowledgeManager depends on vector store + embedding service + index-manager
-builder.Services.AddSingleton<KnowledgeManager>(sp =>
-{
-    var vectorStore = sp.GetRequiredService<Microsoft.SemanticKernel.Connectors.MongoDB.MongoVectorStore>();
-    var embeddingService = sp.GetRequiredService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>();
-    var index = sp.GetRequiredService<AtlasIndexManager>();
-    var mongoDatabase = sp.GetRequiredService<IMongoDatabase>();
-    return new KnowledgeManager(vectorStore, embeddingService, index, mongoDatabase);
-});
-
-// 3️⃣  Ingest service (already added earlier)
-builder.Services.AddSingleton<IKnowledgeIngestService, KnowledgeIngestService>();
+// 3️⃣  Ingest service (scoped to match KnowledgeManager)
+builder.Services.AddScoped<IKnowledgeIngestService, KnowledgeIngestService>();
 
 // Register ChatComplete service for MongoChatService dependency (after KnowledgeManager)
-builder.Services.AddSingleton<ChatComplete>(sp =>
+// Changed from Singleton to Scoped to match KnowledgeManager lifetime
+builder.Services.AddScoped<ChatComplete>(sp =>
 {
     var knowledgeManager = sp.GetRequiredService<KnowledgeManager>();
     var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
@@ -150,8 +117,8 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<PythonCodeSampleFilter>(); //  ← new line
 });
 
-// reuse existing helpers
-builder.Services.AddSingleton<IChatService, MongoChatService>();
+// reuse existing helpers - changed to Scoped to match ChatComplete lifetime
+builder.Services.AddScoped<IChatService, MongoChatService>();
 
 var app = builder.Build();
 
@@ -165,8 +132,20 @@ var api = app.MapGroup("/api").WithOpenApi();
 // 1) GET /api/knowledge
 api.MapGet(
         "/knowledge",
-        async (IKnowledgeRepository repo, CancellationToken ct) =>
-            Results.Ok(await repo.GetAllAsync(ct))
+        async ([FromServices] IVectorStoreStrategy vectorStore, CancellationToken ct) =>
+        {
+            // Use vector store strategy to list collections directly
+            var collections = await vectorStore.ListCollectionsAsync(ct);
+            
+            var summaries = collections.Select(name => new KnowledgeSummaryDto
+            {
+                Id = name,
+                Name = name,
+                DocumentCount = 0 // Could be enhanced to get actual count
+            }).OrderBy(x => x.Name);
+            
+            return Results.Ok(summaries);
+        }
     )
     .WithOpenApi()
     .Produces<IEnumerable<KnowledgeSummaryDto>>(StatusCodes.Status200OK)
@@ -178,7 +157,7 @@ api.MapPost(
         async (
             [FromForm] string name,
             [FromForm] IFormFileCollection files,
-            IKnowledgeIngestService ingest,
+            [FromServices] IKnowledgeIngestService ingest,
             CancellationToken ct
         ) =>
         {
@@ -208,7 +187,7 @@ api.MapPost(
 // 3) POST /api/chat
 api.MapPost(
         "/chat",
-        async (ChatRequestDto dto, IChatService chat, CancellationToken ct) =>
+        async (ChatRequestDto dto, [FromServices] IChatService chat, CancellationToken ct) =>
         {
             var reply = await chat.GetReplyAsync(dto, dto.Provider, ct);
             if (dto.StripMarkdown)
@@ -256,18 +235,18 @@ api.MapPost(
 api.MapDelete(
         "/knowledge/{id}",
         async (string id,
-            IKnowledgeRepository repo,
-            AtlasIndexManager indexMgr,
+            [FromServices] IKnowledgeRepository repo,
+            [FromServices] IIndexManager indexMgr,
             CancellationToken ct) =>
         {
-            // 0. Fast-fail if the collection doesn’t exist
+            // 0. Fast-fail if the collection doesn't exist
             if (!await repo.ExistsAsync(id, ct))
-                return Results.NotFound($"Collection “{id}” not found.");
+                return Results.NotFound($"Collection \"{id}\" not found.");
 
-            // 1. Drop the MongoDB collection (+ vector store rows)
+            // 1. Drop the collection (+ vector store rows)
             await repo.DeleteAsync(id, ct);
 
-            // 2. Drop the Atlas search index (ignore 404 – index may not exist)
+            // 2. Drop the search index (ignore 404 – index may not exist)
             await indexMgr.DeleteIndexAsync(id, ct);
 
             return Results.NoContent();           // 204
