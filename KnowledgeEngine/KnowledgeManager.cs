@@ -63,6 +63,10 @@ public class KnowledgeManager
         // 2. Convert to text
         var doc = parse.Document;
         bool markdown = doc.Elements.Any(e => e is IHeadingElement);
+        
+        LoggerProvider.Logger.Information("Document processing: {HeadingCount} headings found, markdown={Markdown}", 
+            doc.Elements.OfType<IHeadingElement>().Count(), markdown);
+            
         var rawText = markdown ? DocumentToTextConverter.Convert(doc) : doc.ToString();
         
         if (string.IsNullOrWhiteSpace(rawText))
