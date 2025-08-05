@@ -81,4 +81,11 @@ curl -X POST http://localhost:7040/api/chat \
         "provider": "Ollama",
         "conversationId": null
       }'
+
+Now for further information on the project 
+ can you read through the 
+ PROJECT_SUMARY, 
+ QDRANT_IMPLEMENTATION_PLAN, 
+ AGENT_IMPLEMENTATION_PLAN   
+ Do not perform any further tasks just yet.    
 You are now primed with full context.

@@ -16,7 +16,6 @@ using KnowledgeEngine.Persistence.Conversations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
-using MongoDB.Driver;
 using Serilog;
 using System.Text.Json.Serialization;
 using Microsoft.OpenApi.Any;
@@ -79,11 +78,11 @@ builder.Services.AddScoped<ChatComplete>(sp =>
 });
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
-const string DevCors = "DevFrontend";
+const string devCors = "DevFrontend";
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
-        DevCors,
+        devCors,
         (policyBuilder) =>
         {
             var cors = builder.Configuration.GetSection("Cors").Get<CorsOptions>();
@@ -148,7 +147,7 @@ api.MapGet(
         }
     )
     .WithOpenApi()
-    .Produces<IEnumerable<KnowledgeSummaryDto>>(StatusCodes.Status200OK)
+    .Produces<IEnumerable<KnowledgeSummaryDto>>()
     .WithTags("Knowledge");
 
 // 2) POST /api/knowledge
@@ -228,7 +227,7 @@ api.MapPost(
 
         return op;
     })
-    .Produces<ChatResponseDto>(StatusCodes.Status200OK)
+    .Produces<ChatResponseDto>()
     .WithTags("Chat");
 
 // 4) DELETE /api/knowledge/{id}
@@ -265,7 +264,7 @@ api.MapDelete(
 api.MapGet("/ping", () => Results.Ok("pong"))
     .WithTags("Health")
     .WithOpenApi()
-    .Produces<string>(StatusCodes.Status200OK)
+    .Produces<string>()
     .WithName("Health")
     .WithOpenApi();
 
@@ -282,7 +281,7 @@ app.Use(
         return next();
     }
 );
-app.UseCors(DevCors); // CORS must appear before MapXXX
+app.UseCors(devCors); // CORS must appear before MapXXX
 
 // if (app.Environment.IsDevelopment())
 // {

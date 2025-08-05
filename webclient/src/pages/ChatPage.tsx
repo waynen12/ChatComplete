@@ -32,19 +32,19 @@ export default function ChatPage() {
   const { id: initialKnowledgeId } = useParams();
   const [collections, setCollections] = useState<KnowledgeItem[]>([]);
   const [collectionId, setCollectionId] = useState<string>(
-    initialKnowledgeId ?? ""
+    initialKnowledgeId ?? "__global__"
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(() =>
     sessionStorage.getItem("chat.cid")
   );
-  const [provider, setProvider] = useState<Provider>("OpenAi");
+  const [provider, setProvider] = useState<Provider>("Ollama");
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/chat");
+      const res = await fetch("/api/knowledge");
       if (!res.ok) return;
       setCollections(await res.json());
     })();
@@ -54,8 +54,21 @@ export default function ChatPage() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Handle navigation from knowledge list page - start fresh conversation
+  useEffect(() => {
+    if (initialKnowledgeId) {
+      setConversationId(null);
+      sessionStorage.removeItem("chat.cid");
+      setMessages([]);
+    }
+  }, [initialKnowledgeId]);
+
   async function sendMessage() {
     if (!input.trim()) return;
+    if (collectionId === "__global__") {
+      // Could show a toast or other error indication here
+      return;
+    }
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -68,7 +81,7 @@ export default function ChatPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        knowledgeId: collectionId || null,   // ""  → null
+        knowledgeId: collectionId === "__global__" ? null : collectionId,
         message: userMsg.content,
         temperature: 0.8,
         stripMarkdown: false,
@@ -103,59 +116,81 @@ export default function ChatPage() {
     return (
       <section className="h-full grid grid-rows-[auto_1fr_auto]">
         {/* Top bar */}
-        <header className="border-b p-4 flex gap-4 items-center">
-          {collections.length > 0 ? (
-            <Select
-              value={collectionId}
-              onValueChange={(v) => setCollectionId(v)}   // v is always a string
-            >
-              <SelectTrigger className="w-64">
-                {collectionId
-                  ? collections.find((c) => c.id === collectionId)?.name ?? "Unknown"
-                  : "🌐 Global chat"}
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">🌐 Global chat</SelectItem>
-                {collections.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <span className="text-sm text-muted-foreground">🌐 Global chat</span>
-          )}
-          {/* ▼ provider picker – small, after the knowledge dropdown */}
-          <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
-            <SelectTrigger className="w-40">
-            {provider === "OpenAi" ? "OpenAI" :
-             provider === "Google" ? "Gemini" :
-             provider === "Anthropic" ? "Anthropic" :
-             provider === "Ollama" ? "Ollama" : "Unknown"}
-          </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="OpenAi">OpenAI</SelectItem>
-              <SelectItem value="Google">Gemini</SelectItem>
-              <SelectItem value="Anthropic">Anthropic</SelectItem>
-              <SelectItem value="Ollama">Ollama</SelectItem>
-            </SelectContent>
-          </Select>
+        <header className="border-b p-4 space-y-4">
+          <div className="flex flex-col gap-4">
+            {/* Knowledge Selection */}
+            <div className="flex items-center gap-3">
+              {collections.length > 0 ? (
+                <Select
+                  value={collectionId}
+                  onValueChange={(v) => {
+                    setCollectionId(v);
+                    // Reset conversation when switching collections
+                    setConversationId(null);
+                    sessionStorage.removeItem("chat.cid");
+                    // Clear messages for new conversation
+                    setMessages([]);
+                  }}
+                >
+                  <SelectTrigger className="w-64">
+                    <span className="truncate">
+                      {collectionId === "__global__"
+                        ? "Please choose a knowledge item"
+                        : collections.find((c) => c.id === collectionId)?.name ?? "Unknown"}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__global__" disabled>Please choose a knowledge item</SelectItem>
+                    {collections.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="text-sm text-muted-foreground w-64">Loading knowledge items...</span>
+              )}
+              <label className="text-sm font-medium text-foreground">
+                Knowledge <span className="text-destructive">*</span>
+              </label>
+            </div>
+
+            {/* AI Provider Selection */}
+            <div className="flex items-center gap-3">
+              <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
+                <SelectTrigger className="w-40">
+                  {provider === "OpenAi" ? "OpenAI" :
+                   provider === "Google" ? "Gemini" :
+                   provider === "Anthropic" ? "Anthropic" :
+                   provider === "Ollama" ? "Ollama" : "Unknown"}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OpenAi">OpenAI</SelectItem>
+                  <SelectItem value="Google">Gemini</SelectItem>
+                  <SelectItem value="Anthropic">Anthropic</SelectItem>
+                  <SelectItem value="Ollama">Ollama</SelectItem>
+                </SelectContent>
+              </Select>
+              <label className="text-sm font-medium text-foreground">AI Provider</label>
+            </div>
+          </div>
         </header>
 
         {/* Messages */}
-        <div className="overflow-y-auto p-6 bg-slate-50 flex justify-center">
-          <div className="w-full max-w-2xl space-y-2">
+        <div className="overflow-y-auto p-6 bg-muted/30 flex justify-center">
+          <div className="w-full max-w-4xl space-y-4">
             <AnimatePresence initial={false}>
               {messages.map((m) => (
                 <motion.div
+                  key={m.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   className={clsx(
-                    // limit bubble width
-                    "max-w-[90%] sm:max-w-xs md:max-w-md lg:max-w-lg",
-                    "rounded-2xl px-4 py-2",
+                    "max-w-[85%] rounded-2xl px-4 py-3",
                     m.role === "user"
                       ? "bg-primary text-primary-foreground ml-auto"
-                      : "bg-white shadow"
+                      : "bg-card text-card-foreground shadow-sm border"
                   )}
                 >
                   {m.role === "assistant"
@@ -169,7 +204,8 @@ export default function ChatPage() {
         </div>
 
         {/* Input */}
-        <footer className="px-70  border-t flex gap-2">
+        <footer className="p-4 border-t bg-background">
+          <div className="max-w-4xl mx-auto flex gap-2">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -178,10 +214,11 @@ export default function ChatPage() {
           />
           <Button
             onClick={sendMessage}
-            disabled={input.trim() === ""}        // ← disables on empty/whitespace
+            disabled={input.trim() === "" || collectionId === "__global__"}
           >
             Send
           </Button>
+          </div>
         </footer>
       </section>
     );

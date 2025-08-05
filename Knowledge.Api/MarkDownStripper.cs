@@ -3,9 +3,9 @@ using Markdig;
 
 static class MarkdownStripper
 {
-    static readonly MarkdownPipeline _pipeline =
+    static readonly MarkdownPipeline Pipeline =
         new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     public static string ToPlain(string md) =>
-        Markdown.ToPlainText(md, _pipeline);
+        Markdown.ToPlainText(md, Pipeline);
 }

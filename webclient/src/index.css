@@ -1,31 +1,4 @@
-/* ---------- Light theme (default) ---------- */
-:root {
-  --radius: 0.5rem;
-
-  /* main brand colour */
-  --primary:            221 83% 53%;   /* blue-600 */
-  --primary-foreground: 0 0% 100%;
-
-  /* muted surfaces / cards */
-  --secondary:            210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-
-  /* general text / background */
-  --background:         0 0% 100%;
-  --foreground:         222 47% 11%;
-
-  /* focus ring */
-  --ring:               221 83% 53%;
-  --accent: 32 94% 55%; --accent-foreground: 0 0% 100%; 
-}
-
-/* ---------- Dark theme overrides ---------- */
-.dark {
-  --primary:            221 83% 66%;   /* slightly brighter */
-  --secondary:          214 16% 18%;
-  --background:         222 47% 11%;
-  --foreground:         210 40% 98%;
-}
+/* Modern color system with OKLCH */
 
 
 
@@ -80,7 +53,7 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: oklch(0.477 0.206 257.14);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -114,8 +87,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.587 0.196 259.52);
+  --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);

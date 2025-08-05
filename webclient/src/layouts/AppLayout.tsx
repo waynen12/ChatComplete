@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 export default function AppLayout() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="border-b bg-white">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <nav className="container h-14 flex items-center justify-between">
           <NavLink to="/" className="font-semibold">
             ChatComplete
