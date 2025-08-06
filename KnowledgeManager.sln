@@ -8,7 +8,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Knowledge.Api", "Knowledge.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Knowledge.Contracts", "Knowledge.Contracts\Knowledge.Contracts.csproj", "{AC7ABE60-EE59-408B-A429-9E0FD34278C7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KnowledgeEngine.Tests", "KnowledgeEngine.Tests\KnowledgeEngine.Tests.csproj", "{B413EE29-DD83-4906-8533-F4CDECC7D899}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KnowledgeManager.Tests", "KnowledgeManager.Tests\KnowledgeManager.Tests.csproj", "{B413EE29-DD83-4906-8533-F4CDECC7D899}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

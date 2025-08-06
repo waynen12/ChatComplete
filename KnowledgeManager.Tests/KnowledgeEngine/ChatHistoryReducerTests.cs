@@ -5,7 +5,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Xunit;
 
 
-namespace KnowledgeEngine.Tests;
+namespace KnowledgeManager.Tests.KnowledgeEngine;
 
 public class ChatHistoryReducerTests
 {

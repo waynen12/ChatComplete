@@ -4,7 +4,7 @@ using Xunit;
 using Xunit.Abstractions;
 using KnowledgeEngine.Logging;
 
-namespace KnowledgeEngine.Tests
+namespace KnowledgeManager.Tests.KnowledgeEngine
 {
     public class PDFParsingIntegrationTest
     {

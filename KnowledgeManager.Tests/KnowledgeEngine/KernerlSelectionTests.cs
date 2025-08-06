@@ -9,6 +9,8 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Xunit;
 
+namespace KnowledgeManager.Tests.KnowledgeEngine;
+
 public class KernelSelectionTests
 {
     private static readonly ChatCompleteSettings FakeSettings = new()

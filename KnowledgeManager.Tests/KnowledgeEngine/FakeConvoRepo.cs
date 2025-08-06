@@ -1,5 +1,7 @@
 using KnowledgeEngine.Persistence.Conversations;
 
+namespace KnowledgeManager.Tests.KnowledgeEngine;
+
 internal sealed class FakeConvoRepo : IConversationRepository
 {
     private readonly List<ChatMessage> _store;

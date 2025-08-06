@@ -5,6 +5,8 @@ using Knowledge.Contracts.Types;
 using KnowledgeEngine.Chat;
 using Microsoft.Extensions.Options;
 
+namespace KnowledgeManager.Tests.KnowledgeEngine;
+
 public class MongoChatServiceTests
 {
     private const int MaxTurns = 10;           // same value you put in settings

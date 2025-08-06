@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 
+namespace KnowledgeManager.Tests.KnowledgeEngine;
+
 internal sealed class SpyChatComplete : ChatComplete
 {
     public int? LastHistoryCount { get; private set; }
