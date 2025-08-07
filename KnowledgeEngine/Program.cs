@@ -47,13 +47,9 @@ public class Program
         var userInput = Console.ReadLine()?.ToLower();
         if (userInput == "i")
         {
-            var indexManager = await AtlasIndexManager.CreateAsync(CollectionName);
-            // *** Check if creation was successful ***
-            if (indexManager == null)
-            {
-                Console.WriteLine("Failed to initialize Atlas Index Manager. Aborting import.");
-                return; // or handle error appropriately
-            }
+            var atlasHttpClient = AtlasHttpClientFactory.CreateHttpClient();
+            var indexManager = new AtlasIndexManager(SettingsProvider.Settings.Atlas, atlasHttpClient, ownsHttpClient: true);
+            await indexManager.InitializeAsync();
             // For now, create a simple KnowledgeManager with minimal dependencies
             var mongoConn = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
                 ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");

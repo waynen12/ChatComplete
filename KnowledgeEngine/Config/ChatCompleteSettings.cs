@@ -28,5 +28,9 @@ namespace ChatCompletion.Config
         public double Temperature { get; set; } = 0.7;
         
         public int ChatMaxTurns { get; set; } = 12;   // assistant+user pairs ⇒ 24 msgs
+        
+        // Code fence protection settings
+        public int MaxCodeFenceSize { get; set; } = 10240; // 10KB max per code block
+        public bool TruncateOversizedCodeFences { get; set; } = true;
     }
 }

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -40,6 +39,7 @@ export default function ChatPage() {
     sessionStorage.getItem("chat.cid")
   );
   const [provider, setProvider] = useState<Provider>("Ollama");
+  const [stripMarkdown, setStripMarkdown] = useState<boolean>(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function ChatPage() {
         knowledgeId: collectionId === "__global__" ? null : collectionId,
         message: userMsg.content,
         temperature: 0.8,
-        stripMarkdown: false,
+        stripMarkdown: stripMarkdown,
         useExtendedInstructions: false,
         provider,
         conversationId
@@ -173,6 +173,25 @@ export default function ChatPage() {
                 </SelectContent>
               </Select>
               <label className="text-sm font-medium text-foreground">AI Provider</label>
+            </div>
+
+            {/* Markdown Toggle */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="strip-markdown"
+                  checked={stripMarkdown}
+                  onChange={(e) => setStripMarkdown(e.target.checked)}
+                  className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                />
+                <label htmlFor="strip-markdown" className="text-sm font-medium text-foreground cursor-pointer">
+                  Strip Markdown
+                </label>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Remove formatting from responses
+              </span>
             </div>
           </div>
         </header>

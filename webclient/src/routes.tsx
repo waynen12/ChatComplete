@@ -9,7 +9,7 @@ import KnowledgeListPage from "./pages/KnowledgeListPage";
 import KnowledgeFormPage from "./pages/KnowledgeFormPage";
 import ChatPage from "./pages/ChatPage";
 import NotFoundPage from "./pages/NotFoundPage";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import {PageWrapper} from "./layouts/PageWrapper";
 
 const routes: RouteObject[] = [

@@ -94,18 +94,16 @@ public static class ServiceCollectionExtensions
                 openAiKey);
         });
 
-        // Note: AtlasIndexManager and QdrantIndexManager are registered above based on provider selection
-
-        // Register AtlasIndexManager for MongoKnowledgeRepository (always needed for metadata operations)
+        // Register AtlasIndexManager as singleton with proper initialization
         services.AddSingleton<AtlasIndexManager>(provider =>
         {
-            var defaultColl = settings.Atlas.CollectionName;
-            var mgr = AtlasIndexManager.CreateAsync(defaultColl).GetAwaiter().GetResult();
+            var atlasHttpClient = AtlasHttpClientFactory.CreateHttpClient();
+            var manager = new AtlasIndexManager(settings.Atlas, atlasHttpClient, ownsHttpClient: true);
             
-            if (mgr == null)
-                throw new InvalidOperationException("Failed to create AtlasIndexManager");
+            // Initialize asynchronously in background - this is a compromise for DI registration
+            Task.Run(async () => await manager.InitializeAsync()).Wait();
             
-            return mgr;
+            return manager;
         });
 
         // Register Knowledge Repository based on VectorStore provider

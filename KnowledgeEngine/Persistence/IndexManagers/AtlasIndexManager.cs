@@ -10,88 +10,52 @@ using System.Threading.Tasks;
 using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
 using KnowledgeEngine.MongoDB;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace KnowledgeEngine.Persistence.IndexManagers;
 
-public class AtlasIndexManager : IIndexManager
+public class AtlasIndexManager : IIndexManager, IDisposable
 {
-    private readonly string _clusterName;
-    private readonly string _databaseName;
-    private readonly string _collectionName;
-    private readonly string _baseUrl = SettingsProvider.Settings.Atlas.BaseUrl;
+    private readonly MongoAtlasSettings _atlasSettings;
+    private readonly HttpClient _httpClient;
+    private string _projectId;
+    private readonly bool _ownsHttpClient;
+    
     private readonly string _indexSubUrl = "/groups/{0}/clusters/{1}/fts/indexes/{2}/{3}";
     private readonly string _commandSubUrl = "/groups/{0}/clusters/{1}/fts/indexes";
 
-    private string _indexUrl;
-
-    private string _commandUrl;
-
-    private readonly HttpClient _httpClient;
-    private string _projectId = string.Empty; // Store projectId if needed later
-
-
-    private AtlasIndexManager(string collectionName, HttpClient httpClient, string projectId)
+    public AtlasIndexManager(IOptions<MongoAtlasSettings> atlasSettings, HttpClient httpClient)
+        : this(atlasSettings.Value, httpClient, false)
     {
-        _clusterName = SettingsProvider.Settings.Atlas.ClusterName;
-        _databaseName = SettingsProvider.Settings.Atlas.ClusterName;
-        _collectionName = collectionName;
-        _httpClient = httpClient; // Use the HttpClient passed in
-        _projectId = projectId;
-
-        // Set URLs now that we have the projectId
-        _indexUrl = $"{_baseUrl}{string.Format(_indexSubUrl, _projectId, _clusterName, _databaseName, _collectionName)}";
-        _commandUrl = $"{_baseUrl}{string.Format(_commandSubUrl, _projectId, _clusterName)}";
     }
 
-    // Public static factory method for asynchronous creation
-    public static async Task<AtlasIndexManager?> CreateAsync(string collectionName)
+    public AtlasIndexManager(MongoAtlasSettings atlasSettings, HttpClient httpClient, bool ownsHttpClient = false)
     {
-        // --- Moved logic from original constructor ---
-        var publicKey = Environment.GetEnvironmentVariable("MONGODB_PUBLIC_API_KEY") ?? "";
-        var privateKey = Environment.GetEnvironmentVariable("MONGODB_API_KEY") ?? "";
+        _atlasSettings = atlasSettings ?? throw new ArgumentNullException(nameof(atlasSettings));
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _ownsHttpClient = ownsHttpClient;
+        _projectId = string.Empty; // Will be set via initialization
+    }
 
-        if (string.IsNullOrEmpty(publicKey))
+    public async Task InitializeAsync()
+    {
+        if (string.IsNullOrEmpty(_projectId))
         {
-            Console.WriteLine("Error: The MongoDB public API key is not set in the environment variables.");
-            LoggerProvider.Logger.Error("The MongoDB public API key is not set in the environment variables.");
-            throw new InvalidOperationException("The MongoDB public API key is not set in the environment variables.");            
+            var projectId = await AtlasHelper.GetProjectIdByNameAsync(_atlasSettings.ProjectName, _httpClient);
+            if (string.IsNullOrEmpty(projectId))
+            {
+                throw new InvalidOperationException($"Could not retrieve Project ID for project '{_atlasSettings.ProjectName}'");
+            }
+            _projectId = projectId;
         }
-        if (string.IsNullOrEmpty(privateKey))
-        {
-             Console.WriteLine("Error: The MongoDB private API key is not set in the environment variables.");
-             LoggerProvider.Logger.Error("The MongoDB private API key is not set in the environment variables.");
-             throw new InvalidOperationException("The MongoDB private API key is not set in the environment variables.");
-        }
-
-        var handler = new HttpClientHandler
-        {
-            Credentials = new NetworkCredential(publicKey, privateKey)
-        };
-
-        var httpClient = new HttpClient(handler); // Create HttpClient here
-        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        // --- End of moved logic ---
-
-        // *** Perform the async operation ***
-        string? projectId = await AtlasHelper.GetProjectIdByNameAsync(SettingsProvider.Settings.Atlas.ProjectName, httpClient);
-
-        if (string.IsNullOrEmpty(projectId))
-        {
-            Console.WriteLine($"Error: Could not retrieve Project ID for project '{SettingsProvider.Settings.Atlas.ProjectName}'. Cannot create AtlasIndexManager.");
-            LoggerProvider.Logger.Error($"Could not retrieve Project ID for project '{SettingsProvider.Settings.Atlas.ProjectName}'. Cannot create AtlasIndexManager.");
-            httpClient.Dispose(); // Dispose HttpClient if creation fails
-            return null; // Indicate failure
-        }
-
-        // Call the private constructor with the HttpClient and projectId
-        return new AtlasIndexManager(collectionName, httpClient, projectId);
     }
 
 
     public async Task<bool> IndexExistsAsync(string collectionName, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync(_indexUrl);
+        var indexUrl = BuildIndexUrl(collectionName);
+        var response = await _httpClient.GetAsync(indexUrl, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -108,8 +72,8 @@ public class AtlasIndexManager : IIndexManager
         foreach (var index in doc.RootElement.EnumerateArray())
         {
             if (index.GetProperty("collectionName").GetString() == collectionName &&
-                index.GetProperty("database").GetString() == _databaseName &&
-                index.GetProperty("name").GetString() == SettingsProvider.Settings.Atlas.SearchIndexName)
+                index.GetProperty("database").GetString() == _atlasSettings.DatabaseName &&
+                index.GetProperty("name").GetString() == _atlasSettings.SearchIndexName)
             {
                 return true;
             }
@@ -118,8 +82,10 @@ public class AtlasIndexManager : IIndexManager
         return false;
     }
 
-    public async Task<string?> GetIndexIdAsync(string collectionName, CancellationToken cancellationToken = default){
-        var response = await _httpClient.GetAsync(_indexUrl);
+    public async Task<string?> GetIndexIdAsync(string collectionName, CancellationToken cancellationToken = default)
+    {
+        var indexUrl = BuildIndexUrl(collectionName);
+        var response = await _httpClient.GetAsync(indexUrl, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -136,8 +102,8 @@ public class AtlasIndexManager : IIndexManager
         foreach (var index in doc.RootElement.EnumerateArray())
         {
             if (index.GetProperty("collectionName").GetString() == collectionName &&
-                index.GetProperty("database").GetString() == _databaseName &&
-                index.GetProperty("name").GetString() == SettingsProvider.Settings.Atlas.SearchIndexName)
+                index.GetProperty("database").GetString() == _atlasSettings.DatabaseName &&
+                index.GetProperty("name").GetString() == _atlasSettings.SearchIndexName)
             {
                 return index.GetProperty("indexID").GetString();
             }
@@ -146,52 +112,21 @@ public class AtlasIndexManager : IIndexManager
         return null;
     }
 
-    public async Task<string?> GetProjectIdByNameAsync(string projectName)
-    {
-        string url = $"{_baseUrl}/groups";
-        var response = await _httpClient.GetAsync(MongoConstants.AtlasProjectUrl);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            Console.WriteLine($"Failed to retrieve project list. Status: {response.StatusCode}");
-            string error = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(error);
-            LoggerProvider.Logger.Error($"Failed to retrieve project list. Status: {response.StatusCode}");
-            LoggerProvider.Logger.Error(error);
-
-            return null;
-        }
-
-        var content = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(content);
-
-        foreach (var project in doc.RootElement.GetProperty("results").EnumerateArray())
-        {
-            if (project.GetProperty("name").GetString()?.Equals(projectName, StringComparison.OrdinalIgnoreCase) == true)
-            {
-                return project.GetProperty("id").GetString(); // This is the Group ID (aka Project ID)
-            }
-        }
-
-        Console.WriteLine($"Project '{projectName}' not found.");
-        return null;
-    }
 
 
     public async Task CreateVectorSearchIndexAsync(string vectorField, int numDimensions, string similarityFunction, string collectionName, CancellationToken cancellationToken = default)
     {
         if (await IndexExistsAsync(collectionName, cancellationToken))
         {
-            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
-            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
+            LoggerProvider.Logger.Information($"Index '{_atlasSettings.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
             return;
         }
 
        var body = new
         {
             collectionName = collectionName,
-            database = _databaseName,
-            name = SettingsProvider.Settings.Atlas.SearchIndexName,
+            database = _atlasSettings.DatabaseName,
+            name = _atlasSettings.SearchIndexName,
             mappings = new
             {
                 dynamic = false,
@@ -210,20 +145,18 @@ public class AtlasIndexManager : IIndexManager
 
         string json = JsonSerializer.Serialize(body, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
         var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var response = await _httpClient.PostAsync(_commandUrl, content);
+        var commandUrl = BuildCommandUrl();
+        var response = await _httpClient.PostAsync(commandUrl, content, cancellationToken);
 
         if (response.IsSuccessStatusCode)
         {
-            Console.WriteLine($"Successfully created index '{SettingsProvider.Settings.Atlas.SearchIndexName}'.");
-            LoggerProvider.Logger.Information($"Successfully created index '{SettingsProvider.Settings.Atlas.SearchIndexName}'.");
+            LoggerProvider.Logger.Information($"Successfully created index '{_atlasSettings.SearchIndexName}'.");
         }
         else
         {
-            Console.WriteLine($"Failed to create index '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Status: {response.StatusCode}");
-            string error = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(error);
-            LoggerProvider.Logger.Error($"Failed to create index '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Status: {response.StatusCode}");
-            LoggerProvider.Logger.Error(error);
+            string error = await response.Content.ReadAsStringAsync(cancellationToken);
+            LoggerProvider.Logger.Error($"Failed to create index '{_atlasSettings.SearchIndexName}'. Status: {response.StatusCode}. Error: {error}");
+            throw new InvalidOperationException($"Failed to create Atlas search index: {response.StatusCode}");
         }
     }
 
@@ -232,44 +165,57 @@ public class AtlasIndexManager : IIndexManager
     {
         if (await IndexExistsAsync(collectionName, cancellationToken))
         {
-            Console.WriteLine($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
-            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
+            LoggerProvider.Logger.Information($"Index '{_atlasSettings.SearchIndexName}' already exists for collection '{collectionName}'. Skipping creation.");
             return;
         }
-        await CreateVectorSearchIndexAsync("vector", 1536, "cosine", collectionName, cancellationToken);
+        await CreateVectorSearchIndexAsync(_atlasSettings.VectorField, _atlasSettings.NumDimensions, _atlasSettings.SimilarityFunction, collectionName, cancellationToken);
     }
     
     public async Task DeleteIndexAsync(string collectionName, CancellationToken cancellationToken = default)
     {
-        if (!await IndexExistsAsync(collectionName))
+        if (!await IndexExistsAsync(collectionName, cancellationToken))
         {
-            LoggerProvider.Logger.Information($"Index '{SettingsProvider.Settings.Atlas.SearchIndexName}' does not exist for collection '{collectionName}'. Cannot delete.");
+            LoggerProvider.Logger.Information($"Index '{_atlasSettings.SearchIndexName}' does not exist for collection '{collectionName}'. Cannot delete.");
             return;
         }
 
         string? indexId = await GetIndexIdAsync(collectionName, cancellationToken);
         if (indexId == null)
         {
-            Console.WriteLine($"Failed to retrieve index ID for '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Cannot delete.");
-            LoggerProvider.Logger.Error($"Failed to retrieve index ID for '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Cannot delete.");
-            return;
+            LoggerProvider.Logger.Error($"Failed to retrieve index ID for '{_atlasSettings.SearchIndexName}'. Cannot delete.");
+            throw new InvalidOperationException($"Failed to retrieve index ID for '{_atlasSettings.SearchIndexName}'");
         }
-       // string deleteBaseUrl = $"{_baseUrl}/groups/{_projectId}/clusters/{_clusterName}/fts/indexes";
-        string deleteUrl = $"{_commandUrl}/{indexId}";
-        var response = await _httpClient.DeleteAsync(deleteUrl);
+        var commandUrl = BuildCommandUrl();
+        string deleteUrl = $"{commandUrl}/{indexId}";
+        var response = await _httpClient.DeleteAsync(deleteUrl, cancellationToken);
 
         if (response.IsSuccessStatusCode)
         {
-            Console.WriteLine($"Successfully deleted index '{SettingsProvider.Settings.Atlas.SearchIndexName}'.");
-            LoggerProvider.Logger.Information($"Successfully deleted index '{SettingsProvider.Settings.Atlas.SearchIndexName}'.");
+            LoggerProvider.Logger.Information($"Successfully deleted index '{_atlasSettings.SearchIndexName}'.");
         }
         else
         {
-            Console.WriteLine($"Failed to delete index '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Status: {response.StatusCode}");
-            string error = await response.Content.ReadAsStringAsync();
-            Console.WriteLine(error);
-            LoggerProvider.Logger.Error($"Failed to delete index '{SettingsProvider.Settings.Atlas.SearchIndexName}'. Status: {response.StatusCode}");
-            LoggerProvider.Logger.Error(error);
+            string error = await response.Content.ReadAsStringAsync(cancellationToken);
+            LoggerProvider.Logger.Error($"Failed to delete index '{_atlasSettings.SearchIndexName}'. Status: {response.StatusCode}. Error: {error}");
+            throw new InvalidOperationException($"Failed to delete Atlas search index: {response.StatusCode}");
+        }
+    }
+
+    private string BuildIndexUrl(string collectionName)
+    {
+        return $"{_atlasSettings.BaseUrl}{string.Format(_indexSubUrl, _projectId, _atlasSettings.ClusterName, _atlasSettings.DatabaseName, collectionName)}";
+    }
+
+    private string BuildCommandUrl()
+    {
+        return $"{_atlasSettings.BaseUrl}{string.Format(_commandSubUrl, _projectId, _atlasSettings.ClusterName)}";
+    }
+
+    public void Dispose()
+    {
+        if (_ownsHttpClient)
+        {
+            _httpClient?.Dispose();
         }
     }
 }

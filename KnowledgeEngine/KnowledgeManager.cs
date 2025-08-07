@@ -67,7 +67,7 @@ public class KnowledgeManager
         LoggerProvider.Logger.Information("Document processing: {HeadingCount} headings found, markdown={Markdown}", 
             doc.Elements.OfType<IHeadingElement>().Count(), markdown);
             
-        var rawText = markdown ? DocumentToTextConverter.Convert(doc) : doc.ToString();
+        var rawText = markdown ? DocumentToTextConverter.Convert(doc, SettingsProvider.Settings) : doc.ToString();
         
         if (string.IsNullOrWhiteSpace(rawText))
         {

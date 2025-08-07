@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using ChatCompletion.Config;
+using KnowledgeEngine.Document;
 
 public static class DocumentToTextConverter
 {
-    public static string Convert(Document doc)
+    public static string Convert(Document doc, ChatCompleteSettings? settings = null)
     {
         var builder = new StringBuilder();
 
@@ -49,7 +51,8 @@ public static class DocumentToTextConverter
 
                 case ICodeBlockElement code:
                     builder.AppendLine($"```{code.Language}");
-                    builder.AppendLine(code.Code);
+                    var guardedCode = CodeFenceGuard.GuardCodeFence(code.Code, code.Language, settings);
+                    builder.AppendLine(guardedCode);
                     builder.AppendLine("```");
                     break;
 
