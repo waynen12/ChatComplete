@@ -1,6 +1,5 @@
 // Knowledge.Api/Services/KnowledgeIngestService.cs
 using KnowledgeEngine;
-using KnowledgeEngine.Logging;
 namespace Knowledge.Api.Services;
 
 /// <summary>

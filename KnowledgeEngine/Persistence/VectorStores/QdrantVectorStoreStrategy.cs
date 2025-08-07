@@ -25,7 +25,11 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
     private readonly QdrantSettings _settings;
     private readonly IIndexManager _indexManager;
 
-    public QdrantVectorStoreStrategy(QdrantVectorStore vectorStore, QdrantSettings settings, IIndexManager indexManager)
+    public QdrantVectorStoreStrategy(
+        QdrantVectorStore vectorStore,
+        QdrantSettings settings,
+        IIndexManager indexManager
+    )
     {
         _vectorStore = vectorStore ?? throw new ArgumentNullException(nameof(vectorStore));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -40,7 +44,8 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         try
         {
@@ -49,7 +54,8 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
             {
                 LoggerProvider.Logger.Information(
                     "Creating Qdrant collection {Collection} as it does not exist",
-                    collectionName);
+                    collectionName
+                );
                 await _indexManager.CreateIndexAsync(collectionName, cancellationToken);
             }
 
@@ -76,12 +82,12 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
             var record = new QdrantRecord
             {
                 Id = guidId,
-                DocumentKey = key,  // Store original string key for lookup
+                DocumentKey = key, // Store original string key for lookup
                 Text = text,
                 Vector = embedding.Vector.ToArray(),
                 Source = source,
                 ChunkOrder = chunkOrder,
-                Tags = string.Empty
+                Tags = string.Empty,
             };
 
             // Upsert the record (Semantic Kernel handles the REST API calls)
@@ -89,13 +95,18 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
 
             LoggerProvider.Logger.Information(
                 "Successfully upserted chunk {Key} to Qdrant collection {Collection}",
-                key, collectionName);
+                key,
+                collectionName
+            );
         }
         catch (Exception ex)
         {
-            LoggerProvider.Logger.Error(ex,
+            LoggerProvider.Logger.Error(
+                ex,
                 "Failed to upsert chunk {Key} to Qdrant collection {Collection}",
-                key, collectionName);
+                key,
+                collectionName
+            );
             throw;
         }
     }
@@ -109,7 +120,8 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
         Embedding<float> embedding,
         int limit = 10,
         double minRelevanceScore = 0.6,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         try
         {
@@ -118,58 +130,67 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
             {
                 LoggerProvider.Logger.Warning(
                     "Cannot search in Qdrant collection {Collection} - collection does not exist",
-                    collectionName);
+                    collectionName
+                );
                 return new List<KnowledgeSearchResult>();
             }
 
             // Get collection reference from vector store (using Guid keys)
             var collection = _vectorStore.GetCollection<Guid, QdrantRecord>(collectionName);
-            
+
             // Configure search options (without Top property)
             var searchOptions = new VectorSearchOptions<QdrantRecord>()
             {
-                IncludeVectors = false  // For performance, we don't need vectors in results
+                IncludeVectors = false, // For performance, we don't need vectors in results
             };
-            
+
             // Perform vector search using embedding with correct signature
             var searchResults = collection.SearchAsync(
-                embedding.Vector,      // The search vector
-                top: limit,           // Number of results to return
-                searchOptions,        // Search options
-                cancellationToken);   // Cancellation token
-            
+                embedding.Vector, // The search vector
+                top: limit, // Number of results to return
+                searchOptions, // Search options
+                cancellationToken
+            ); // Cancellation token
+
             var results = new List<KnowledgeSearchResult>();
-            
+
             // Convert search results and apply minimum relevance score filter
             await foreach (var result in searchResults.WithCancellation(cancellationToken))
             {
                 if ((result.Score ?? 0.0) >= minRelevanceScore && result.Record != null)
                 {
-                    results.Add(new KnowledgeSearchResult
-                    {
-                        Text = result.Record.Text,
-                        Source = result.Record.Source,
-                        ChunkOrder = result.Record.ChunkOrder,
-                        Tags = result.Record.Tags,
-                        Score = result.Score ?? 0.0
-                    });
+                    results.Add(
+                        new KnowledgeSearchResult
+                        {
+                            Text = result.Record.Text,
+                            Source = result.Record.Source,
+                            ChunkOrder = result.Record.ChunkOrder,
+                            Tags = result.Record.Tags,
+                            Score = result.Score ?? 0.0,
+                        }
+                    );
                 }
             }
-            
+
             // Sort by score descending (highest relevance first)
             var sortedResults = results.OrderByDescending(r => r.Score).ToList();
-            
+
             LoggerProvider.Logger.Information(
                 "Qdrant vector search for query '{Query}' returned {Count} results above score {MinScore}",
-                query, sortedResults.Count, minRelevanceScore);
-            
+                query,
+                sortedResults.Count,
+                minRelevanceScore
+            );
+
             return sortedResults;
         }
         catch (Exception ex)
         {
-            LoggerProvider.Logger.Error(ex,
+            LoggerProvider.Logger.Error(
+                ex,
                 "Failed to perform Qdrant vector search for query: {Query}",
-                query);
+                query
+            );
             return new List<KnowledgeSearchResult>();
         }
     }
@@ -177,7 +198,9 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
     /// <summary>
     /// Lists all available collections in Qdrant
     /// </summary>
-    public async Task<List<string>> ListCollectionsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<string>> ListCollectionsAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         try
         {
@@ -197,17 +220,22 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
     }
 
     /// <summary>
-    /// Creates a deterministic GUID from a string key using SHA-256 hash
+    /// Creates a deterministic GUID from a string key using MD5 hash (matches Python implementation)
     /// </summary>
     private static Guid CreateDeterministicGuid(string input)
     {
-        using var sha256 = SHA256.Create();
-        var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-        
-        // Take first 16 bytes of hash to create GUID
-        var guidBytes = new byte[16];
-        Array.Copy(hash, guidBytes, 16);
-        
-        return new Guid(guidBytes);
+        using var md5 = MD5.Create();
+        var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
+
+        // Convert to string and back to match Python uuid.UUID(bytes=...) behavior
+        // Python's UUID constructor interprets bytes differently than .NET's Guid constructor
+        var uuidString =
+            $"{hash[0]:x2}{hash[1]:x2}{hash[2]:x2}{hash[3]:x2}-"
+            + $"{hash[4]:x2}{hash[5]:x2}-"
+            + $"{hash[6]:x2}{hash[7]:x2}-"
+            + $"{hash[8]:x2}{hash[9]:x2}-"
+            + $"{hash[10]:x2}{hash[11]:x2}{hash[12]:x2}{hash[13]:x2}{hash[14]:x2}{hash[15]:x2}";
+
+        return Guid.Parse(uuidString);
     }
 }
