@@ -21,7 +21,7 @@ namespace ChatCompletion
         private readonly KnowledgeEngine.KnowledgeManager _knowledgeManager;
         ChatCompleteSettings _settings;
         IOptions<ChatCompleteSettings> _options;
-        private readonly ConcurrentDictionary<AiProvider, Kernel> _kernels = new();
+        private readonly ConcurrentDictionary<string, Kernel> _kernels = new();
 
         public ChatComplete(
             KnowledgeEngine.KnowledgeManager knowledgeManager,
@@ -34,8 +34,15 @@ namespace ChatCompletion
         }
         
         [Experimental("SKEXP0070")]
-        private Kernel GetOrCreateKernel(AiProvider provider)
-            => _kernels.GetOrAdd(provider, p => new KernelFactory(_options).Create(p));
+        private Kernel GetOrCreateKernel(AiProvider provider, string? ollamaModel = null)
+        {
+            // Create a unique key for caching - include model for Ollama
+            var key = provider == AiProvider.Ollama && !string.IsNullOrEmpty(ollamaModel) 
+                ? $"{provider}:{ollamaModel}" 
+                : provider.ToString();
+                
+            return _kernels.GetOrAdd(key, _ => new KernelFactory(_options).Create(provider, ollamaModel));
+        }
 
         public async Task PerformChat()
         {
@@ -83,10 +90,11 @@ namespace ChatCompletion
             double apiTemperature,
             AiProvider provider,
             bool useExtendedInstructions = false,
+            string? ollamaModel = null,
             CancellationToken ct = default
         )
         {
-            var kernel = GetOrCreateKernel(provider);
+            var kernel = GetOrCreateKernel(provider, ollamaModel);
             var chatService = kernel.GetRequiredService<IChatCompletionService>();
             string systemMessage = useExtendedInstructions ? _settings.SystemPromptWithCoding : _settings.SystemPrompt;
             chatHistory.AddSystemMessage(systemMessage);

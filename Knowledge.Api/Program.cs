@@ -212,7 +212,8 @@ api.MapPost(
             ["stripMarkdown"]        = new OpenApiBoolean(false),
             ["useExtendedInstructions"] = new OpenApiBoolean(true),
             ["conversationId"]       = new OpenApiNull(),
-            ["provider"]             = new OpenApiString("Ollama")
+            ["provider"]             = new OpenApiString("Ollama"),
+            ["ollamaModel"]          = new OpenApiString("llama3.2:3b")
         };
 
         // Ensure requestBody is present and targeted at application/json
@@ -267,6 +268,74 @@ api.MapGet("/ping", () => Results.Ok("pong"))
     .Produces<string>()
     .WithName("Health")
     .WithOpenApi();
+
+// 5) GET /api/ollama/models - Fetch available Ollama models
+api.MapGet("/ollama/models", async (CancellationToken ct) =>
+    {
+        try
+        {
+            using var process = new System.Diagnostics.Process();
+            process.StartInfo.FileName = "ollama";
+            process.StartInfo.Arguments = "list";
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.CreateNoWindow = true;
+
+            if (!process.Start())
+            {
+                return Results.Problem("Failed to start ollama command", statusCode: 500);
+            }
+
+            await process.WaitForExitAsync(ct);
+            var output = await process.StandardOutput.ReadToEndAsync(ct);
+            var error = await process.StandardError.ReadToEndAsync(ct);
+
+            if (process.ExitCode != 0)
+            {
+                return Results.Problem($"Ollama command failed: {error}", statusCode: 500);
+            }
+
+            // Parse the output - Ollama list format is typically:
+            // NAME            ID              SIZE    MODIFIED
+            // model1:latest   abc123def...    1.2GB   2 hours ago
+            // model2:8b       def456ghi...    8.5GB   1 day ago
+            
+            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var models = new List<string>();
+            
+            // Skip header line (first line) and process model names
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                if (!string.IsNullOrEmpty(line))
+                {
+                    // Get the first column (model name)
+                    var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length > 0)
+                    {
+                        models.Add(parts[0]);
+                    }
+                }
+            }
+
+            return Results.Ok(models);
+        }
+        catch (Exception ex)
+        {
+            LoggerProvider.Logger.Error(ex, "Failed to fetch Ollama models");
+            return Results.Problem("Failed to fetch Ollama models", statusCode: 500);
+        }
+    })
+    .WithOpenApi(op =>
+    {
+        op.Summary = "Get available Ollama models";
+        op.Description = "Returns a list of locally installed Ollama models by executing 'ollama list'";
+        op.Tags = [ new OpenApiTag { Name = "Ollama" } ];
+        return op;
+    })
+    .Produces<List<string>>()
+    .WithTags("Ollama");
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 app.UseSerilogRequestLogging(); // keep logs consistent

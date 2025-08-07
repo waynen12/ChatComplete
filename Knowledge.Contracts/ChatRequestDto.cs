@@ -67,4 +67,10 @@ public class ChatRequestDto
     [SwaggerSchema(Description = "LLM backend to use (OpenAi, Google, Anthropic, Ollama)")]
     [JsonConverter(typeof(JsonStringEnumConverter))]   // enum as string
     public AiProvider Provider { get; set; } = AiProvider.OpenAi;   // default
+    
+    /// <summary>
+    /// Optional Ollama model name to use instead of the default from appsettings. Only used when Provider is Ollama.
+    /// </summary>
+    [SwaggerSchema(Description = "Optional Ollama model name (e.g., 'llama3.2', 'codellama'). Overrides appsettings when specified.")]
+    public string? OllamaModel { get; set; }
 }

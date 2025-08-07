@@ -67,6 +67,7 @@ public sealed class MongoChatService : IChatService
             dto.Temperature,
             provider,
             dto.UseExtendedInstructions,
+            dto.OllamaModel,
             ct);
 
         // 5️⃣  Persist assistant turn

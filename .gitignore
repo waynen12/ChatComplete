@@ -60,6 +60,7 @@ yarn-debug.log
 .env.test.local
 .env.production.local
 .fake
+.webui_secret_key
 ChatCompletion/Docs/New_System_Installation_Guide.md
 KnowledgeEngine/Docs/Publish steps.txt
 KnowledgeEngine/Docs/Heliograph_Test_Document.docx

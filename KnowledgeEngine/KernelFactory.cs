@@ -16,7 +16,7 @@ public sealed class KernelFactory
     }
 
     [Experimental("SKEXP0070")]
-    public Kernel Create(AiProvider provider)
+    public Kernel Create(AiProvider provider, string? ollamaModel = null)
     {
         var builder = Kernel.CreateBuilder();       // public factory
 
@@ -65,7 +65,10 @@ public sealed class KernelFactory
                 }
                 var client = new HttpClient();
                 client.BaseAddress = new Uri(_cfg.OllamaBaseUrl);
-                builder.AddOllamaChatCompletion(_cfg.OllamaModel, client);
+                
+                // Use provided model or fall back to appsettings model
+                var modelToUse = !string.IsNullOrEmpty(ollamaModel) ? ollamaModel : _cfg.OllamaModel;
+                builder.AddOllamaChatCompletion(modelToUse, client);
                 break;
 
             default:
