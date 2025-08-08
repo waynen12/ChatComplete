@@ -34,10 +34,10 @@ RUN dotnet publish Knowledge.Api/Knowledge.Api.csproj \
     --no-restore
 
 # Stage 3: Runtime (Final container)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 
 # Install curl for health checks
-RUN apk --no-cache add curl
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -52,8 +52,8 @@ RUN mkdir -p /app/data /app/temp && \
     chmod 755 /app/data /app/temp
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup && \
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser && \
     chown -R appuser:appgroup /app
 
 USER appuser
