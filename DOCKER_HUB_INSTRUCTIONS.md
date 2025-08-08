@@ -25,7 +25,7 @@ DOCKERHUB_TOKEN=your-docker-hub-access-token
 
 Edit `docker-compose.dockerhub.yml` line 8:
 ```yaml
-image: your-dockerhub-username/ai-knowledge-manager:latest
+image: waynen12/ai-knowledge-manager:latest
 ```
 
 ### 3. Update Documentation
@@ -69,15 +69,15 @@ Users will need these files (automatically available via GitHub):
 
 ### Quick Start (Single File)
 ```bash
-curl -O https://raw.githubusercontent.com/your-username/ChatComplete/main/docker-compose.dockerhub.yml
+curl -O https://raw.githubusercontent.com/waynen12/ChatComplete/main/docker-compose.dockerhub.yml
 docker-compose -f docker-compose.dockerhub.yml up -d
 ```
 
 ### Complete Setup (Multiple Files)
 ```bash
 # Download all deployment files
-curl -O https://raw.githubusercontent.com/your-username/ChatComplete/main/docker-compose.dockerhub.yml
-curl -O https://raw.githubusercontent.com/your-username/ChatComplete/main/.env.example
+curl -O https://raw.githubusercontent.com/waynen12/ChatComplete/main/docker-compose.dockerhub.yml
+curl -O https://raw.githubusercontent.com/waynen12/ChatComplete/main/.env.example
 
 # Configure API keys
 cp .env.example .env
@@ -91,14 +91,14 @@ docker-compose -f docker-compose.dockerhub.yml up -d
 
 ### Before (Current)
 ```bash
-git clone https://github.com/your-username/ChatComplete
+git clone https://github.com/waynen12/ChatComplete
 cd ChatComplete
 docker-compose up -d
 ```
 
 ### After (Docker Hub)
 ```bash
-curl -O https://raw.githubusercontent.com/your-username/ChatComplete/main/docker-compose.dockerhub.yml
+curl -O https://raw.githubusercontent.com/waynen12/ChatComplete/main/docker-compose.dockerhub.yml
 docker-compose -f docker-compose.dockerhub.yml up -d
 ```
 

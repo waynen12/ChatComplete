@@ -11,7 +11,7 @@ Get a complete AI knowledge management system running in under 2 minutes:
 
 ```bash
 # Download the Docker Compose file
-curl -O https://raw.githubusercontent.com/your-username/ChatComplete/main/docker-compose.dockerhub.yml
+curl -O https://raw.githubusercontent.com/waynen12/ChatComplete/main/docker-compose.dockerhub.yml
 
 # Start the full stack (Knowledge Manager + Qdrant + Ollama)
 docker-compose -f docker-compose.dockerhub.yml up -d
@@ -84,7 +84,7 @@ curl -X POST http://localhost:8080/api/chat \
 ### Full Stack (Recommended)
 Includes Knowledge Manager, Qdrant, and Ollama:
 ```bash
-curl -O https://raw.githubusercontent.com/your-username/ChatComplete/main/docker-compose.dockerhub.yml
+curl -O https://raw.githubusercontent.com/waynen12/ChatComplete/main/docker-compose.dockerhub.yml
 docker-compose -f docker-compose.dockerhub.yml up -d
 ```
 
@@ -132,13 +132,13 @@ curl http://localhost:11434/api/version
 
 ## 📖 Documentation
 
-- [Full Documentation](https://github.com/your-username/ChatComplete)
-- [API Reference](https://github.com/your-username/ChatComplete/blob/main/docs/api.md)
-- [Deployment Guide](https://github.com/your-username/ChatComplete/blob/main/DOCKER_DEPLOYMENT.md)
+- [Full Documentation](https://github.com/waynen12/ChatComplete)
+- [API Reference](https://github.com/waynen12/ChatComplete/blob/main/docs/api.md)
+- [Deployment Guide](https://github.com/waynen12/ChatComplete/blob/main/DOCKER_DEPLOYMENT.md)
 
 ## 🤝 Contributing
 
-Visit the [GitHub repository](https://github.com/your-username/ChatComplete) to contribute, report issues, or request features.
+Visit the [GitHub repository](https://github.com/waynen12/ChatComplete) to contribute, report issues, or request features.
 
 ## 📄 License
 
