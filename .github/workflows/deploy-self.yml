@@ -23,6 +23,16 @@ jobs:
       #  dotnet test --configuration Release
       # comment out if you have no tests yet
 
+    # 2️⃣  Ensure Qdrant is running via docker-compose
+    - name: Start Qdrant if not running
+      run: |
+        if ! docker ps --format "table {{.Names}}" | grep -q "^qdrant-local$"; then
+          echo "Qdrant not running, starting via docker-compose..."
+          docker-compose -f docker-compose.qdrant.yml up -d
+        else
+          echo "Qdrant is already running"
+        fi
+
     - name: Clean publish folder
       run: rm -rf /opt/knowledge-api/out/*
 
