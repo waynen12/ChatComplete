@@ -36,6 +36,9 @@ Current Milestones (✅ done, 🔄 in-progress, 🛠️ todo)
 15	Provider menu + Anthropic fallback	✅
 16	README & Swagger examples for 4 providers	✅
 17	Qdrant Vector Store parallel implementation	✅
+18	Local Configuration Database (SQLite config, zero env vars)	🛠️
+19	Docker Containerization (one-command deployment)	✅
+20	Agent Implementation (code execution, multi-step reasoning)	🛠️
 
 Latest Sanity Checklist (quick smoke test)
 Step	Expectation	Tip
@@ -87,5 +90,7 @@ Now for further information on the project
  PROJECT_SUMARY, 
  QDRANT_IMPLEMENTATION_PLAN, 
  AGENT_IMPLEMENTATION_PLAN   
+ DOCKER_CONTAINERIZATION_MILESTONE
+ LOCAL_CONFIG_DATABASE_MILESTONE
  Do not perform any further tasks just yet.    
 You are now primed with full context.

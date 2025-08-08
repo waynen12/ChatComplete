@@ -1,0 +1,35 @@
+# Standalone Docker Compose - Just the AI Knowledge Manager container
+version: '3.8'
+
+services:
+  ai-knowledge-manager:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-knowledge-manager-standalone
+    ports:
+      - "8080:7040"  # Access at http://localhost:8080
+    volumes:
+      - ai-knowledge-data:/app/data          # Persistent data storage
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DOTNET_RUNNING_IN_CONTAINER=true
+      - VectorStore__Provider=MongoDB       # Use MongoDB Atlas (default)
+      # API keys - set these via .env file or environment
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # MongoDB connection (required for standalone mode)
+      - MONGODB_CONNECTION_STRING=${MONGODB_CONNECTION_STRING}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7040/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  ai-knowledge-data:
+    driver: local
+    name: ai-knowledge-data-standalone

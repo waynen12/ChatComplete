@@ -262,12 +262,108 @@ api.MapDelete(
     .Produces(StatusCodes.Status404NotFound);
 
 
+// Basic ping endpoint for simple health checks
 api.MapGet("/ping", () => Results.Ok("pong"))
     .WithTags("Health")
     .WithOpenApi()
     .Produces<string>()
-    .WithName("Health")
-    .WithOpenApi();
+    .WithName("BasicHealth");
+
+// Comprehensive health check endpoint
+api.MapGet("/health", async (
+    [FromServices] IVectorStoreStrategy vectorStore,
+    [FromServices] IIndexManager indexManager,
+    CancellationToken ct) =>
+{
+    var healthStatus = new
+    {
+        Status = "healthy",
+        Timestamp = DateTime.UtcNow,
+        Environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        Container = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true",
+        Checks = new Dictionary<string, object>()
+    };
+
+    try
+    {
+        // Check vector store connectivity
+        try
+        {
+            var collections = await vectorStore.ListCollectionsAsync(ct);
+            healthStatus.Checks["VectorStore"] = new { Status = "healthy", Collections = collections?.Count() ?? 0 };
+        }
+        catch (Exception ex)
+        {
+            healthStatus.Checks["VectorStore"] = new { Status = "unhealthy", Error = ex.Message };
+        }
+
+        // Check disk space (data directory)
+        try
+        {
+            var dataPath = "/app/data";
+            if (Directory.Exists(dataPath))
+            {
+                var drive = new DriveInfo(Path.GetPathRoot(dataPath) ?? "/");
+                var freeSpaceGB = drive.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0);
+                healthStatus.Checks["DiskSpace"] = new 
+                { 
+                    Status = freeSpaceGB > 1.0 ? "healthy" : "warning",
+                    AvailableGB = Math.Round(freeSpaceGB, 2),
+                    TotalGB = Math.Round(drive.TotalSize / (1024.0 * 1024.0 * 1024.0), 2)
+                };
+            }
+            else
+            {
+                healthStatus.Checks["DiskSpace"] = new { Status = "unknown", Message = "Data directory not found" };
+            }
+        }
+        catch (Exception ex)
+        {
+            healthStatus.Checks["DiskSpace"] = new { Status = "error", Error = ex.Message };
+        }
+
+        // Check memory usage
+        try
+        {
+            var process = System.Diagnostics.Process.GetCurrentProcess();
+            var memoryMB = process.WorkingSet64 / (1024.0 * 1024.0);
+            healthStatus.Checks["Memory"] = new 
+            { 
+                Status = memoryMB < 1000 ? "healthy" : "warning",
+                WorkingSetMB = Math.Round(memoryMB, 2)
+            };
+        }
+        catch (Exception ex)
+        {
+            healthStatus.Checks["Memory"] = new { Status = "error", Error = ex.Message };
+        }
+
+        // Determine overall status
+        var hasUnhealthyChecks = healthStatus.Checks.Values
+            .Any(check => check.GetType().GetProperty("Status")?.GetValue(check)?.ToString() == "unhealthy");
+        
+        return hasUnhealthyChecks 
+            ? Results.Json(healthStatus with { Status = "degraded" }, statusCode: 503)
+            : Results.Ok(healthStatus);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new
+        {
+            Status = "unhealthy",
+            Timestamp = DateTime.UtcNow,
+            Error = ex.Message
+        }, statusCode: 503);
+    }
+})
+.WithOpenApi(op =>
+{
+    op.Summary = "Comprehensive health check";
+    op.Description = "Returns detailed health status including vector store, disk space, and memory usage";
+    op.Tags = [ new OpenApiTag { Name = "Health" } ];
+    return op;
+})
+.WithTags("Health");
 
 // 5) GET /api/ollama/models - Fetch available Ollama models
 api.MapGet("/ollama/models", async (CancellationToken ct) =>
@@ -386,5 +482,23 @@ app.UseReDoc(options =>
 });
 
 //}
+
+// ── Static file serving for React frontend (for container deployment) ────────
+if (app.Environment.IsProduction() || Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
+{
+    // Serve static files from wwwroot (React build output)
+    app.UseStaticFiles();
+    
+    // Configure default files (index.html)
+    app.UseDefaultFiles();
+}
+
+// ── Client-side routing fallback ─────────────────────────────────────────────
+// This must come after API routes but before app.Run()
+// Fallback to index.html for any non-API routes (React client-side routing)
+if (app.Environment.IsProduction() || Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();
