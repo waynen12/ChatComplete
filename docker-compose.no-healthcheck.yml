@@ -1,0 +1,74 @@
+# Docker Compose without health checks for debugging
+version: '3.8'
+
+services:
+  # AI Knowledge Manager from Docker Hub - NO HEALTH CHECK
+  ai-knowledge-manager:
+    image: waynen12/ai-knowledge-manager:latest
+    container_name: ai-knowledge-manager-debug
+    ports:
+      - "8080:7040"  # Access at http://localhost:8080
+    volumes:
+      - ai-knowledge-data:/app/data          # Persistent data storage
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DOTNET_RUNNING_IN_CONTAINER=true
+      - VectorStore__Provider=Qdrant        # Use Qdrant
+      - VectorStore__Qdrant__Host=qdrant    # Reference Qdrant service
+      - VectorStore__Qdrant__Port=6334      # gRPC port
+      - Logging__LogLevel__Default=Information
+      # API keys - set these via .env file or command line
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    # NO HEALTH CHECK - let it run and see what happens
+    restart: "no"  # Don't auto-restart so we can see the actual error
+    networks:
+      - ai-services
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"  # REST API
+      - "6334:6334"  # gRPC API  
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__LOG_LEVEL=INFO
+    networks:
+      - ai-services
+    restart: unless-stopped
+
+  # Ollama local LLM service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"  # Ollama API
+    volumes:
+      - ollama-data:/root/.ollama           # Model storage
+    environment:
+      - OLLAMA_ORIGINS=*                    # Allow cross-origin requests
+    networks:
+      - ai-services
+    restart: unless-stopped
+
+volumes:
+  ai-knowledge-data:
+    driver: local
+    name: ai-knowledge-data
+  qdrant-data:
+    driver: local
+    name: qdrant-data
+  ollama-data:
+    driver: local
+    name: ollama-data
+
+networks:
+  ai-services:
+    driver: bridge
+    name: ai-services-network
