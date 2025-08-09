@@ -18,20 +18,6 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddKnowledgeServices(this IServiceCollection services, ChatCompleteSettings settings)
     {
-        // Register MongoDB client and database
-        services.AddSingleton<IMongoClient>(provider =>
-        {
-            var connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
-                ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
-            return new MongoClient(connectionString);
-        });
-
-        services.AddSingleton<IMongoDatabase>(provider =>
-        {
-            var client = provider.GetRequiredService<IMongoClient>();
-            return client.GetDatabase(settings.Atlas.ClusterName);
-        });
-
         // Register Vector Store Strategy based on configuration
         var vectorStoreProvider = settings.VectorStore?.Provider?.ToLower() ?? "mongodb";
         
@@ -66,6 +52,20 @@ public static class ServiceCollectionExtensions
         }
         else
         {
+            // Register MongoDB client and database
+            services.AddSingleton<IMongoClient>(provider =>
+            {
+                var connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
+                    ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
+                return new MongoClient(connectionString);
+            });
+
+            services.AddSingleton<IMongoDatabase>(provider =>
+            {
+                var client = provider.GetRequiredService<IMongoClient>();
+                return client.GetDatabase(settings.Atlas.ClusterName);
+            });
+            
             // Register MongoAtlasSettings
             services.AddSingleton(settings.Atlas);
             
@@ -109,9 +109,8 @@ public static class ServiceCollectionExtensions
         // Register Knowledge Repository based on VectorStore provider
         if (vectorStoreProvider == "qdrant")
         {
-            // For Qdrant, we need a QdrantKnowledgeRepository implementation
-            // For now, still use MongoDB for metadata operations but this should be extended
-            services.AddScoped<IKnowledgeRepository, MongoKnowledgeRepository>();
+            // For Qdrant, use in-memory knowledge repository (no MongoDB dependency)
+            services.AddScoped<IKnowledgeRepository, InMemoryKnowledgeRepository>();
         }
         else
         {

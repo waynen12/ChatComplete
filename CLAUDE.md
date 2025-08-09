@@ -85,6 +85,58 @@ curl -X POST http://localhost:7040/api/chat \
         "conversationId": null
       }'
 
+## 🐳 Docker Deployment (Milestone #19)
+
+Complete containerization with multi-stage builds and Docker Hub distribution.
+
+### Quick Start (Production Ready)
+```bash
+# Download and start full stack (AI Knowledge Manager + Qdrant + Ollama)
+curl -O https://raw.githubusercontent.com/waynen12/ChatComplete/main/docker-compose.dockerhub.yml
+docker-compose -f docker-compose.dockerhub.yml up -d
+
+# Access at http://localhost:8080
+```
+
+### Available Configurations
+- `docker-compose.dockerhub.yml` - Production: Docker Hub images only (recommended)
+- `docker-compose.full-stack.yml` - Development: Local build + all services
+- `docker-compose.yml` - Standard: Local build + Qdrant only
+- `docker-compose.debug.yml` - Debug: Extended logging and health checks
+
+### Architecture
+- **Multi-stage build**: Node.js frontend → .NET backend → Alpine runtime
+- **Container networking**: Services communicate via container names (qdrant, ollama)  
+- **Data persistence**: Named volumes for application data, Qdrant storage, and Ollama models
+- **Health monitoring**: TCP-based health checks for all services
+- **Security**: Non-root user, minimal attack surface
+
+### Fixed Issues (2025-01-08)
+- ✅ **Alpine → Debian base image**: Fixed missing `ld-linux-x86-64.so.2` library
+- ✅ **Qdrant connection**: Fixed hardcoded localhost → container service names
+- ✅ **Port configuration**: REST API (6333) vs gRPC (6334) port clarification
+- ✅ **Health checks**: Replaced curl dependency with TCP connection tests
+- ✅ **User creation**: Fixed Alpine → Debian user/group commands
+
+### Environment Variables
+```bash
+# Required for external LLM providers
+OPENAI_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key  
+GEMINI_API_KEY=your_key
+
+# Vector store configuration (handled automatically)
+VectorStore__Provider=Qdrant
+VectorStore__Qdrant__Host=qdrant
+VectorStore__Qdrant__Port=6333
+```
+
+### Docker Hub Distribution
+- **Image**: `waynen12/ai-knowledge-manager:latest`
+- **Multi-platform**: AMD64 + ARM64 support
+- **CI/CD**: GitHub Actions auto-build on push/tag
+- **Size optimized**: Multi-stage builds, Debian slim base
+
 Now for further information on the project 
  can you read through the 
  PROJECT_SUMARY, 

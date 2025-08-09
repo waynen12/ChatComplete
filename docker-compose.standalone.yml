@@ -14,7 +14,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - DOTNET_RUNNING_IN_CONTAINER=true
-      - VectorStore__Provider=MongoDB       # Use MongoDB Atlas (default)
+      - ChatCompleteSettings__VectorStore__Provider=MongoDB       # Use MongoDB Atlas (default)
       # API keys - set these via .env file or environment
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}

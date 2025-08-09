@@ -46,6 +46,7 @@ public class QdrantIndexManager : IIndexManager
             }
 
             // Create collection manually via REST API with correct 1536 dimensions
+            // Note: REST API uses port 6333, while gRPC (for data operations) uses port 6334
             var restApiUrl = $"http://{_settings.Host}:6333/collections/{collectionName}";
             
             var collectionConfig = new

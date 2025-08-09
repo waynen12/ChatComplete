@@ -16,9 +16,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - DOTNET_RUNNING_IN_CONTAINER=true
-      - VectorStore__Provider=Qdrant        # Use Qdrant when available
-      - VectorStore__Qdrant__Host=qdrant    # Reference Qdrant service
-      - VectorStore__Qdrant__Port=6334      # gRPC port
+      - ChatCompleteSettings__VectorStore__Provider=Qdrant        # Use Qdrant when available
+      - ChatCompleteSettings__VectorStore__Qdrant__Host=qdrant    # Reference Qdrant service
+      - ChatCompleteSettings__VectorStore__Qdrant__Port=6334      # REST API port
       # API keys - set these via .env file or environment
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
