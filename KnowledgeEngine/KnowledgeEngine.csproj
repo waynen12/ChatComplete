@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.4" />
     <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="9.7.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="Microsoft.KernelMemory.Core" Version="0.98.250324.1" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.60.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.60.0-alpha" />

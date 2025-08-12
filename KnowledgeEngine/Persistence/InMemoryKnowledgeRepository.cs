@@ -30,6 +30,47 @@ public class InMemoryKnowledgeRepository : IKnowledgeRepository
     }
 
     /// <summary>
+    /// Creates or updates a knowledge collection record with metadata
+    /// </summary>
+    public Task<string> CreateOrUpdateCollectionAsync(
+        string collectionId, 
+        string name, 
+        string? description = null,
+        CancellationToken cancellationToken = default)
+    {
+        var summary = new KnowledgeSummaryDto
+        {
+            Id = collectionId,
+            Name = name,
+            DocumentCount = _knowledgeStore.ContainsKey(collectionId) ? _knowledgeStore[collectionId].DocumentCount : 0
+        };
+        _knowledgeStore[collectionId] = summary;
+        return Task.FromResult(collectionId);
+    }
+
+    /// <summary>
+    /// Updates document and chunk counts for a collection
+    /// </summary>
+    public Task UpdateCollectionStatsAsync(
+        string collectionId, 
+        int documentCount, 
+        int chunkCount,
+        CancellationToken cancellationToken = default)
+    {
+        if (_knowledgeStore.TryGetValue(collectionId, out var existing))
+        {
+            // Update the existing entry with new counts
+            _knowledgeStore[collectionId] = new KnowledgeSummaryDto
+            {
+                Id = existing.Id,
+                Name = existing.Name,
+                DocumentCount = documentCount
+            };
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
     /// Adds or updates a knowledge collection summary in the store
     /// This method is called internally when knowledge is uploaded
     /// </summary>

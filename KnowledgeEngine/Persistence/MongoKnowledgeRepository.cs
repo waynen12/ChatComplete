@@ -103,4 +103,37 @@ public sealed partial class MongoKnowledgeRepository : IKnowledgeRepository
             _log.LogWarning(ex, "Index drop failed for {Collection}", collectionId);
         }
     }
+
+    /// <summary>
+    /// For MongoDB, collections are created automatically when documents are inserted.
+    /// This method is a no-op but maintains interface compatibility.
+    /// </summary>
+    public async Task<string> CreateOrUpdateCollectionAsync(
+        string collectionId, 
+        string name, 
+        string? description = null,
+        CancellationToken cancellationToken = default)
+    {
+        // MongoDB collections are created automatically when documents are inserted
+        // No explicit creation needed, just return the collection ID
+        _log.LogDebug("MongoDB collection {CollectionId} will be created automatically on first document insert", collectionId);
+        return await Task.FromResult(collectionId);
+    }
+
+    /// <summary>
+    /// For MongoDB, document counts are calculated dynamically from actual collection data.
+    /// This method is a no-op but maintains interface compatibility.
+    /// </summary>
+    public async Task UpdateCollectionStatsAsync(
+        string collectionId, 
+        int documentCount, 
+        int chunkCount,
+        CancellationToken cancellationToken = default)
+    {
+        // MongoDB calculates document counts dynamically in GetAllAsync
+        // No need to store separate stats, just log the operation
+        _log.LogDebug("MongoDB collection {CollectionId} stats updated: {DocumentCount} documents, {ChunkCount} chunks", 
+            collectionId, documentCount, chunkCount);
+        await Task.CompletedTask;
+    }
 }

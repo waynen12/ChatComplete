@@ -1,8 +1,12 @@
 using ChatCompletion.Config;
 using KnowledgeEngine.Models;
 using KnowledgeEngine.Persistence;
+using KnowledgeEngine.Persistence.Conversations;
 using KnowledgeEngine.Persistence.IndexManagers;
 using KnowledgeEngine.Persistence.VectorStores;
+using KnowledgeEngine.Persistence.Sqlite;
+using KnowledgeEngine.Persistence.Sqlite.Repositories;
+using KnowledgeEngine.Persistence.Sqlite.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
@@ -94,23 +98,26 @@ public static class ServiceCollectionExtensions
                 openAiKey);
         });
 
-        // Register AtlasIndexManager as singleton with proper initialization
-        services.AddSingleton<AtlasIndexManager>(provider =>
+        // Register AtlasIndexManager only for MongoDB deployments
+        if (vectorStoreProvider != "qdrant")
         {
-            var atlasHttpClient = AtlasHttpClientFactory.CreateHttpClient();
-            var manager = new AtlasIndexManager(settings.Atlas, atlasHttpClient, ownsHttpClient: true);
-            
-            // Initialize asynchronously in background - this is a compromise for DI registration
-            Task.Run(async () => await manager.InitializeAsync()).Wait();
-            
-            return manager;
-        });
+            services.AddSingleton<AtlasIndexManager>(provider =>
+            {
+                var atlasHttpClient = AtlasHttpClientFactory.CreateHttpClient();
+                var manager = new AtlasIndexManager(settings.Atlas, atlasHttpClient, ownsHttpClient: true);
+                
+                // Initialize asynchronously in background - this is a compromise for DI registration
+                Task.Run(async () => await manager.InitializeAsync()).Wait();
+                
+                return manager;
+            });
+        }
 
         // Register Knowledge Repository based on VectorStore provider
         if (vectorStoreProvider == "qdrant")
         {
-            // For Qdrant, use in-memory knowledge repository (no MongoDB dependency)
-            services.AddScoped<IKnowledgeRepository, InMemoryKnowledgeRepository>();
+            // For Qdrant, use SQLite knowledge repository (no MongoDB dependency)
+            services.AddScoped<IKnowledgeRepository, SqliteKnowledgeRepository>();
         }
         else
         {
@@ -120,6 +127,58 @@ public static class ServiceCollectionExtensions
 
         // Register KnowledgeManager
         services.AddScoped<KnowledgeManager>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers SQLite persistence services for zero-dependency deployment
+    /// Uses configuration-based database path with smart defaults:
+    /// - Container: /app/data/knowledge.db (for volume mounts)
+    /// - Development: {AppDirectory}/data/knowledge.db (reliable and portable)
+    /// </summary>
+    public static IServiceCollection AddSqlitePersistence(this IServiceCollection services, ChatCompleteSettings settings)
+    {
+        // Use configured path or smart default
+        string databasePath;
+        if (!string.IsNullOrEmpty(settings.DatabasePath))
+        {
+            databasePath = settings.DatabasePath;
+        }
+        else
+        {
+            // Smart default based on environment
+            var isContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+            
+            if (isContainer)
+            {
+                // Container environment - use /app/data for volume mounts
+                databasePath = "/app/data/knowledge.db";
+            }
+            else
+            {
+                // Development/Production - use app directory + data subfolder
+                var appDirectory = AppContext.BaseDirectory;
+                databasePath = Path.Combine(appDirectory, "data", "knowledge.db");
+            }
+        }
+
+        // Register SQLite database context
+        services.AddScoped<SqliteDbContext>(provider => new SqliteDbContext(databasePath));
+
+        // Register encryption service (static methods, but good to have for DI)
+        services.AddSingleton<EncryptionService>();
+
+        // Register SQLite repositories
+        services.AddScoped<SqliteAppSettingsRepository>();
+        services.AddScoped<SqliteKnowledgeRepository>();
+        services.AddScoped<SqliteConversationRepository>();
+
+        // Register SQLite services
+        services.AddScoped<SqliteAppSettingsService>();
+
+        // Replace conversation repository registration
+        services.AddScoped<IConversationRepository, SqliteConversationRepository>();
 
         return services;
     }

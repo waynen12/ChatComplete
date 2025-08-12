@@ -1,5 +1,6 @@
 ﻿using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
+using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Persistence.IndexManagers;
 using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.Configuration;
@@ -58,10 +59,14 @@ public class Program
             // Create MongoDB vector store strategy
             var vectorStoreStrategy = new MongoVectorStoreStrategy(db, SettingsProvider.Settings.Atlas);
             
+            // Create MongoDB knowledge repository
+            var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<MongoKnowledgeRepository>.Instance;
+            var knowledgeRepository = new MongoKnowledgeRepository(db, logger, indexManager);
+            
             // Create a placeholder embedding service (will be implemented later)
             Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>? embeddingService = null;
             
-            var knowledgeManager = new KnowledgeEngine.KnowledgeManager(vectorStoreStrategy, embeddingService!, indexManager);
+            var knowledgeManager = new KnowledgeEngine.KnowledgeManager(vectorStoreStrategy, embeddingService!, indexManager, knowledgeRepository);
 
             await knowledgeManager.SaveToMemoryAsync(
                 Path.Combine(

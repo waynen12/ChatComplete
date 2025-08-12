@@ -188,4 +188,25 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
             return new List<string>();
         }
     }
+
+    /// <summary>
+    /// Deletes a collection and all its data from MongoDB
+    /// </summary>
+    public async Task DeleteCollectionAsync(string collectionName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            LoggerProvider.Logger.Information("Deleting MongoDB collection: {CollectionName}", collectionName);
+            
+            // Delete the collection using MongoDB driver
+            await _mongoDatabase.DropCollectionAsync(collectionName, cancellationToken);
+            
+            LoggerProvider.Logger.Information("Successfully deleted MongoDB collection: {CollectionName}", collectionName);
+        }
+        catch (Exception ex)
+        {
+            LoggerProvider.Logger.Error(ex, "Failed to delete MongoDB collection: {CollectionName}", collectionName);
+            throw;
+        }
+    }
 }

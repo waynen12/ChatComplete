@@ -32,5 +32,8 @@ namespace ChatCompletion.Config
         // Code fence protection settings
         public int MaxCodeFenceSize { get; set; } = 10240; // 10KB max per code block
         public bool TruncateOversizedCodeFences { get; set; } = true;
+        
+        // SQLite database configuration
+        public string? DatabasePath { get; set; } = null; // null = use smart default
     }
 }

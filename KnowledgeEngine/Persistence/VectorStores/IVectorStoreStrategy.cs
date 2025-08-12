@@ -54,4 +54,12 @@ public interface IVectorStoreStrategy
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of collection names</returns>
     Task<List<string>> ListCollectionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a collection and all its data from the vector store.
+    /// </summary>
+    /// <param name="collectionName">The collection name to delete</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Task representing the async operation</returns>
+    Task DeleteCollectionAsync(string collectionName, CancellationToken cancellationToken = default);
 }

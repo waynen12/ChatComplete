@@ -7,6 +7,8 @@ using Knowledge.Api.Services;
 using Knowledge.Contracts;
 using KnowledgeEngine;
 using KnowledgeEngine.Chat;
+using KnowledgeEngine.Persistence.Sqlite;
+using KnowledgeEngine.Persistence.Sqlite.Repositories;
 using KnowledgeEngine.Extensions;
 using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
 using KnowledgeEngine.Persistence;
@@ -59,8 +61,19 @@ builder.Services.AddOpenAIEmbeddingGenerator(settings.TextEmbeddingModelName, op
 // Add modern KernelFactory
 builder.Services.AddSingleton<KernelFactory>();
 
-// Add conversation persistence (MongoDB is always used for conversations)
-builder.Services.AddConversationPersistence();
+// Add SQLite persistence for zero-dependency deployment
+builder.Services.AddSqlitePersistence(settings);
+
+// Add conversation persistence (SQLite is now used for conversations in Qdrant mode)
+var vectorStoreProvider = settings.VectorStore?.Provider?.ToLower() ?? "mongodb";
+if (vectorStoreProvider == "qdrant")
+{
+    builder.Services.AddSqliteConversationPersistence();
+}
+else
+{
+    builder.Services.AddConversationPersistence();
+}
 
 // Use ServiceCollectionExtensions for strategy pattern registration
 builder.Services.AddKnowledgeServices(settings);
@@ -116,10 +129,29 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<PythonCodeSampleFilter>(); //  ← new line
 });
 
-// reuse existing helpers - changed to Scoped to match ChatComplete lifetime
-builder.Services.AddScoped<IChatService, MongoChatService>();
+// Register chat service based on vector store provider
+if (vectorStoreProvider == "qdrant")
+{
+    builder.Services.AddScoped<IChatService, SqliteChatService>();
+}
+else
+{
+    builder.Services.AddScoped<IChatService, MongoChatService>();
+}
 
 var app = builder.Build();
+
+// Initialize SQLite database for Qdrant deployments
+if (vectorStoreProvider == "qdrant")
+{
+    using var scope = app.Services.CreateScope();
+    var sqliteContext = scope.ServiceProvider.GetRequiredService<SqliteDbContext>();
+    var appSettingsRepo = scope.ServiceProvider.GetRequiredService<SqliteAppSettingsRepository>();
+    
+    // Ensure database is created and initialized
+    _ = await sqliteContext.GetConnectionAsync();
+    await appSettingsRepo.InitializeDefaultsAsync();
+}
 
 // ─── API route group ─────────────────────────────────────────────────────────
 var api = app.MapGroup("/api").WithOpenApi();

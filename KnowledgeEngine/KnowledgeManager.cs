@@ -2,6 +2,7 @@ using System.Diagnostics;
 using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
 using KnowledgeEngine.Models;
+using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Persistence.IndexManagers;
 using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.AI;
@@ -16,16 +17,19 @@ public class KnowledgeManager
     private readonly IVectorStoreStrategy _vectorStoreStrategy;
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingService;
     private readonly IIndexManager _indexManager;
+    private readonly IKnowledgeRepository _knowledgeRepository;
     private readonly KnowledgeSourceResolver _knowledgeSourceResolver;
 
     public KnowledgeManager(
         IVectorStoreStrategy vectorStoreStrategy,
         IEmbeddingGenerator<string, Embedding<float>> embeddingService,
-        IIndexManager indexManager)
+        IIndexManager indexManager,
+        IKnowledgeRepository knowledgeRepository)
     {
         _vectorStoreStrategy = vectorStoreStrategy;
         _embeddingService = embeddingService;
         _indexManager = indexManager;
+        _knowledgeRepository = knowledgeRepository;
         _knowledgeSourceResolver = new KnowledgeSourceResolver(new KnowledgeSourceFactory());
     }
 
@@ -116,7 +120,35 @@ public class KnowledgeManager
             sw.ElapsedMilliseconds
         );
 
-        // 5. Create search index if needed
+        // 5. Record collection metadata in SQLite
+        try
+        {
+            // Create or update collection record
+            await _knowledgeRepository.CreateOrUpdateCollectionAsync(
+                collectionName, 
+                collectionName, // Use collection name as display name
+                $"Knowledge collection created from {Path.GetFileName(documentPath)}"
+            );
+            
+            // Update document and chunk counts
+            await _knowledgeRepository.UpdateCollectionStatsAsync(
+                collectionName, 
+                1, // documentCount - this is one document
+                paragraphs.Count // chunkCount
+            );
+            
+            LoggerProvider.Logger.Information(
+                "📊 Updated collection metadata for {Collection}: 1 document, {ChunkCount} chunks",
+                collectionName,
+                paragraphs.Count
+            );
+        }
+        catch (Exception ex)
+        {
+            LoggerProvider.Logger.Warning(ex, "Failed to record collection metadata for {Collection}", collectionName);
+        }
+
+        // 6. Create search index if needed
         try
         {
             await _indexManager.CreateIndexAsync(collectionName);

@@ -220,6 +220,36 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
     }
 
     /// <summary>
+    /// Deletes a collection and all its data from Qdrant
+    /// </summary>
+    public async Task DeleteCollectionAsync(string collectionName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            LoggerProvider.Logger.Information("Deleting Qdrant collection: {CollectionName}", collectionName);
+            
+            // Check if collection exists first
+            var collections = await ListCollectionsAsync(cancellationToken);
+            if (!collections.Contains(collectionName))
+            {
+                LoggerProvider.Logger.Information("Collection {CollectionName} does not exist in Qdrant, skipping deletion", collectionName);
+                return;
+            }
+
+            // Delete the collection using the vector store collection interface
+            var collection = _vectorStore.GetCollection<Guid, QdrantRecord>(collectionName);
+            await collection.EnsureCollectionDeletedAsync(cancellationToken);
+            
+            LoggerProvider.Logger.Information("Successfully deleted Qdrant collection: {CollectionName}", collectionName);
+        }
+        catch (Exception ex)
+        {
+            LoggerProvider.Logger.Error(ex, "Failed to delete Qdrant collection: {CollectionName}", collectionName);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Creates a deterministic GUID from a string key using MD5 hash (matches Python implementation)
     /// </summary>
     private static Guid CreateDeterministicGuid(string input)

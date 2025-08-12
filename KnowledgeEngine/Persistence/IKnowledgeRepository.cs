@@ -24,4 +24,24 @@ public interface IKnowledgeRepository
     /// Deletes a knowledge collection from MongoDB / the vector store.
     /// </summary>
     Task DeleteAsync(string collectionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates or updates a knowledge collection record with metadata.
+    /// Called when documents are uploaded to track collection information.
+    /// </summary>
+    Task<string> CreateOrUpdateCollectionAsync(
+        string collectionId, 
+        string name, 
+        string? description = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates document and chunk counts for a collection.
+    /// Called after successful document processing to track statistics.
+    /// </summary>
+    Task UpdateCollectionStatsAsync(
+        string collectionId, 
+        int documentCount, 
+        int chunkCount,
+        CancellationToken cancellationToken = default);
 }
