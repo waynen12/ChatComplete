@@ -59,12 +59,12 @@ public class InMemoryKnowledgeRepository : IKnowledgeRepository
     {
         if (_knowledgeStore.TryGetValue(collectionId, out var existing))
         {
-            // Update the existing entry with new counts
+            // Increment the existing counts
             _knowledgeStore[collectionId] = new KnowledgeSummaryDto
             {
                 Id = existing.Id,
                 Name = existing.Name,
-                DocumentCount = documentCount
+                DocumentCount = existing.DocumentCount + documentCount
             };
         }
         return Task.CompletedTask;

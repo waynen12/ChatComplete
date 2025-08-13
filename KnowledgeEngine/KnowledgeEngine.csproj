@@ -1,11 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <StartupObject>Program</StartupObject>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
@@ -23,37 +22,18 @@
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.MongoDb" Version="1.60.0-preview" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.60.0-alpha" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Qdrant" Version="1.60.0-preview" />
+    <PackageReference Include="MongoDB.Driver" Version="2.30.0" />
     <PackageReference Include="Microsoft.SemanticKernel.PromptTemplates.Handlebars" Version="1.60.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Yaml" Version="1.60.0" />
     <PackageReference Include="PdfSharpCore" Version="1.3.67" />
     <PackageReference Include="System.Linq.Dynamic.Core" Version="1.6.0.2" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
     <PackageReference Include="TiktokenSharp" Version="1.1.7" />
-    <PackageReference Include="xunit" Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.0">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
     <PackageReference Include="itext7" Version="7.2.5" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <Content Include="appsettings.json" />
-    <Content Include="Program.cs" />
-    <Content Include="AtlasIndexManager.cs" />
-    <Content Include="KernelHelper.cs" />
-    <Content Include="KnowledgeChunker.cs" />
-    <Content Include="KnowledgeManager.cs" />
-    <Content Include="LoggerProvider.cs" />
-    <Content Include="Interfaces\IKnowledgeRepository.cs" />
-    <Content Include="Persistence\IKnowledgeRepository.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
-    <Content Include="Persistence\MongoKnowledgeRepository.cs" />
-    <Content Include="ChatComplete.cs" />
-    <Content Include="Config\ChatCompleteSettings.cs" />
-    <Content Include="Chat\MongoChatService.cs" />
-    <Content Include="Chat\IChatService.cs" />
   </ItemGroup>
 </Project>

@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine;
+using KnowledgeEngine.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -100,7 +101,7 @@ namespace ChatCompletion
             chatHistory.AddSystemMessage(systemMessage);
 
             // 1. Vector search using new KnowledgeManager
-            var searchResults = new List<KnowledgeEngine.KnowledgeSearchResult>();
+            var searchResults = new List<KnowledgeSearchResult>();
 
             if (!string.IsNullOrEmpty(knowledgeId))
             {

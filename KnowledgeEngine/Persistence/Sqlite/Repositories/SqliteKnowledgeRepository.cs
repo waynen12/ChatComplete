@@ -139,8 +139,8 @@ public class SqliteKnowledgeRepository : IKnowledgeRepository
     {
         const string sql = """
             UPDATE KnowledgeCollections 
-            SET DocumentCount = @documentCount,
-                ChunkCount = @chunkCount,
+            SET DocumentCount = DocumentCount + @documentCount,
+                ChunkCount = ChunkCount + @chunkCount,
                 UpdatedAt = CURRENT_TIMESTAMP
             WHERE CollectionId = @collectionId
             """;

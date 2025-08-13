@@ -131,8 +131,8 @@ public sealed partial class MongoKnowledgeRepository : IKnowledgeRepository
         CancellationToken cancellationToken = default)
     {
         // MongoDB calculates document counts dynamically in GetAllAsync
-        // No need to store separate stats, just log the operation
-        _log.LogDebug("MongoDB collection {CollectionId} stats updated: {DocumentCount} documents, {ChunkCount} chunks", 
+        // No need to store separate stats, just log the incremental operation
+        _log.LogDebug("MongoDB collection {CollectionId} incremented by: {DocumentCount} documents, {ChunkCount} chunks", 
             collectionId, documentCount, chunkCount);
         await Task.CompletedTask;
     }

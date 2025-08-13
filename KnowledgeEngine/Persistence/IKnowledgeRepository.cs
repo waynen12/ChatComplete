@@ -36,9 +36,13 @@ public interface IKnowledgeRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates document and chunk counts for a collection.
+    /// Increments document and chunk counts for a collection.
     /// Called after successful document processing to track statistics.
     /// </summary>
+    /// <param name="collectionId">The collection identifier</param>
+    /// <param name="documentCount">Number of documents to add to the count</param>
+    /// <param name="chunkCount">Number of chunks to add to the count</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     Task UpdateCollectionStatsAsync(
         string collectionId, 
         int documentCount, 

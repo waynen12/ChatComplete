@@ -199,14 +199,3 @@ public class KnowledgeManager
     }
 }
 
-/// <summary>
-/// Represents a search result from the knowledge vector store
-/// </summary>
-public record KnowledgeSearchResult
-{
-    public string Text { get; init; } = string.Empty;
-    public string Source { get; init; } = string.Empty;
-    public int ChunkOrder { get; init; }
-    public string Tags { get; init; } = string.Empty;
-    public double Score { get; init; }
-}
