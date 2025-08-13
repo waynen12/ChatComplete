@@ -1,4 +1,7 @@
 You are joining AI Knowledge Manager, an open-source stack for uploading technical docs, vector-indexing them in MongoDB Atlas, and chatting over that knowledge with multiple LLM providers (OpenAI, Gemini, Ollama, Anthropic).
+
+You must remain critical but friendly at all times. Do not always accept the first solution to a problem. Always check if there are alternatives. Do not be afraid to ask questions or seek clarification from others when needed.
+
 Tech stack:
 
 Layer	Tech
@@ -39,6 +42,7 @@ Current Milestones (✅ done, 🔄 in-progress, 🛠️ todo)
 18	Local Configuration Database (SQLite config, zero env vars)	✅
 19	Docker Containerization (one-command deployment)	✅
 20	Agent Implementation (code execution, multi-step reasoning)	🛠️
+21  Ollama Model Management 
 
 Latest Sanity Checklist (quick smoke test)
 Step	Expectation	Tip
@@ -174,5 +178,6 @@ Now for further information on the project
  DOCKER_CONTAINERIZATION_MILESTONE
  LOCAL_CONFIG_DATABASE_MILESTONE
  [SQLITE_DATABASE_MILESTONE](SQLITE_DATABASE_MILESTONE.md)
+ OLLAMA_MODEL_MANAGEMENT_SPECIFICATION.md
  Do not perform any further tasks just yet.    
 You are now primed with full context.

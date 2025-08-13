@@ -19,7 +19,8 @@ internal sealed class SpyChatComplete : ChatComplete
 
     public override Task<string> AskAsync(
         string userMessage, string? knowledgeId, ChatHistory chatHistory,
-        double apiTemperature, AiProvider provider, bool ext, CancellationToken ct = default)
+        double apiTemperature, AiProvider provider, bool useExtendedInstructions = false, 
+        string? ollamaModel = null, CancellationToken ct = default)
     {
         LastHistoryCount = chatHistory.Count;
         return Task.FromResult("stub-reply");
