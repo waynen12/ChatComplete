@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { motion, AnimatePresence } from "framer-motion";
-import type { ChatResponseDto } from "@/types/api";
+import { AnimatePresence, motion } from "framer-motion";
+import type { ChatResponseDto, OllamaModelsResponse, KnowledgeItem } from "@/types/api";
+import { GLOBAL_KNOWLEDGE_ID, AI_PROVIDERS, type Provider } from "@/constants/app";
+import { notify } from "@/lib/notify";
+import { ChatSettingsPanel } from "@/components/ChatSettingsPanel";
 import clsx from "clsx";
 import ReactMarkdown from "react-markdown";
 
@@ -20,25 +17,20 @@ interface Message {
   content: string;
 }
 
-interface KnowledgeItem {
-  id: string;
-  name: string;
-}
 
-type Provider = "OpenAi" | "Google" | "Anthropic" | "Ollama";           // keep as string union
 
 export default function ChatPage() {
   const { id: initialKnowledgeId } = useParams();
   const [collections, setCollections] = useState<KnowledgeItem[]>([]);
   const [collectionId, setCollectionId] = useState<string>(
-    initialKnowledgeId ?? "__global__"
+    initialKnowledgeId ?? GLOBAL_KNOWLEDGE_ID
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(() =>
     sessionStorage.getItem("chat.cid")
   );
-  const [provider, setProvider] = useState<Provider>("Ollama");
+  const [provider, setProvider] = useState<Provider>(AI_PROVIDERS.OLLAMA);
   const [stripMarkdown, setStripMarkdown] = useState<boolean>(false);
   const [ollamaModel, setOllamaModel] = useState<string>("");
   const [availableOllamaModels, setAvailableOllamaModels] = useState<string[]>([]);
@@ -48,9 +40,15 @@ export default function ChatPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/knowledge");
-      if (!res.ok) return;
-      setCollections(await res.json());
+      try {
+        const res = await fetch("/api/knowledge");
+        if (!res.ok) {
+          throw new Error(`Failed to fetch knowledge bases: ${res.status} ${res.statusText}`);
+        }
+        setCollections(await res.json());
+      } catch (error) {
+        notify.error("Failed to load knowledge bases. Please refresh the page.");
+      }
     })();
   }, []);
 
@@ -60,24 +58,24 @@ export default function ChatPage() {
 
   // Fetch Ollama models when provider changes to Ollama
   useEffect(() => {
-    if (provider === "Ollama") {
+    if (provider === AI_PROVIDERS.OLLAMA) {
       (async () => {
         setLoadingModels(true);
         try {
           const res = await fetch("/api/ollama/models");
           if (res.ok) {
-            const models = await res.json() as string[];
+            const models = await res.json() as OllamaModelsResponse;
             setAvailableOllamaModels(models);
             // Set first model as default if none selected
             if (models.length > 0 && !ollamaModel) {
               setOllamaModel(models[0]);
             }
           } else {
-            console.error("Failed to fetch Ollama models:", res.statusText);
+            notify.error(`Failed to fetch Ollama models: ${res.statusText}`);
             setAvailableOllamaModels([]);
           }
         } catch (error) {
-          console.error("Error fetching Ollama models:", error);
+          notify.error("Error connecting to Ollama. Please ensure Ollama is running.");
           setAvailableOllamaModels([]);
         } finally {
           setLoadingModels(false);
@@ -101,10 +99,11 @@ export default function ChatPage() {
 
   async function sendMessage() {
     if (!input.trim()) return;
-    if (collectionId === "__global__") {
-      // Could show a toast or other error indication here
+    if (collectionId === GLOBAL_KNOWLEDGE_ID) {
+      notify.error("Please select a knowledge base to start chatting");
       return;
     }
+
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -113,184 +112,94 @@ export default function ChatPage() {
     setMessages((m) => [...m, userMsg]);
     setInput("");
 
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        knowledgeId: collectionId === "__global__" ? null : collectionId,
-        message: userMsg.content,
-        temperature: 0.8,
-        stripMarkdown: stripMarkdown,
-        useExtendedInstructions: false,
-        provider,
-        conversationId,
-        ollamaModel: provider === "Ollama" ? ollamaModel : undefined
-      }),
-    });
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          knowledgeId: collectionId === GLOBAL_KNOWLEDGE_ID ? null : collectionId,
+          message: userMsg.content,
+          temperature: 0.8,
+          stripMarkdown: stripMarkdown,
+          useExtendedInstructions: false,
+          provider,
+          conversationId,
+          ollamaModel: provider === AI_PROVIDERS.OLLAMA ? ollamaModel : undefined
+        }),
+      });
 
+      if (!res.ok) {
+        throw new Error(`Chat request failed: ${res.status} ${res.statusText}`);
+      }
 
-
-    const { reply, conversationId: cid } =
-      (await res.json()) as ChatResponseDto;
+      const { reply, conversationId: cid } = (await res.json()) as ChatResponseDto;
 
       setMessages((m) => [
-      ...m,
-      {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: reply,
-      },
-    ]);
+        ...m,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: reply,
+        },
+      ]);
 
-    // first turn → persist cid
-    if (!conversationId && cid) {
-      setConversationId(cid);
-      sessionStorage.setItem("chat.cid", cid);
+      // first turn → persist cid
+      if (!conversationId && cid) {
+        setConversationId(cid);
+        sessionStorage.setItem("chat.cid", cid);
+      }
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Failed to send message. Please try again.");
+      
+      // Remove the user message that failed to get a response
+      setMessages((m) => m.filter(msg => msg.id !== userMsg.id));
+      
+      // Restore the input
+      setInput(userMsg.content);
     }
-    
   }
 
-    return (
+  // Callback functions for ChatSettingsPanel
+  const handleCollectionChange = (newCollectionId: string) => {
+    setCollectionId(newCollectionId);
+    // Reset conversation when switching collections
+    setConversationId(null);
+    sessionStorage.removeItem("chat.cid");
+    // Clear messages for new conversation
+    setMessages([]);
+  };
+
+  const handleProviderChange = (newProvider: Provider) => {
+    setProvider(newProvider);
+  };
+
+  const handleOllamaModelChange = (newModel: string) => {
+    setOllamaModel(newModel);
+  };
+
+  const handleStripMarkdownChange = (strip: boolean) => {
+    setStripMarkdown(strip);
+  };
+
+  return (
       <section className="h-full flex">
         {/* Side Panel */}
         <AnimatePresence>
-          {sidePanelOpen && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 380, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="border-r bg-muted/30 overflow-hidden"
-            >
-              <div className="p-6 space-y-6 w-96">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Chat Settings</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSidePanelOpen(false)}
-                    className="h-8 w-8 p-0"
-                  >
-                    ✕
-                  </Button>
-                </div>
-
-                {/* Knowledge Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Knowledge Base <span className="text-destructive">*</span>
-                  </label>
-                  {collections.length > 0 ? (
-                    <Select
-                      value={collectionId}
-                      onValueChange={(v) => {
-                        setCollectionId(v);
-                        // Reset conversation when switching collections
-                        setConversationId(null);
-                        sessionStorage.removeItem("chat.cid");
-                        // Clear messages for new conversation
-                        setMessages([]);
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <span className="truncate">
-                          {collectionId === "__global__"
-                            ? "Please choose a knowledge item"
-                            : collections.find((c) => c.id === collectionId)?.name ?? "Unknown"}
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__global__" disabled>Please choose a knowledge item</SelectItem>
-                        {collections.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="text-sm text-muted-foreground p-2 border rounded">
-                      Loading knowledge items...
-                    </div>
-                  )}
-                </div>
-
-                {/* AI Provider Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">AI Provider</label>
-                  <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
-                    <SelectTrigger className="w-full">
-                      {provider === "OpenAi" ? "OpenAI" :
-                       provider === "Google" ? "Gemini" :
-                       provider === "Anthropic" ? "Anthropic" :
-                       provider === "Ollama" ? "Ollama" : "Unknown"}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="OpenAi">OpenAI</SelectItem>
-                      <SelectItem value="Google">Gemini</SelectItem>
-                      <SelectItem value="Anthropic">Anthropic</SelectItem>
-                      <SelectItem value="Ollama">Ollama</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Ollama Model Selection - only shown when Ollama is selected */}
-                {provider === "Ollama" && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Ollama Model
-                      {availableOllamaModels.length === 0 && !loadingModels && (
-                        <span className="text-destructive ml-1">*</span>
-                      )}
-                    </label>
-                    <Select 
-                      value={ollamaModel} 
-                      onValueChange={setOllamaModel}
-                      disabled={loadingModels || availableOllamaModels.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        {loadingModels ? "Loading models..." : 
-                         availableOllamaModels.length === 0 ? "No models available" :
-                         ollamaModel || "Select a model"}
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableOllamaModels.map((model) => (
-                          <SelectItem key={model} value={model}>
-                            {model}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {availableOllamaModels.length === 0 && !loadingModels && (
-                      <p className="text-xs text-muted-foreground">
-                        No Ollama models found. Run 'ollama pull &lt;model&gt;' to install models.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Markdown Toggle */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Response Format</label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="strip-markdown"
-                      checked={stripMarkdown}
-                      onChange={(e) => setStripMarkdown(e.target.checked)}
-                      className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
-                    />
-                    <label htmlFor="strip-markdown" className="text-sm text-foreground cursor-pointer">
-                      Strip Markdown formatting
-                    </label>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Remove formatting from AI responses for plain text output
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          )}
+          <ChatSettingsPanel
+            isOpen={sidePanelOpen}
+            onClose={() => setSidePanelOpen(false)}
+            collections={collections}
+            selectedCollectionId={collectionId}
+            onCollectionChange={handleCollectionChange}
+            provider={provider}
+            onProviderChange={handleProviderChange}
+            availableOllamaModels={availableOllamaModels}
+            selectedOllamaModel={ollamaModel}
+            onOllamaModelChange={handleOllamaModelChange}
+            loadingModels={loadingModels}
+            stripMarkdown={stripMarkdown}
+            onStripMarkdownChange={handleStripMarkdownChange}
+          />
         </AnimatePresence>
 
         {/* Main Chat Area */}
@@ -305,7 +214,7 @@ export default function ChatPage() {
                 className="flex items-center gap-2"
               >
                 ⚙️ Settings
-                {!sidePanelOpen && collectionId !== "__global__" && (
+                {!sidePanelOpen && collectionId !== GLOBAL_KNOWLEDGE_ID && (
                   <span className="text-xs text-muted-foreground">
                     • {collections.find((c) => c.id === collectionId)?.name}
                   </span>
@@ -313,10 +222,10 @@ export default function ChatPage() {
               </Button>
             </div>
             <div className="text-sm text-muted-foreground">
-              {provider === "OpenAi" ? "OpenAI" :
-               provider === "Google" ? "Gemini" :
-               provider === "Anthropic" ? "Anthropic" :
-               provider === "Ollama" ? `Ollama${ollamaModel ? ` (${ollamaModel})` : ""}` : "Unknown"}
+              {provider === AI_PROVIDERS.OPENAI ? "OpenAI" :
+               provider === AI_PROVIDERS.GOOGLE ? "Gemini" :
+               provider === AI_PROVIDERS.ANTHROPIC ? "Anthropic" :
+               provider === AI_PROVIDERS.OLLAMA ? `Ollama${ollamaModel ? ` (${ollamaModel})` : ""}` : "Unknown"}
             </div>
           </header>
 
@@ -357,7 +266,7 @@ export default function ChatPage() {
             />
             <Button
               onClick={sendMessage}
-              disabled={input.trim() === "" || collectionId === "__global__"}
+              disabled={input.trim() === "" || collectionId === GLOBAL_KNOWLEDGE_ID}
             >
               Send
             </Button>
