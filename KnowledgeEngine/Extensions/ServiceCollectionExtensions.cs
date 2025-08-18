@@ -172,6 +172,7 @@ public static class ServiceCollectionExtensions
         // Register SQLite repositories
         services.AddScoped<SqliteAppSettingsRepository>();
         services.AddScoped<SqliteKnowledgeRepository>();
+        services.AddScoped<SqliteOllamaRepository>();
         services.AddScoped<SqliteConversationRepository>();
 
         // Register SQLite services

@@ -56,37 +56,42 @@ export default function ChatPage() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Function to fetch Ollama models
+  const fetchOllamaModels = async () => {
+    if (provider !== AI_PROVIDERS.OLLAMA) return;
+    
+    setLoadingModels(true);
+    try {
+      const res = await fetch("/api/ollama/models");
+      if (res.ok) {
+        const models = await res.json() as OllamaModelsResponse;
+        setAvailableOllamaModels(models);
+        // Set first model as default if none selected
+        if (models.length > 0 && !ollamaModel) {
+          setOllamaModel(models[0]);
+        }
+      } else {
+        notify.error(`Failed to fetch Ollama models: ${res.statusText}`);
+        setAvailableOllamaModels([]);
+      }
+    } catch (error) {
+      notify.error("Error connecting to Ollama. Please ensure Ollama is running.");
+      setAvailableOllamaModels([]);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
   // Fetch Ollama models when provider changes to Ollama
   useEffect(() => {
     if (provider === AI_PROVIDERS.OLLAMA) {
-      (async () => {
-        setLoadingModels(true);
-        try {
-          const res = await fetch("/api/ollama/models");
-          if (res.ok) {
-            const models = await res.json() as OllamaModelsResponse;
-            setAvailableOllamaModels(models);
-            // Set first model as default if none selected
-            if (models.length > 0 && !ollamaModel) {
-              setOllamaModel(models[0]);
-            }
-          } else {
-            notify.error(`Failed to fetch Ollama models: ${res.statusText}`);
-            setAvailableOllamaModels([]);
-          }
-        } catch (error) {
-          notify.error("Error connecting to Ollama. Please ensure Ollama is running.");
-          setAvailableOllamaModels([]);
-        } finally {
-          setLoadingModels(false);
-        }
-      })();
+      fetchOllamaModels();
     } else {
       // Clear Ollama-specific state when switching away from Ollama
       setAvailableOllamaModels([]);
       setOllamaModel("");
     }
-  }, [provider, ollamaModel]);
+  }, [provider]);
 
   // Handle navigation from knowledge list page - start fresh conversation
   useEffect(() => {
@@ -196,6 +201,7 @@ export default function ChatPage() {
             availableOllamaModels={availableOllamaModels}
             selectedOllamaModel={ollamaModel}
             onOllamaModelChange={handleOllamaModelChange}
+            onModelsRefresh={fetchOllamaModels}
             loadingModels={loadingModels}
             stripMarkdown={stripMarkdown}
             onStripMarkdownChange={handleStripMarkdownChange}

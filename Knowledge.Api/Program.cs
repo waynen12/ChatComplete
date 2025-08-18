@@ -144,6 +144,9 @@ else
 // Register Ollama API service
 builder.Services.AddHttpClient<IOllamaApiService, OllamaApiService>();
 
+// Register Ollama download service for real-time progress tracking
+builder.Services.AddScoped<OllamaDownloadService>();
+
 var app = builder.Build();
 
 // Initialize SQLite database for Qdrant deployments

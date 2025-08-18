@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { AI_PROVIDERS, GLOBAL_KNOWLEDGE_ID, type Provider } from "@/constants/app";
+import { OllamaModelManager } from "@/components/OllamaModelManager";
 import type { KnowledgeItem } from "@/types/api";
 
 interface ChatSettingsPanelProps {
@@ -27,6 +28,7 @@ interface ChatSettingsPanelProps {
   availableOllamaModels: string[];
   selectedOllamaModel: string;
   onOllamaModelChange: (model: string) => void;
+  onModelsRefresh: () => void;
   loadingModels: boolean;
   
   // Markdown settings
@@ -45,6 +47,7 @@ export function ChatSettingsPanel({
   availableOllamaModels,
   selectedOllamaModel,
   onOllamaModelChange,
+  onModelsRefresh,
   loadingModels,
   stripMarkdown,
   onStripMarkdownChange,
@@ -127,12 +130,21 @@ export function ChatSettingsPanel({
         {/* Ollama Model Selection - only shown when Ollama is selected */}
         {provider === AI_PROVIDERS.OLLAMA && (
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Ollama Model
-              {availableOllamaModels.length === 0 && !loadingModels && (
-                <span className="text-destructive ml-1">*</span>
-              )}
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">
+                Ollama Model
+                {availableOllamaModels.length === 0 && !loadingModels && (
+                  <span className="text-destructive ml-1">*</span>
+                )}
+              </label>
+              <OllamaModelManager
+                availableModels={availableOllamaModels}
+                selectedModel={selectedOllamaModel}
+                onModelSelect={onOllamaModelChange}
+                onModelsRefresh={onModelsRefresh}
+                isLoadingModels={loadingModels}
+              />
+            </div>
             <Select 
               value={selectedOllamaModel} 
               onValueChange={onOllamaModelChange}
@@ -153,7 +165,7 @@ export function ChatSettingsPanel({
             </Select>
             {availableOllamaModels.length === 0 && !loadingModels && (
               <p className="text-xs text-muted-foreground">
-                No Ollama models found. Run 'ollama pull &lt;model&gt;' to install models.
+                No models available. Use the model manager to download new models.
               </p>
             )}
           </div>

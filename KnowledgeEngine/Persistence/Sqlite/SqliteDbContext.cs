@@ -58,6 +58,7 @@ public class SqliteDbContext : IDisposable
         await CreateAppSettingsTableAsync();
         await CreateChatHistoryTablesAsync();
         await CreateKnowledgeMetadataTablesAsync();
+        await CreateOllamaModelTablesAsync();
     }
 
     private async Task CreateAppSettingsTableAsync()
@@ -179,12 +180,131 @@ public class SqliteDbContext : IDisposable
         await ExecuteNonQueryAsync(sql);
     }
 
+    private async Task CreateOllamaModelTablesAsync()
+    {
+        // First, check if we need to migrate from old schema with foreign keys
+        await DropForeignKeyConstraintsIfExistsAsync();
+        
+        const string sql = """
+            CREATE TABLE IF NOT EXISTS OllamaModels (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name VARCHAR(255) NOT NULL UNIQUE,
+                DisplayName VARCHAR(255),
+                Size INTEGER DEFAULT 0,
+                Family VARCHAR(100),
+                ParameterSize VARCHAR(50),
+                QuantizationLevel VARCHAR(50),
+                Format VARCHAR(50),
+                Template TEXT,
+                Parameters TEXT,
+                ModifiedAt DATETIME,
+                InstalledAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                LastUsedAt DATETIME,
+                IsAvailable BOOLEAN DEFAULT 1,
+                Status VARCHAR(50) DEFAULT 'Ready',
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS OllamaDownloads (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ModelName VARCHAR(255) NOT NULL UNIQUE,
+                Status VARCHAR(50) NOT NULL DEFAULT 'Pending',
+                BytesDownloaded INTEGER DEFAULT 0,
+                TotalBytes INTEGER DEFAULT 0,
+                PercentComplete REAL DEFAULT 0,
+                ErrorMessage TEXT,
+                StartedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                CompletedAt DATETIME,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS OllamaModelCache (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ModelName VARCHAR(255) NOT NULL,
+                SearchTerm VARCHAR(255) NOT NULL,
+                ResultData TEXT,
+                CachedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                ExpiresAt DATETIME,
+                HitCount INTEGER DEFAULT 1,
+                UNIQUE(ModelName, SearchTerm)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_ollama_models_name ON OllamaModels(Name);
+            CREATE INDEX IF NOT EXISTS idx_ollama_models_family ON OllamaModels(Family);
+            CREATE INDEX IF NOT EXISTS idx_ollama_models_status ON OllamaModels(Status);
+            CREATE INDEX IF NOT EXISTS idx_ollama_downloads_model ON OllamaDownloads(ModelName);
+            CREATE INDEX IF NOT EXISTS idx_ollama_downloads_status ON OllamaDownloads(Status);
+            CREATE INDEX IF NOT EXISTS idx_ollama_cache_search ON OllamaModelCache(SearchTerm);
+            CREATE INDEX IF NOT EXISTS idx_ollama_cache_expires ON OllamaModelCache(ExpiresAt);
+            """;
+
+        await ExecuteNonQueryAsync(sql);
+    }
+
     private async Task ExecuteNonQueryAsync(string sql)
     {
         if (_connection == null) return;
 
         using var command = new SqliteCommand(sql, _connection);
         await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task DropForeignKeyConstraintsIfExistsAsync()
+    {
+        try
+        {
+            // Check if the OllamaDownloads table exists and has foreign key constraints
+            const string checkTableSql = """
+                SELECT sql FROM sqlite_master 
+                WHERE type='table' AND name='OllamaDownloads' AND sql LIKE '%FOREIGN KEY%'
+                """;
+            
+            var connection = await GetConnectionAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = checkTableSql;
+            var result = await command.ExecuteScalarAsync();
+            
+            if (result != null)
+            {
+                // Table exists with foreign key constraints, need to recreate it
+                const string migrationSql = """
+                    -- Create new table without foreign key constraints
+                    CREATE TABLE OllamaDownloads_new (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ModelName VARCHAR(255) NOT NULL UNIQUE,
+                        Status VARCHAR(50) NOT NULL DEFAULT 'Pending',
+                        BytesDownloaded INTEGER DEFAULT 0,
+                        TotalBytes INTEGER DEFAULT 0,
+                        PercentComplete REAL DEFAULT 0,
+                        ErrorMessage TEXT,
+                        StartedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        CompletedAt DATETIME,
+                        UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                    );
+                    
+                    -- Copy data from old table
+                    INSERT INTO OllamaDownloads_new (ModelName, Status, BytesDownloaded, TotalBytes, PercentComplete, ErrorMessage, StartedAt, CompletedAt, UpdatedAt)
+                    SELECT ModelName, Status, BytesDownloaded, TotalBytes, PercentComplete, ErrorMessage, StartedAt, CompletedAt, UpdatedAt
+                    FROM OllamaDownloads;
+                    
+                    -- Drop old table and rename new one
+                    DROP TABLE OllamaDownloads;
+                    ALTER TABLE OllamaDownloads_new RENAME TO OllamaDownloads;
+                    
+                    -- Recreate indexes
+                    CREATE INDEX IF NOT EXISTS idx_ollama_downloads_model ON OllamaDownloads(ModelName);
+                    CREATE INDEX IF NOT EXISTS idx_ollama_downloads_status ON OllamaDownloads(Status);
+                    """;
+                
+                await ExecuteNonQueryAsync(migrationSql);
+                // Successfully migrated table
+            }
+        }
+        catch (Exception)
+        {
+            // Failed to check/migrate foreign key constraints - continuing with table creation
+        }
     }
 
     public void Dispose()

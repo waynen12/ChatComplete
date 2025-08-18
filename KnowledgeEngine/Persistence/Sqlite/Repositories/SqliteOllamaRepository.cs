@@ -1,0 +1,332 @@
+using Microsoft.Data.Sqlite;
+using System.Text.Json;
+
+namespace KnowledgeEngine.Persistence.Sqlite.Repositories;
+
+/// <summary>
+/// SQLite repository for Ollama model management and caching
+/// Supports user-choice model architecture with download tracking
+/// </summary>
+public class SqliteOllamaRepository
+{
+    private readonly SqliteDbContext _dbContext;
+
+    public SqliteOllamaRepository(SqliteDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    /// <summary>
+    /// Gets all installed Ollama models from local cache
+    /// </summary>
+    public async Task<List<OllamaModelRecord>> GetInstalledModelsAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT Name, DisplayName, Size, Family, ParameterSize, QuantizationLevel, 
+                   Format, Template, Parameters, ModifiedAt, InstalledAt, LastUsedAt, 
+                   IsAvailable, Status
+            FROM OllamaModels 
+            WHERE IsAvailable = 1
+            ORDER BY LastUsedAt DESC, InstalledAt DESC
+            """;
+
+        var models = new List<OllamaModelRecord>();
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            models.Add(new OllamaModelRecord
+            {
+                Name = reader.GetString(0),
+                DisplayName = reader.IsDBNull(1) ? null : reader.GetString(1),
+                Size = reader.GetInt64(2),
+                Family = reader.IsDBNull(3) ? null : reader.GetString(3),
+                ParameterSize = reader.IsDBNull(4) ? null : reader.GetString(4),
+                QuantizationLevel = reader.IsDBNull(5) ? null : reader.GetString(5),
+                Format = reader.IsDBNull(6) ? null : reader.GetString(6),
+                Template = reader.IsDBNull(7) ? null : reader.GetString(7),
+                Parameters = reader.IsDBNull(8) ? null : reader.GetString(8),
+                ModifiedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                InstalledAt = reader.GetDateTime(10),
+                LastUsedAt = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
+                IsAvailable = reader.GetBoolean(12),
+                Status = reader.GetString(13)
+            });
+        }
+
+        return models;
+    }
+
+    /// <summary>
+    /// Adds or updates a model record when it's downloaded/discovered
+    /// </summary>
+    public async Task UpsertModelAsync(OllamaModelRecord model, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            INSERT INTO OllamaModels 
+            (Name, DisplayName, Size, Family, ParameterSize, QuantizationLevel, Format, 
+             Template, Parameters, ModifiedAt, IsAvailable, Status, UpdatedAt)
+            VALUES (@name, @displayName, @size, @family, @parameterSize, @quantizationLevel, 
+                    @format, @template, @parameters, @modifiedAt, @isAvailable, @status, CURRENT_TIMESTAMP)
+            ON CONFLICT(Name) DO UPDATE SET
+                DisplayName = @displayName,
+                Size = @size,
+                Family = @family,
+                ParameterSize = @parameterSize,
+                QuantizationLevel = @quantizationLevel,
+                Format = @format,
+                Template = @template,
+                Parameters = @parameters,
+                ModifiedAt = @modifiedAt,
+                IsAvailable = @isAvailable,
+                Status = @status,
+                UpdatedAt = CURRENT_TIMESTAMP
+            """;
+
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+        
+        command.Parameters.AddWithValue("@name", model.Name);
+        command.Parameters.AddWithValue("@displayName", model.DisplayName ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@size", model.Size);
+        command.Parameters.AddWithValue("@family", model.Family ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@parameterSize", model.ParameterSize ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@quantizationLevel", model.QuantizationLevel ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@format", model.Format ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@template", model.Template ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@parameters", model.Parameters ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@modifiedAt", model.ModifiedAt ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@isAvailable", model.IsAvailable);
+        command.Parameters.AddWithValue("@status", model.Status);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Marks a model as used (updates LastUsedAt timestamp)
+    /// </summary>
+    public async Task MarkModelUsedAsync(string modelName, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE OllamaModels 
+            SET LastUsedAt = CURRENT_TIMESTAMP, UpdatedAt = CURRENT_TIMESTAMP
+            WHERE Name = @name
+            """;
+
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@name", modelName);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Removes a model from local cache when deleted
+    /// </summary>
+    public async Task DeleteModelAsync(string modelName, CancellationToken cancellationToken = default)
+    {
+        var connection = await _dbContext.GetConnectionAsync();
+        
+        // Start a transaction to ensure both deletions succeed or fail together
+        using var transaction = connection.BeginTransaction();
+        
+        try
+        {
+            // Delete from OllamaModels
+            const string deleteModelSql = "DELETE FROM OllamaModels WHERE Name = @name";
+            using var deleteModelCommand = new SqliteCommand(deleteModelSql, connection, transaction);
+            deleteModelCommand.Parameters.AddWithValue("@name", modelName);
+            await deleteModelCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            // Also clean up any related download records
+            const string deleteDownloadSql = "DELETE FROM OllamaDownloads WHERE ModelName = @name";
+            using var deleteDownloadCommand = new SqliteCommand(deleteDownloadSql, connection, transaction);
+            deleteDownloadCommand.Parameters.AddWithValue("@name", modelName);
+            await deleteDownloadCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Tracks download progress for a model
+    /// </summary>
+    public async Task UpsertDownloadProgressAsync(OllamaDownloadRecord download, CancellationToken cancellationToken = default)
+    {
+        // First, try to update existing record
+        const string updateSql = """
+            UPDATE OllamaDownloads 
+            SET Status = @status,
+                BytesDownloaded = @bytesDownloaded,
+                TotalBytes = @totalBytes,
+                PercentComplete = @percentComplete,
+                ErrorMessage = @errorMessage,
+                UpdatedAt = CURRENT_TIMESTAMP,
+                CompletedAt = CASE WHEN @status = 'Completed' THEN CURRENT_TIMESTAMP ELSE CompletedAt END
+            WHERE ModelName = @modelName
+            """;
+
+        var connection = await _dbContext.GetConnectionAsync();
+        using var updateCommand = new SqliteCommand(updateSql, connection);
+        
+        updateCommand.Parameters.AddWithValue("@modelName", download.ModelName);
+        updateCommand.Parameters.AddWithValue("@status", download.Status);
+        updateCommand.Parameters.AddWithValue("@bytesDownloaded", download.BytesDownloaded);
+        updateCommand.Parameters.AddWithValue("@totalBytes", download.TotalBytes);
+        updateCommand.Parameters.AddWithValue("@percentComplete", download.PercentComplete);
+        updateCommand.Parameters.AddWithValue("@errorMessage", download.ErrorMessage ?? (object)DBNull.Value);
+
+        var rowsAffected = await updateCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        // If no rows were updated, insert a new record
+        if (rowsAffected == 0)
+        {
+            const string insertSql = """
+                INSERT INTO OllamaDownloads 
+                (ModelName, Status, BytesDownloaded, TotalBytes, PercentComplete, ErrorMessage, UpdatedAt)
+                VALUES (@modelName, @status, @bytesDownloaded, @totalBytes, @percentComplete, @errorMessage, CURRENT_TIMESTAMP)
+                """;
+
+            using var insertCommand = new SqliteCommand(insertSql, connection);
+            
+            insertCommand.Parameters.AddWithValue("@modelName", download.ModelName);
+            insertCommand.Parameters.AddWithValue("@status", download.Status);
+            insertCommand.Parameters.AddWithValue("@bytesDownloaded", download.BytesDownloaded);
+            insertCommand.Parameters.AddWithValue("@totalBytes", download.TotalBytes);
+            insertCommand.Parameters.AddWithValue("@percentComplete", download.PercentComplete);
+            insertCommand.Parameters.AddWithValue("@errorMessage", download.ErrorMessage ?? (object)DBNull.Value);
+
+            await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Gets current download status for a model
+    /// </summary>
+    public async Task<OllamaDownloadRecord?> GetDownloadStatusAsync(string modelName, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT ModelName, Status, BytesDownloaded, TotalBytes, PercentComplete, 
+                   ErrorMessage, StartedAt, CompletedAt
+            FROM OllamaDownloads 
+            WHERE ModelName = @modelName
+            """;
+
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@modelName", modelName);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (await reader.ReadAsync(cancellationToken))
+        {
+            return new OllamaDownloadRecord
+            {
+                ModelName = reader.GetString(0),
+                Status = reader.GetString(1),
+                BytesDownloaded = reader.GetInt64(2),
+                TotalBytes = reader.GetInt64(3),
+                PercentComplete = reader.GetDouble(4),
+                ErrorMessage = reader.IsDBNull(5) ? null : reader.GetString(5),
+                StartedAt = reader.GetDateTime(6),
+                CompletedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7)
+            };
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets all active downloads
+    /// </summary>
+    public async Task<List<OllamaDownloadRecord>> GetActiveDownloadsAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT ModelName, Status, BytesDownloaded, TotalBytes, PercentComplete, 
+                   ErrorMessage, StartedAt, CompletedAt
+            FROM OllamaDownloads 
+            WHERE Status IN ('Pending', 'Downloading', 'In Progress')
+            ORDER BY StartedAt DESC
+            """;
+
+        var downloads = new List<OllamaDownloadRecord>();
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            downloads.Add(new OllamaDownloadRecord
+            {
+                ModelName = reader.GetString(0),
+                Status = reader.GetString(1),
+                BytesDownloaded = reader.GetInt64(2),
+                TotalBytes = reader.GetInt64(3),
+                PercentComplete = reader.GetDouble(4),
+                ErrorMessage = reader.IsDBNull(5) ? null : reader.GetString(5),
+                StartedAt = reader.GetDateTime(6),
+                CompletedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7)
+            });
+        }
+
+        return downloads;
+    }
+
+    /// <summary>
+    /// Cleans up old download records (keep last 30 days)
+    /// </summary>
+    public async Task CleanupOldDownloadsAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            DELETE FROM OllamaDownloads 
+            WHERE Status IN ('Completed', 'Failed', 'Cancelled') 
+              AND UpdatedAt < datetime('now', '-30 days')
+            """;
+
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+}
+
+/// <summary>
+/// Database record for Ollama models
+/// </summary>
+public class OllamaModelRecord
+{
+    public string Name { get; set; } = string.Empty;
+    public string? DisplayName { get; set; }
+    public long Size { get; set; }
+    public string? Family { get; set; }
+    public string? ParameterSize { get; set; }
+    public string? QuantizationLevel { get; set; }
+    public string? Format { get; set; }
+    public string? Template { get; set; }
+    public string? Parameters { get; set; }
+    public DateTime? ModifiedAt { get; set; }
+    public DateTime InstalledAt { get; set; }
+    public DateTime? LastUsedAt { get; set; }
+    public bool IsAvailable { get; set; } = true;
+    public string Status { get; set; } = "Ready";
+}
+
+/// <summary>
+/// Database record for download tracking
+/// </summary>
+public class OllamaDownloadRecord
+{
+    public string ModelName { get; set; } = string.Empty;
+    public string Status { get; set; } = "Pending";
+    public long BytesDownloaded { get; set; }
+    public long TotalBytes { get; set; }
+    public double PercentComplete { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime StartedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+}
