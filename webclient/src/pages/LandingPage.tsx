@@ -6,7 +6,7 @@ export default function LandingPage() {
     <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5  via-secondary/20 to-background">
       <section className="text-center space-y-8">
         <h1 className="text-4xl font-semibold tracking-tight">
-          ChatComplete&nbsp;<span className="text-primary">AI</span>
+          <span className="text-primary">AI</span> Knowledge Manager&nbsp;
         </h1>
         <p className="max-w-lg text-muted-foreground">
           Upload documents, convert them to searchable knowledge, and chat with it
