@@ -97,7 +97,7 @@ export default function KnowledgeListPage() {
       toast.error(`Failed (${res.status})`);
     }
   }
-
+ 
   return (
     <section className="container py-8">
       <header className="flex items-center justify-between mb-6">
