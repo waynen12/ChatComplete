@@ -19,6 +19,7 @@ services:
       - ChatCompleteSettings__VectorStore__Provider=Qdrant        # Use Qdrant
       - ChatCompleteSettings__VectorStore__Qdrant__Host=qdrant    # Reference Qdrant service
       - ChatCompleteSettings__VectorStore__Qdrant__Port=6334      # gRPC port
+      - ChatCompleteSettings__OllamaBaseUrl=http://ollama:11434   # Use Ollama service name
       - Logging__LogLevel__Default=Debug    # Enable debug logging
       # API keys - set these via .env file or command line
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}

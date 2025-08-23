@@ -1,6 +1,6 @@
-using KnowledgeEngine.Persistence.Sqlite.Repositories;
 using System.Collections.Concurrent;
 using System.Text.Json;
+using KnowledgeEngine.Persistence.Sqlite.Repositories;
 
 namespace Knowledge.Api.Services;
 
@@ -13,14 +13,15 @@ public class OllamaDownloadService
     private readonly IOllamaApiService _ollamaApi;
     private readonly SqliteOllamaRepository _repository;
     private readonly ILogger<OllamaDownloadService> _logger;
-    
+
     // Track active downloads for real-time updates
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeDownloads = new();
 
     public OllamaDownloadService(
-        IOllamaApiService ollamaApi, 
+        IOllamaApiService ollamaApi,
         SqliteOllamaRepository repository,
-        ILogger<OllamaDownloadService> logger)
+        ILogger<OllamaDownloadService> logger
+    )
     {
         _ollamaApi = ollamaApi;
         _repository = repository;
@@ -30,7 +31,10 @@ public class OllamaDownloadService
     /// <summary>
     /// Starts a model download and tracks progress in the database
     /// </summary>
-    public async Task<bool> StartDownloadAsync(string modelName, CancellationToken cancellationToken = default)
+    public async Task<bool> StartDownloadAsync(
+        string modelName,
+        CancellationToken cancellationToken = default
+    )
     {
         // Check if already downloading
         if (_activeDownloads.ContainsKey(modelName))
@@ -46,17 +50,23 @@ public class OllamaDownloadService
         try
         {
             // Initialize download record
-            await _repository.UpsertDownloadProgressAsync(new OllamaDownloadRecord
-            {
-                ModelName = modelName,
-                Status = "Starting",
-                BytesDownloaded = 0,
-                TotalBytes = 0,
-                PercentComplete = 0
-            }, cancellationToken);
+            await _repository.UpsertDownloadProgressAsync(
+                new OllamaDownloadRecord
+                {
+                    ModelName = modelName,
+                    Status = "Starting",
+                    BytesDownloaded = 0,
+                    TotalBytes = 0,
+                    PercentComplete = 0,
+                },
+                cancellationToken
+            );
 
             // Start background download task
-            _ = Task.Run(async () => await ProcessDownloadAsync(modelName, downloadCts.Token), cancellationToken);
+            _ = Task.Run(
+                async () => await ProcessDownloadAsync(modelName, downloadCts.Token),
+                cancellationToken
+            );
 
             return true;
         }
@@ -80,15 +90,17 @@ public class OllamaDownloadService
             cts.Dispose();
 
             // Update database status
-            await _repository.UpsertDownloadProgressAsync(new OllamaDownloadRecord
-            {
-                ModelName = modelName,
-                Status = "Cancelled",
-                BytesDownloaded = 0,
-                TotalBytes = 0,
-                PercentComplete = 0,
-                ErrorMessage = "Download cancelled by user"
-            });
+            await _repository.UpsertDownloadProgressAsync(
+                new OllamaDownloadRecord
+                {
+                    ModelName = modelName,
+                    Status = "Cancelled",
+                    BytesDownloaded = 0,
+                    TotalBytes = 0,
+                    PercentComplete = 0,
+                    ErrorMessage = "Download cancelled by user",
+                }
+            );
 
             _logger.LogInformation("Cancelled download for model {ModelName}", modelName);
             return true;
@@ -100,7 +112,10 @@ public class OllamaDownloadService
     /// <summary>
     /// Gets current download status from database
     /// </summary>
-    public Task<OllamaDownloadRecord?> GetDownloadStatusAsync(string modelName, CancellationToken cancellationToken = default)
+    public Task<OllamaDownloadRecord?> GetDownloadStatusAsync(
+        string modelName,
+        CancellationToken cancellationToken = default
+    )
     {
         return _repository.GetDownloadStatusAsync(modelName, cancellationToken);
     }
@@ -108,7 +123,9 @@ public class OllamaDownloadService
     /// <summary>
     /// Gets all active downloads
     /// </summary>
-    public Task<List<OllamaDownloadRecord>> GetActiveDownloadsAsync(CancellationToken cancellationToken = default)
+    public Task<List<OllamaDownloadRecord>> GetActiveDownloadsAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         return _repository.GetActiveDownloadsAsync(cancellationToken);
     }
@@ -117,8 +134,10 @@ public class OllamaDownloadService
     /// Streams download progress updates via Server-Sent Events
     /// </summary>
     public async IAsyncEnumerable<string> StreamDownloadProgressAsync(
-        string modelName, 
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        string modelName,
+        [System.Runtime.CompilerServices.EnumeratorCancellation]
+            CancellationToken cancellationToken = default
+    )
     {
         await foreach (var progressEvent in StreamProgressInternal(modelName, cancellationToken))
         {
@@ -130,8 +149,10 @@ public class OllamaDownloadService
     /// Internal method to handle the streaming progress with proper error handling.
     /// </summary>
     private async IAsyncEnumerable<string> StreamProgressInternal(
-        string modelName, 
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        string modelName,
+        [System.Runtime.CompilerServices.EnumeratorCancellation]
+            CancellationToken cancellationToken = default
+    )
     {
         var lastProgress = -1.0;
         var startTime = DateTime.UtcNow;
@@ -142,23 +163,30 @@ public class OllamaDownloadService
             if (status == null)
             {
                 // Download not found, may have been cleaned up
-                yield return FormatSSE("complete", JsonSerializer.Serialize(new { 
-                    model = modelName, 
-                    status = "not_found",
-                    message = "Download not found"
-                }));
+                yield return FormatSSE(
+                    "complete",
+                    JsonSerializer.Serialize(
+                        new
+                        {
+                            model = modelName,
+                            status = "not_found",
+                            message = "Download not found",
+                        }
+                    )
+                );
                 yield break;
             }
 
             // Only send updates when progress changes or every 5 seconds
             var timeSinceStart = DateTime.UtcNow - startTime;
-            var shouldSendUpdate = Math.Abs(status.PercentComplete - lastProgress) > 0.1 || 
-                                 timeSinceStart.TotalSeconds % 5 < 1;
+            var shouldSendUpdate =
+                Math.Abs(status.PercentComplete - lastProgress) > 0.1
+                || timeSinceStart.TotalSeconds % 5 < 1;
 
             if (shouldSendUpdate)
             {
                 lastProgress = status.PercentComplete;
-                
+
                 var progressData = new
                 {
                     model = status.ModelName,
@@ -167,7 +195,7 @@ public class OllamaDownloadService
                     totalBytes = status.TotalBytes,
                     percentComplete = Math.Round(status.PercentComplete, 1),
                     errorMessage = status.ErrorMessage,
-                    timestamp = DateTime.UtcNow.ToString("O")
+                    timestamp = DateTime.UtcNow.ToString("O"),
                 };
 
                 yield return FormatSSE("progress", JsonSerializer.Serialize(progressData));
@@ -176,12 +204,18 @@ public class OllamaDownloadService
             // Check if download is complete
             if (status.Status is "Completed" or "Failed" or "Cancelled")
             {
-                yield return FormatSSE("complete", JsonSerializer.Serialize(new { 
-                    model = modelName, 
-                    status = status.Status.ToLowerInvariant(),
-                    finalProgress = status.PercentComplete,
-                    errorMessage = status.ErrorMessage
-                }));
+                yield return FormatSSE(
+                    "complete",
+                    JsonSerializer.Serialize(
+                        new
+                        {
+                            model = modelName,
+                            status = status.Status.ToLowerInvariant(),
+                            finalProgress = status.PercentComplete,
+                            errorMessage = status.ErrorMessage,
+                        }
+                    )
+                );
                 yield break;
             }
 
@@ -193,7 +227,10 @@ public class OllamaDownloadService
     /// <summary>
     /// Safely gets download status without throwing exceptions.
     /// </summary>
-    private async Task<OllamaDownloadRecord?> SafeGetDownloadStatus(string modelName, CancellationToken cancellationToken)
+    private async Task<OllamaDownloadRecord?> SafeGetDownloadStatus(
+        string modelName,
+        CancellationToken cancellationToken
+    )
     {
         try
         {
@@ -219,18 +256,23 @@ public class OllamaDownloadService
         {
             _logger.LogInformation("Starting download for model {ModelName}", modelName);
 
-            await foreach (var progress in _ollamaApi.PullModelWithProgressAsync(modelName, cancellationToken))
+            await foreach (
+                var progress in _ollamaApi.PullModelWithProgressAsync(modelName, cancellationToken)
+            )
             {
                 // Update database with progress
-                await _repository.UpsertDownloadProgressAsync(new OllamaDownloadRecord
-                {
-                    ModelName = progress.ModelName,
-                    Status = progress.IsComplete ? "Completed" : "Downloading",
-                    BytesDownloaded = progress.BytesDownloaded,
-                    TotalBytes = progress.TotalBytes,
-                    PercentComplete = progress.PercentComplete,
-                    ErrorMessage = progress.ErrorMessage
-                }, cancellationToken);
+                await _repository.UpsertDownloadProgressAsync(
+                    new OllamaDownloadRecord
+                    {
+                        ModelName = progress.ModelName,
+                        Status = progress.IsComplete ? "Completed" : "Downloading",
+                        BytesDownloaded = progress.BytesDownloaded,
+                        TotalBytes = progress.TotalBytes,
+                        PercentComplete = progress.PercentComplete,
+                        ErrorMessage = progress.ErrorMessage,
+                    },
+                    cancellationToken
+                );
 
                 // If download is complete, sync model info
                 if (progress.IsComplete && string.IsNullOrEmpty(progress.ErrorMessage))
@@ -238,19 +280,22 @@ public class OllamaDownloadService
                     await SyncModelInfoAsync(modelName, cancellationToken);
                     break;
                 }
-                
+
                 // If there's an error, mark as failed
                 if (!string.IsNullOrEmpty(progress.ErrorMessage))
                 {
-                    await _repository.UpsertDownloadProgressAsync(new OllamaDownloadRecord
-                    {
-                        ModelName = modelName,
-                        Status = "Failed",
-                        BytesDownloaded = progress.BytesDownloaded,
-                        TotalBytes = progress.TotalBytes,
-                        PercentComplete = progress.PercentComplete,
-                        ErrorMessage = progress.ErrorMessage
-                    }, cancellationToken);
+                    await _repository.UpsertDownloadProgressAsync(
+                        new OllamaDownloadRecord
+                        {
+                            ModelName = modelName,
+                            Status = "Failed",
+                            BytesDownloaded = progress.BytesDownloaded,
+                            TotalBytes = progress.TotalBytes,
+                            PercentComplete = progress.PercentComplete,
+                            ErrorMessage = progress.ErrorMessage,
+                        },
+                        cancellationToken
+                    );
                     break;
                 }
             }
@@ -262,13 +307,16 @@ public class OllamaDownloadService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Download failed for model {ModelName}", modelName);
-            
-            await _repository.UpsertDownloadProgressAsync(new OllamaDownloadRecord
-            {
-                ModelName = modelName,
-                Status = "Failed",
-                ErrorMessage = ex.Message
-            }, cancellationToken);
+
+            await _repository.UpsertDownloadProgressAsync(
+                new OllamaDownloadRecord
+                {
+                    ModelName = modelName,
+                    Status = "Failed",
+                    ErrorMessage = ex.Message,
+                },
+                cancellationToken
+            );
         }
         finally
         {
@@ -288,20 +336,26 @@ public class OllamaDownloadService
             var modelInfo = await _ollamaApi.GetModelDetailsAsync(modelName, cancellationToken);
             if (modelInfo != null)
             {
-                await _repository.UpsertModelAsync(new OllamaModelRecord
-                {
-                    Name = modelInfo.Name,
-                    Size = modelInfo.Size,
-                    ModifiedAt = modelInfo.ModifiedAt,
-                    Family = modelInfo.Details?.Family,
-                    ParameterSize = modelInfo.Details?.ParameterSize,
-                    QuantizationLevel = modelInfo.Details?.QuantizationLevel,
-                    Format = modelInfo.Details?.Format,
-                    Template = modelInfo.Template,
-                    Parameters = modelInfo.Parameters != null ? JsonSerializer.Serialize(modelInfo.Parameters) : null,
-                    IsAvailable = true,
-                    Status = "Ready"
-                }, cancellationToken);
+                await _repository.UpsertModelAsync(
+                    new OllamaModelRecord
+                    {
+                        Name = modelInfo.Name,
+                        Size = modelInfo.Size,
+                        ModifiedAt = modelInfo.ModifiedAt,
+                        Family = modelInfo.Details?.Family,
+                        ParameterSize = modelInfo.Details?.ParameterSize,
+                        QuantizationLevel = modelInfo.Details?.QuantizationLevel,
+                        Format = modelInfo.Details?.Format,
+                        Template = modelInfo.Template,
+                        Parameters =
+                            modelInfo.Parameters != null
+                                ? JsonSerializer.Serialize(modelInfo.Parameters)
+                                : null,
+                        IsAvailable = true,
+                        Status = "Ready",
+                    },
+                    cancellationToken
+                );
 
                 _logger.LogInformation("Successfully synced model info for {ModelName}", modelName);
             }

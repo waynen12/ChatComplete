@@ -1,34 +1,32 @@
 // Knowledge.Api/Program.cs
 
+using System.Text.Json.Serialization;
 using ChatCompletion;
 using ChatCompletion.Config;
+using Knowledge.Api.Constants;
+using Knowledge.Api.Endpoints;
+using Knowledge.Api.Filters;
 using Knowledge.Api.Options;
 using Knowledge.Api.Services;
-using Knowledge.Api.Filters;
-using Knowledge.Api.Endpoints;
-using Knowledge.Api.Constants;
 using Knowledge.Contracts;
 using KnowledgeEngine;
 using KnowledgeEngine.Chat;
-using KnowledgeEngine.Persistence.Sqlite;
-using KnowledgeEngine.Persistence.Sqlite.Repositories;
 using KnowledgeEngine.Extensions;
 using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
 using KnowledgeEngine.Persistence;
-using KnowledgeEngine.Persistence.IndexManagers;
-using KnowledgeEngine.Persistence.VectorStores;
 using KnowledgeEngine.Persistence.Conversations;
+using KnowledgeEngine.Persistence.IndexManagers;
+using KnowledgeEngine.Persistence.Sqlite;
+using KnowledgeEngine.Persistence.Sqlite.Repositories;
+using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using System.Text.Json.Serialization;
-using Microsoft.OpenApi.Any;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
- 
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
-
 
 LoggerProvider.ConfigureLogger(); // boots Log.Logger
 
@@ -41,20 +39,26 @@ builder.Services.Configure<ChatCompleteSettings>(
     builder.Configuration.GetSection(ApiConstants.ConfigSections.ChatCompleteSettings)
 );
 
-builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(ApiConstants.ConfigSections.Cors));
+builder.Services.Configure<CorsOptions>(
+    builder.Configuration.GetSection(ApiConstants.ConfigSections.Cors)
+);
 
 builder.Services.Configure<JsonOptions>(opts =>
 {
     opts.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
-var settings = builder.Configuration.GetSection(ApiConstants.ConfigSections.ChatCompleteSettings).Get<ChatCompleteSettings>();
+var settings = builder
+    .Configuration.GetSection(ApiConstants.ConfigSections.ChatCompleteSettings)
+    .Get<ChatCompleteSettings>();
 if (settings == null)
 {
-    LoggerProvider.Logger.Error($"Missing {ApiConstants.ConfigSections.ChatCompleteSettings}");    
-    throw new InvalidOperationException($"Missing {ApiConstants.ConfigSections.ChatCompleteSettings}");    
+    LoggerProvider.Logger.Error($"Missing {ApiConstants.ConfigSections.ChatCompleteSettings}");
+    throw new InvalidOperationException(
+        $"Missing {ApiConstants.ConfigSections.ChatCompleteSettings}"
+    );
 }
-SettingsProvider.Initialize(settings); 
+SettingsProvider.Initialize(settings);
 
 var openAiKey = Environment.GetEnvironmentVariable(ApiConstants.EnvironmentVariables.OpenAiApiKey)!;
 
@@ -100,7 +104,9 @@ builder.Services.AddCors(options =>
         ApiConstants.CorsPolicies.DevFrontend,
         (policyBuilder) =>
         {
-            var cors = builder.Configuration.GetSection(ApiConstants.ConfigSections.Cors).Get<CorsOptions>();
+            var cors = builder
+                .Configuration.GetSection(ApiConstants.ConfigSections.Cors)
+                .Get<CorsOptions>();
             if (cors is null)
             {
                 throw new InvalidOperationException(
@@ -155,7 +161,7 @@ if (vectorStoreProvider == "qdrant")
     using var scope = app.Services.CreateScope();
     var sqliteContext = scope.ServiceProvider.GetRequiredService<SqliteDbContext>();
     var appSettingsRepo = scope.ServiceProvider.GetRequiredService<SqliteAppSettingsRepository>();
-    
+
     // Ensure database is created and initialized
     _ = await sqliteContext.GetConnectionAsync();
     await appSettingsRepo.InitializeDefaultsAsync();
@@ -221,11 +227,14 @@ app.UseReDoc(options =>
 //}
 
 // ── Static file serving for React frontend (for container deployment) ────────
-if (app.Environment.IsProduction() || Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
+if (
+    app.Environment.IsProduction()
+    || Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true"
+)
 {
     // Serve static files from wwwroot (React build output)
     app.UseStaticFiles();
-    
+
     // Configure default files (index.html)
     app.UseDefaultFiles();
 }
@@ -233,7 +242,10 @@ if (app.Environment.IsProduction() || Environment.GetEnvironmentVariable("DOTNET
 // ── Client-side routing fallback ─────────────────────────────────────────────
 // This must come after API routes but before app.Run()
 // Fallback to index.html for any non-API routes (React client-side routing)
-if (app.Environment.IsProduction() || Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
+if (
+    app.Environment.IsProduction()
+    || Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true"
+)
 {
     app.MapFallbackToFile("index.html");
 }
