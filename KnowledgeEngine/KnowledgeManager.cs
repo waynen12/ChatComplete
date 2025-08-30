@@ -24,7 +24,8 @@ public class KnowledgeManager
         IVectorStoreStrategy vectorStoreStrategy,
         IEmbeddingGenerator<string, Embedding<float>> embeddingService,
         IIndexManager indexManager,
-        IKnowledgeRepository knowledgeRepository)
+        IKnowledgeRepository knowledgeRepository
+    )
     {
         _vectorStoreStrategy = vectorStoreStrategy;
         _embeddingService = embeddingService;
@@ -54,7 +55,11 @@ public class KnowledgeManager
         }
         catch (Exception ex)
         {
-            LoggerProvider.Logger.Error(ex, "Failed to read or parse the file {File}", documentPath);
+            LoggerProvider.Logger.Error(
+                ex,
+                "Failed to read or parse the file {File}",
+                documentPath
+            );
             throw;
         }
 
@@ -67,12 +72,17 @@ public class KnowledgeManager
         // 2. Convert to text
         var doc = parse.Document;
         bool markdown = doc.Elements.Any(e => e is IHeadingElement);
-        
-        LoggerProvider.Logger.Information("Document processing: {HeadingCount} headings found, markdown={Markdown}", 
-            doc.Elements.OfType<IHeadingElement>().Count(), markdown);
-            
-        var rawText = markdown ? DocumentToTextConverter.Convert(doc, SettingsProvider.Settings) : doc.ToString();
-        
+
+        LoggerProvider.Logger.Information(
+            "Document processing: {HeadingCount} headings found, markdown={Markdown}",
+            doc.Elements.OfType<IHeadingElement>().Count(),
+            markdown
+        );
+
+        var rawText = markdown
+            ? DocumentToTextConverter.Convert(doc, SettingsProvider.Settings)
+            : doc.ToString();
+
         if (string.IsNullOrWhiteSpace(rawText))
         {
             LoggerProvider.Logger.Warning("Document {File} is empty or invalid", documentPath);
@@ -80,12 +90,14 @@ public class KnowledgeManager
         }
 
         // 3. Chunk the text
-        int maxLine = SettingsProvider.Settings.ChunkLineTokens > 0 
-            ? SettingsProvider.Settings.ChunkLineTokens 
-            : 60;
-        int maxPara = SettingsProvider.Settings.ChunkParagraphTokens > 0 
-            ? SettingsProvider.Settings.ChunkParagraphTokens 
-            : 200;
+        int maxLine =
+            SettingsProvider.Settings.ChunkLineTokens > 0
+                ? SettingsProvider.Settings.ChunkLineTokens
+                : 60;
+        int maxPara =
+            SettingsProvider.Settings.ChunkParagraphTokens > 0
+                ? SettingsProvider.Settings.ChunkParagraphTokens
+                : 200;
         int overlap = Math.Max(0, SettingsProvider.Settings.ChunkOverlap);
 
         var lines = markdown
@@ -125,18 +137,18 @@ public class KnowledgeManager
         {
             // Create or update collection record
             await _knowledgeRepository.CreateOrUpdateCollectionAsync(
-                collectionName, 
+                collectionName,
                 collectionName, // Use collection name as display name
                 $"Knowledge collection created from {Path.GetFileName(documentPath)}"
             );
-            
+
             // Update document and chunk counts
             await _knowledgeRepository.UpdateCollectionStatsAsync(
-                collectionName, 
+                collectionName,
                 1, // documentCount - this is one document
                 paragraphs.Count // chunkCount
             );
-            
+
             LoggerProvider.Logger.Information(
                 "📊 Updated collection metadata for {Collection}: 1 document, {ChunkCount} chunks",
                 collectionName,
@@ -145,7 +157,11 @@ public class KnowledgeManager
         }
         catch (Exception ex)
         {
-            LoggerProvider.Logger.Warning(ex, "Failed to record collection metadata for {Collection}", collectionName);
+            LoggerProvider.Logger.Warning(
+                ex,
+                "Failed to record collection metadata for {Collection}",
+                collectionName
+            );
         }
 
         // 6. Create search index if needed
@@ -155,10 +171,13 @@ public class KnowledgeManager
         }
         catch (Exception ex)
         {
-            LoggerProvider.Logger.Warning(ex, "Index creation failed after import of {File}", documentPath);
+            LoggerProvider.Logger.Warning(
+                ex,
+                "Index creation failed after import of {File}",
+                documentPath
+            );
         }
     }
-
 
     /// <summary>
     /// Searches the vector store for relevant chunks using vector search
@@ -168,34 +187,55 @@ public class KnowledgeManager
         string query,
         int limit = 10,
         double minRelevanceScore = 0.6,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         try
         {
             // Generate embedding for the query
-            var embeddingResult = await _embeddingService.GenerateAsync(new[] { query }, cancellationToken: cancellationToken);
+            var embeddingResult = await _embeddingService.GenerateAsync(
+                new[] { query },
+                cancellationToken: cancellationToken
+            );
             var queryEmbedding = embeddingResult.First();
 
             // Use the vector store strategy for search
             var searchResults = await _vectorStoreStrategy.SearchAsync(
-                collectionName, 
-                query, 
-                queryEmbedding, 
-                limit, 
-                minRelevanceScore, 
-                cancellationToken);
+                collectionName,
+                query,
+                queryEmbedding,
+                limit,
+                minRelevanceScore,
+                cancellationToken
+            );
 
             LoggerProvider.Logger.Information(
                 "Vector search for query '{Query}' returned {Count} results above score {MinScore}",
-                query, searchResults.Count, minRelevanceScore);
+                query,
+                searchResults.Count,
+                minRelevanceScore
+            );
 
             return searchResults;
         }
         catch (Exception ex)
         {
-            LoggerProvider.Logger.Error(ex, "Failed to perform vector search for query: {Query}", query);
+            LoggerProvider.Logger.Error(
+                ex,
+                "Failed to perform vector search for query: {Query}",
+                query
+            );
             return new List<KnowledgeSearchResult>();
         }
     }
-}
 
+    /// <summary>
+    /// Gets all available knowledge collections
+    /// </summary>
+    public async Task<List<string>> GetAvailableCollectionsAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        return await _vectorStoreStrategy.ListCollectionsAsync(cancellationToken);
+    }
+}

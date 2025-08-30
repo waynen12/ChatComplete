@@ -3,14 +3,15 @@ using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine;
+using KnowledgeEngine.Agents.Models;
+using KnowledgeEngine.Agents.Plugins;
 using KnowledgeEngine.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.Anthropic;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Connectors.Google;
-
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
@@ -30,19 +31,23 @@ namespace ChatCompletion
         )
         {
             _knowledgeManager = knowledgeManager;
-           _settings = settings;
-           _options = Options.Create(settings);
+            _settings = settings;
+            _options = Options.Create(settings);
         }
-        
+
         [Experimental("SKEXP0070")]
         private Kernel GetOrCreateKernel(AiProvider provider, string? ollamaModel = null)
         {
             // Create a unique key for caching - include model for Ollama
-            var key = provider == AiProvider.Ollama && !string.IsNullOrEmpty(ollamaModel) 
-                ? $"{provider}:{ollamaModel}" 
-                : provider.ToString();
-                
-            return _kernels.GetOrAdd(key, _ => new KernelFactory(_options).Create(provider, ollamaModel));
+            var key =
+                provider == AiProvider.Ollama && !string.IsNullOrEmpty(ollamaModel)
+                    ? $"{provider}:{ollamaModel}"
+                    : provider.ToString();
+
+            return _kernels.GetOrAdd(
+                key,
+                _ => new KernelFactory(_options).Create(provider, ollamaModel)
+            );
         }
 
         public async Task PerformChat()
@@ -97,7 +102,9 @@ namespace ChatCompletion
         {
             var kernel = GetOrCreateKernel(provider, ollamaModel);
             var chatService = kernel.GetRequiredService<IChatCompletionService>();
-            string systemMessage = useExtendedInstructions ? _settings.SystemPromptWithCoding : _settings.SystemPrompt;
+            string systemMessage = useExtendedInstructions
+                ? _settings.SystemPromptWithCoding
+                : _settings.SystemPrompt;
             chatHistory.AddSystemMessage(systemMessage);
 
             // 1. Vector search using new KnowledgeManager
@@ -134,7 +141,8 @@ namespace ChatCompletion
                 """
             );
 
-            double resolvedTemperature = apiTemperature == -1 ? _settings.Temperature : apiTemperature;
+            double resolvedTemperature =
+                apiTemperature == -1 ? _settings.Temperature : apiTemperature;
             PromptExecutionSettings execSettings;
 
             switch (provider)
@@ -179,13 +187,183 @@ namespace ChatCompletion
                 assistant.Append(chunk.Content);
             }
 
-            return assistant.Length > 0 ? assistant.ToString().Trim() : "There was no response from the AI.";
+            return assistant.Length > 0
+                ? assistant.ToString().Trim()
+                : "There was no response from the AI.";
+        }
+
+        [Experimental("SKEXP0070")]
+        public virtual async Task<AgentChatResponse> AskWithAgentAsync(
+            string userMessage,
+            string? knowledgeId,
+            ChatHistory chatHistory,
+            double apiTemperature,
+            AiProvider provider,
+            bool useExtendedInstructions = false,
+            bool enableAgentTools = true,
+            string? ollamaModel = null,
+            CancellationToken ct = default
+        )
+        {
+            var response = new AgentChatResponse();
+
+            try
+            {
+                var kernel = GetOrCreateKernel(provider, ollamaModel);
+
+                // Register agent plugins if enabled
+                if (enableAgentTools)
+                {
+                    await RegisterAgentPluginsAsync(kernel);
+                    response.UsedAgentCapabilities = true;
+                }
+
+                var chatService = kernel.GetRequiredService<IChatCompletionService>();
+                string systemMessage = useExtendedInstructions
+                    ? _settings.SystemPromptWithCoding
+                    : _settings.SystemPrompt;
+                chatHistory.AddSystemMessage(systemMessage);
+
+                // Traditional knowledge search as fallback
+                var searchResults = new List<KnowledgeSearchResult>();
+                if (!string.IsNullOrEmpty(knowledgeId))
+                {
+                    searchResults = await _knowledgeManager.SearchAsync(
+                        knowledgeId,
+                        userMessage,
+                        limit: 10,
+                        minRelevanceScore: 0.6,
+                        cancellationToken: ct
+                    );
+                    response.TraditionalSearchResults = searchResults;
+                }
+
+                // Build context for traditional search
+                IEnumerable<string> contextChunks = searchResults
+                    .OrderBy(r => r.ChunkOrder)
+                    .Select(r => r.Text)
+                    .Distinct();
+
+                var contextBlock = contextChunks.Any()
+                    ? string.Join("\n---\n", contextChunks)
+                    : "No relevant documentation was found for this query.";
+
+                // Add user message with context
+                chatHistory.AddUserMessage(
+                    $"""
+                    {userMessage}
+
+                    Refer to the following documentation to help answer:
+                    {contextBlock}
+                    """
+                );
+
+                // Configure execution settings with tool calling
+                double resolvedTemperature =
+                    apiTemperature == -1 ? _settings.Temperature : apiTemperature;
+                PromptExecutionSettings execSettings = provider switch
+                {
+                    AiProvider.OpenAi => new OpenAIPromptExecutionSettings
+                    {
+                        Temperature = resolvedTemperature,
+                        TopP = 1,
+                        MaxTokens = 4096,
+                        ToolCallBehavior = enableAgentTools
+                            ? ToolCallBehavior.AutoInvokeKernelFunctions
+                            : null,
+                    },
+                    AiProvider.Google => new GeminiPromptExecutionSettings
+                    {
+                        Temperature = resolvedTemperature,
+                        TopP = 1,
+                        MaxTokens = 4096,
+                        ToolCallBehavior = enableAgentTools
+                            ? GeminiToolCallBehavior.AutoInvokeKernelFunctions
+                            : null,
+                    },
+                    AiProvider.Anthropic => new AnthropicPromptExecutionSettings
+                    {
+                        Temperature = resolvedTemperature,
+                        TopP = 1,
+                        MaxTokens = 4096,
+                    },
+                    _ => new OpenAIPromptExecutionSettings
+                    {
+                        Temperature = resolvedTemperature,
+                        TopP = 1,
+                        MaxTokens = 4096,
+                        ToolCallBehavior = enableAgentTools
+                            ? ToolCallBehavior.AutoInvokeKernelFunctions
+                            : null,
+                    },
+                };
+
+                // Execute with tool calling enabled
+                var responseStream = chatService.GetStreamingChatMessageContentsAsync(
+                    chatHistory,
+                    execSettings,
+                    null,
+                    ct
+                );
+
+                var assistant = new System.Text.StringBuilder();
+                await foreach (var chunk in responseStream.WithCancellation(ct))
+                {
+                    assistant.Append(chunk.Content);
+                }
+
+                response.Response =
+                    assistant.Length > 0
+                        ? assistant.ToString().Trim()
+                        : "There was no response from the AI.";
+                return response;
+            }
+            catch (Exception ex)
+            {
+                // Graceful degradation - fall back to traditional chat
+                response.Response = await AskAsync(
+                    userMessage,
+                    knowledgeId,
+                    chatHistory,
+                    apiTemperature,
+                    provider,
+                    useExtendedInstructions,
+                    ollamaModel,
+                    ct
+                );
+                response.UsedAgentCapabilities = false;
+                response.ToolExecutions.Add(
+                    new AgentToolExecution
+                    {
+                        ToolName = "AgentFallback",
+                        Summary = $"Agent mode failed, fell back to traditional chat: {ex.Message}",
+                        Success = false,
+                    }
+                );
+                return response;
+            }
+        }
+
+        private async Task RegisterAgentPluginsAsync(Kernel kernel)
+        {
+            try
+            {
+                var crossKnowledgePlugin = new CrossKnowledgeSearchPlugin(_knowledgeManager);
+                kernel.Plugins.AddFromObject(crossKnowledgePlugin, "CrossKnowledgeSearch");
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail - agent can work without plugins
+                System.Diagnostics.Debug.WriteLine(
+                    $"Failed to register agent plugins: {ex.Message}"
+                );
+            }
         }
 
         public async Task KnowledgeChatWithHistory(string collection)
         {
-          //  var kernel = KernelHelper.GetKernel();
-          //  var chatService = kernel.GetRequiredService<IChatCompletionService>();
+            //  var kernel = KernelHelper.GetKernel();
+            //  var chatService = kernel.GetRequiredService<IChatCompletionService>();
             var history = new ChatHistory();
             history.AddSystemMessage(_settings.SystemPrompt);
             Console.WriteLine("Assistant with Memory Mode. Type 'exit' to quit.\n");

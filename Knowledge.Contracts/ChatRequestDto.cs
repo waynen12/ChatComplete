@@ -55,22 +55,32 @@ public class ChatRequestDto
     /// When set to true the AI chat will be configured with an extended system prompt
     /// </summary>
     public bool UseExtendedInstructions { get; set; } = false;
-    
+
     /// <summary>
     /// This is an id that will be used to persists the user's conversation in the DB
     /// </summary>
     public string? ConversationId { get; set; }
-    
+
     /// <summary>
     /// The Ai Provider. This can be one of "OpenAi"  "Google"  "Anthropic" "Ollama"
     /// </summary>
     [SwaggerSchema(Description = "LLM backend to use (OpenAi, Google, Anthropic, Ollama)")]
-    [JsonConverter(typeof(JsonStringEnumConverter))]   // enum as string
-    public AiProvider Provider { get; set; } = AiProvider.OpenAi;   // default
-    
+    [JsonConverter(typeof(JsonStringEnumConverter))] // enum as string
+    public AiProvider Provider { get; set; } = AiProvider.OpenAi; // default
+
     /// <summary>
     /// Optional Ollama model name to use instead of the default from appsettings. Only used when Provider is Ollama.
     /// </summary>
-    [SwaggerSchema(Description = "Optional Ollama model name (e.g., 'llama3.2', 'codellama'). Overrides appsettings when specified.")]
+    [SwaggerSchema(
+        Description = "Optional Ollama model name (e.g., 'llama3.2', 'codellama'). Overrides appsettings when specified."
+    )]
     public string? OllamaModel { get; set; }
+
+    /// <summary>
+    /// Whether to enable agent capabilities including cross-knowledge search and tool calling.
+    /// </summary>
+    [SwaggerSchema(
+        Description = "Enable agent mode with tool calling and cross-knowledge search capabilities"
+    )]
+    public bool UseAgent { get; set; } = false;
 }

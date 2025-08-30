@@ -41,8 +41,9 @@ Current Milestones (✅ done, 🔄 in-progress, 🛠️ todo)
 17	Qdrant Vector Store parallel implementation	✅
 18	Local Configuration Database (SQLite config, zero env vars)	✅
 19	Docker Containerization (one-command deployment)	✅
-20	Agent Implementation (code execution, multi-step reasoning)	🛠️
+20	Agent Implementation (Semantic Kernel plugins, cross-knowledge search)	🛠️ PLANNED
 21	Ollama Model Management (UI + API + downloads)	✅ VERIFIED
+22	MCP Integration (Model Context Protocol servers and clients)	🛠️ FUTURE
 
 Latest Sanity Checklist (quick smoke test)
 Step	Expectation	Tip
@@ -206,3 +207,58 @@ VectorStore__Qdrant__Port=6333
 - ✅ Smooth progress bars during model downloads (no more 0% → 100% jumps)
 - ✅ Automatic model discovery eliminates manual database sync needs
 - ✅ Complete end-to-end RAG workflow: upload documents → download/sync models → chat with local AI
+
+## Agent Implementation Planning (Milestone #20)
+
+### **Learning Objectives**
+- **Agent Architecture**: Hands-on experience with Semantic Kernel plugin development
+- **Tool Calling**: LLM orchestration with automatic function calling
+- **MCP Preparation**: Design interfaces compatible with Model Context Protocol
+- **Cross-Knowledge Search**: Intelligent search across multiple knowledge bases
+
+### **Phase 1: Foundation (Week 1)**
+**Semantic Kernel Plugin Integration:**
+- Extend existing `ChatComplete.cs` with agent capabilities
+- Add optional `UseAgent` parameter to chat requests
+- Implement `CrossKnowledgeSearchPlugin` for multi-knowledge-base search
+- Maintain backward compatibility with existing chat functionality
+
+**Technical Implementation:**
+- `AskWithAgentAsync()` method with `ToolCallBehavior.AutoInvokeKernelFunctions`
+- Plugin registration via DI container (`AddScoped<CrossKnowledgeSearchPlugin>()`)
+- Enhanced execution settings for multi-provider tool calling (OpenAI, Gemini, Anthropic, Ollama)
+
+### **Phase 2: Integration & Testing (Week 2)**
+**API Enhancement:**
+- Update chat endpoints to route agent requests
+- Tool execution tracking and response enrichment
+- Performance testing (target < 2x traditional response time)
+- Error handling with graceful degradation
+
+**Test Scenarios:**
+1. Cross-knowledge synthesis: "Compare React and .NET deployment approaches"
+2. Gap detection: "How do I set up SSL?" (when no SSL docs exist)
+3. Multi-knowledge search: "Find Docker deployment information"
+
+### **Future Expansion**
+**Additional Plugin Types:**
+- **Code Analysis Plugin**: Static analysis, security scanning, quality metrics
+- **Documentation Generator**: Extract API docs, create knowledge entries
+- **Configuration Helper**: Docker compose analysis, environment management
+- **Knowledge Management**: Organization, deduplication, gap analysis
+
+### **MCP Integration Roadmap**
+**MCP-Compatible Design:**
+- Tool interfaces align with MCP specifications (`name`, `description`, `inputSchema`)
+- Future MCP client implementation for external server connections  
+- Knowledge Manager MCP server to expose search tools to other applications
+- Multi-server orchestration and tool discovery
+
+### **Success Criteria**
+- [ ] Agent mode toggleable via API parameter
+- [ ] Cross-knowledge search operational across all knowledge bases
+- [ ] Tool executions tracked and response quality improved
+- [ ] Backward compatibility maintained for existing clients
+- [ ] Foundation established for advanced agent features and MCP integration
+
+This agent implementation leverages the existing Semantic Kernel infrastructure while building toward MCP ecosystem integration, providing both immediate utility and future extensibility.
