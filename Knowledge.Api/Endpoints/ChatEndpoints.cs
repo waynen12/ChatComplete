@@ -19,18 +19,24 @@ public static class ChatEndpoints
     public static RouteGroupBuilder MapChatEndpoints(this RouteGroupBuilder group)
     {
         // POST /api/chat
-        group.MapPost("/", async (ChatRequestDto dto, [FromServices] IChatService chat, CancellationToken ct) =>
-            {
-                var reply = await chat.GetReplyAsync(dto, dto.Provider, ct);
-                if (dto.StripMarkdown)
-                    reply = MarkdownStripper.ToPlain(reply);
-
-                return Results.Ok(new ChatResponseDto
+        group
+            .MapPost(
+                "/",
+                async (
+                    ChatRequestDto dto,
+                    [FromServices] IChatService chat,
+                    CancellationToken ct
+                ) =>
                 {
-                      Reply = reply,
-                      ConversationId = dto.ConversationId!
-                });
-            })
+                    var reply = await chat.GetReplyAsync(dto, dto.Provider, ct);
+                    if (dto.StripMarkdown)
+                        reply = MarkdownStripper.ToPlain(reply);
+
+                    return Results.Ok(
+                        new ChatResponseDto { Reply = reply, ConversationId = dto.ConversationId! }
+                    );
+                }
+            )
             .AddEndpointFilter<ValidationFilter>()
             .WithOpenApi(op =>
             {
@@ -39,24 +45,25 @@ public static class ChatEndpoints
                 // Build a sample JSON object
                 var sample = new OpenApiObject
                 {
-                    ["knowledgeId"]          = new OpenApiNull(),          // null = global chat
-                    ["message"]              = new OpenApiString("Hello"),
-                    ["temperature"]          = new OpenApiDouble(0.7),
-                    ["stripMarkdown"]        = new OpenApiBoolean(false),
+                    ["knowledgeId"] = new OpenApiNull(), // null = global chat
+                    ["message"] = new OpenApiString("Hello"),
+                    ["temperature"] = new OpenApiDouble(0.7),
+                    ["stripMarkdown"] = new OpenApiBoolean(false),
                     ["useExtendedInstructions"] = new OpenApiBoolean(true),
-                    ["conversationId"]       = new OpenApiNull(),
-                    ["provider"]             = new OpenApiString("Ollama"),
-                    ["ollamaModel"]          = new OpenApiString("llama3.2:3b")
+                    ["conversationId"] = new OpenApiNull(),
+                    ["provider"] = new OpenApiString("Ollama"),
+                    ["ollamaModel"] = new OpenApiString("llama3.2:3b"),
+                    ["useAgent"] = new OpenApiBoolean(false),
                 };
 
                 // Ensure requestBody is present and targeted at application/json
                 op.RequestBody ??= new OpenApiRequestBody
                 {
-                    Content = new Dictionary<string, OpenApiMediaType>()
+                    Content = new Dictionary<string, OpenApiMediaType>(),
                 };
                 op.RequestBody.Content["application/json"] = new OpenApiMediaType
                 {
-                    Example = sample         // 👈 here's the example
+                    Example = sample, // 👈 here's the example
                 };
 
                 return op;

@@ -14,7 +14,8 @@ internal sealed class SpyChatComplete : ChatComplete
     public SpyChatComplete()
         : base(
             knowledgeManager:  null!,                 // not used by spy
-            settings: new ChatCompleteSettings { Temperature = 0.7 })
+            settings: new ChatCompleteSettings { Temperature = 0.7 },
+            serviceProvider: null!)                   // not used by spy
     { }
 
     public override Task<string> AskAsync(

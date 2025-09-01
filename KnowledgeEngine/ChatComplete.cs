@@ -1,19 +1,22 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Agents.Plugins;
 using KnowledgeEngine.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.Anthropic;
 using Microsoft.SemanticKernel.Connectors.Google;
+using Microsoft.SemanticKernel.Connectors.Ollama;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
-#pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
+#pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050, SKEXP0070
 
 namespace ChatCompletion
 {
@@ -21,16 +24,19 @@ namespace ChatCompletion
     {
         IChatCompletionService _chatCompletionService;
         private readonly KnowledgeEngine.KnowledgeManager _knowledgeManager;
+        private readonly IServiceProvider _serviceProvider;
         ChatCompleteSettings _settings;
         IOptions<ChatCompleteSettings> _options;
         private readonly ConcurrentDictionary<string, Kernel> _kernels = new();
 
         public ChatComplete(
             KnowledgeEngine.KnowledgeManager knowledgeManager,
-            ChatCompleteSettings settings
+            ChatCompleteSettings settings,
+            IServiceProvider serviceProvider
         )
         {
             _knowledgeManager = knowledgeManager;
+            _serviceProvider = serviceProvider;
             _settings = settings;
             _options = Options.Create(settings);
         }
@@ -209,13 +215,20 @@ namespace ChatCompletion
 
             try
             {
+                Console.WriteLine($"🤖 AskWithAgentAsync called - Provider: {provider}, Model: {ollamaModel}, EnableTools: {enableAgentTools}");
+                
                 var kernel = GetOrCreateKernel(provider, ollamaModel);
 
                 // Register agent plugins if enabled
                 if (enableAgentTools)
                 {
+                    Console.WriteLine("🔧 Registering agent plugins...");
                     await RegisterAgentPluginsAsync(kernel);
                     response.UsedAgentCapabilities = true;
+                }
+                else
+                {
+                    Console.WriteLine("⚠️ Agent tools disabled");
                 }
 
                 var chatService = kernel.GetRequiredService<IChatCompletionService>();
@@ -248,19 +261,28 @@ namespace ChatCompletion
                     ? string.Join("\n---\n", contextChunks)
                     : "No relevant documentation was found for this query.";
 
-                // Add user message with context
-                chatHistory.AddUserMessage(
-                    $"""
-                    {userMessage}
+                // Add user message with explicit tool usage instruction
+                var userPrompt = contextChunks.Any()
+                    ? $"""
+                      {userMessage}
 
-                    Refer to the following documentation to help answer:
-                    {contextBlock}
-                    """
-                );
+                      Refer to the following documentation to help answer:
+                      {contextBlock}
+
+                      If this context doesn't fully answer the question, use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for more information.
+                      """
+                    : $"""
+                      {userMessage}
+
+                      No relevant documentation was found in the initial search. Use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for information related to this query.
+                      """;
+
+                chatHistory.AddUserMessage(userPrompt);
 
                 // Configure execution settings with tool calling
                 double resolvedTemperature =
                     apiTemperature == -1 ? _settings.Temperature : apiTemperature;
+                Console.WriteLine($"🔧 Configuring execution settings for provider: {provider}, enableAgentTools: {enableAgentTools}");
                 PromptExecutionSettings execSettings = provider switch
                 {
                     AiProvider.OpenAi => new OpenAIPromptExecutionSettings
@@ -287,6 +309,13 @@ namespace ChatCompletion
                         TopP = 1,
                         MaxTokens = 4096,
                     },
+                    AiProvider.Ollama => new OllamaPromptExecutionSettings
+                    {
+                        Temperature = (float)resolvedTemperature,
+                        FunctionChoiceBehavior = enableAgentTools
+                            ? FunctionChoiceBehavior.Auto()
+                            : null,
+                    },
                     _ => new OpenAIPromptExecutionSettings
                     {
                         Temperature = resolvedTemperature,
@@ -298,19 +327,101 @@ namespace ChatCompletion
                     },
                 };
 
+                // Debug: Log execution settings
+                var hasToolCalling = execSettings switch
+                {
+                    OpenAIPromptExecutionSettings openAi => openAi.ToolCallBehavior != null,
+                    GeminiPromptExecutionSettings gemini => gemini.ToolCallBehavior != null,
+                    OllamaPromptExecutionSettings ollama => ollama.FunctionChoiceBehavior != null,
+                    _ => false
+                };
+                Console.WriteLine($"🔧 Execution settings configured - HasToolCalling: {hasToolCalling}");
+
+                // Log kernel plugins for debugging
+                Console.WriteLine($"🔧 Kernel has {kernel.Plugins.Count} plugins registered:");
+                foreach (var plugin in kernel.Plugins)
+                {
+                    Console.WriteLine($"  📦 Plugin: {plugin.Name}");
+                    foreach (var function in plugin)
+                    {
+                        Console.WriteLine($"    🔧 Function: {function.Name} - {function.Description}");
+                    }
+                }
+
                 // Execute with tool calling enabled
-                var responseStream = chatService.GetStreamingChatMessageContentsAsync(
-                    chatHistory,
-                    execSettings,
-                    null,
-                    ct
-                );
+                Console.WriteLine("🚀 Starting chat completion with agent capabilities...");
+                
+                ChatMessageContent? chatResult;
+                try
+                {
+                    // Use non-streaming for better tool call visibility
+                    chatResult = await chatService.GetChatMessageContentAsync(
+                        chatHistory,
+                        execSettings,
+                        kernel,
+                        ct
+                    );
+                }
+                catch (Exception ex) when (ex.Message.Contains("ModelDoesNotSupportToolsException") || 
+                                          ex.Message.Contains("does not support tools") ||
+                                          ex.GetType().Name.Contains("ModelDoesNotSupportToolsException"))
+                {
+                    Console.WriteLine($"⚠️ Model doesn't support tools, falling back to regular chat: {ex.Message}");
+                    
+                    // Remove the explicit tool usage instruction from user message to prevent loops
+                    var lastUserMessage = chatHistory.LastOrDefault(m => m.Role == AuthorRole.User);
+                    if (lastUserMessage != null)
+                    {
+                        // Clean up the message to remove tool-specific instructions
+                        var cleanMessage = lastUserMessage.Content?
+                            .Replace("Use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for information related to this query.", "")
+                            .Replace("If this context doesn't fully answer the question, use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for more information.", "")
+                            .Trim();
+                        
+                        chatHistory.RemoveAt(chatHistory.Count - 1);
+                        chatHistory.AddUserMessage(cleanMessage ?? userMessage);
+                    }
+                    
+                    // Fallback to regular AskAsync without agent capabilities
+                    var fallbackResult = await AskAsync(userMessage, knowledgeId, new ChatHistory(), apiTemperature, provider, useExtendedInstructions, ollamaModel, ct);
+                    return new AgentChatResponse
+                    {
+                        Response = fallbackResult,
+                        UsedAgentCapabilities = false,
+                        TraditionalSearchResults = new(),
+                        ToolExecutions = new()
+                    };
+                }
+
+                Console.WriteLine($"🔍 Chat result received. Content length: {chatResult?.Content?.Length ?? 0}");
+                Console.WriteLine($"🔍 Function call results count: {chatResult?.Items?.OfType<FunctionCallContent>()?.Count() ?? 0}");
+                Console.WriteLine($"🔍 Function result items count: {chatResult?.Items?.OfType<FunctionResultContent>()?.Count() ?? 0}");
+                
+                // Log any function calls/results
+                if (chatResult?.Items != null)
+                {
+                    foreach (var item in chatResult.Items)
+                    {
+                        Console.WriteLine($"🔍 Item type: {item.GetType().Name}");
+                        if (item is FunctionCallContent funcCall)
+                        {
+                            Console.WriteLine($"  🛠️ Function called: {funcCall.FunctionName}");
+                            response.ToolExecutions.Add(new AgentToolExecution
+                            {
+                                ToolName = funcCall.FunctionName,
+                                Summary = $"Called with args: {funcCall.Arguments}",
+                                Success = true
+                            });
+                        }
+                        if (item is FunctionResultContent funcResult)
+                        {
+                            Console.WriteLine($"  ✅ Function result: {funcResult.Result}");
+                        }
+                    }
+                }
 
                 var assistant = new System.Text.StringBuilder();
-                await foreach (var chunk in responseStream.WithCancellation(ct))
-                {
-                    assistant.Append(chunk.Content);
-                }
+                assistant.Append(chatResult?.Content ?? "");
 
                 response.Response =
                     assistant.Length > 0
@@ -348,12 +459,24 @@ namespace ChatCompletion
         {
             try
             {
-                var crossKnowledgePlugin = new CrossKnowledgeSearchPlugin(_knowledgeManager);
+                var crossKnowledgePlugin = _serviceProvider.GetRequiredService<CrossKnowledgeSearchPlugin>();
                 kernel.Plugins.AddFromObject(crossKnowledgePlugin, "CrossKnowledgeSearch");
+                
+                // Debug: Log plugin registration
+                Console.WriteLine($"✅ Registered CrossKnowledgeSearchPlugin. Total plugins: {kernel.Plugins.Count}");
+                foreach (var plugin in kernel.Plugins)
+                {
+                    Console.WriteLine($"  Plugin: {plugin.Name} with {plugin.Count()} functions");
+                    foreach (var function in plugin)
+                    {
+                        Console.WriteLine($"    Function: {function.Name} - {function.Description}");
+                    }
+                }
             }
             catch (Exception ex)
             {
                 // Log but don't fail - agent can work without plugins
+                Console.WriteLine($"❌ Failed to register agent plugins: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine(
                     $"Failed to register agent plugins: {ex.Message}"
                 );

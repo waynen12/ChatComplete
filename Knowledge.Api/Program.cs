@@ -10,6 +10,7 @@ using Knowledge.Api.Options;
 using Knowledge.Api.Services;
 using Knowledge.Contracts;
 using KnowledgeEngine;
+using KnowledgeEngine.Agents.Plugins;
 using KnowledgeEngine.Chat;
 using KnowledgeEngine.Extensions;
 using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
@@ -94,8 +95,11 @@ builder.Services.AddScoped<ChatComplete>(sp =>
 {
     var knowledgeManager = sp.GetRequiredService<KnowledgeManager>();
     var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
-    return new ChatComplete(knowledgeManager, cfg);
+    return new ChatComplete(knowledgeManager, cfg, sp);
 });
+
+// Register agent plugins for cross-knowledge search capabilities
+builder.Services.AddScoped<CrossKnowledgeSearchPlugin>();
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 builder.Services.AddCors(options =>

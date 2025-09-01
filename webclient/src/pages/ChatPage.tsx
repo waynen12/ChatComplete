@@ -129,7 +129,8 @@ export default function ChatPage() {
           useExtendedInstructions: false,
           provider,
           conversationId,
-          ollamaModel: provider === AI_PROVIDERS.OLLAMA ? ollamaModel : undefined
+          ollamaModel: provider === AI_PROVIDERS.OLLAMA ? ollamaModel : undefined,
+          useAgent: true
         }),
       });
 

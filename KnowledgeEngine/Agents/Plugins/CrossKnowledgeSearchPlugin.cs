@@ -16,7 +16,7 @@ public sealed class CrossKnowledgeSearchPlugin
 
     [KernelFunction]
     [Description(
-        "Search across all available knowledge bases when you need information that might be in different documents or collections"
+        "Search across ALL knowledge bases to find comprehensive information. Use this when the user asks about topics that might span multiple documents, requests comparison between different systems, or when you need to gather information from the entire knowledge repository."
     )]
     public async Task<string> SearchAllKnowledgeBasesAsync(
         [Description("The search query or question")] string query,
@@ -24,6 +24,8 @@ public sealed class CrossKnowledgeSearchPlugin
         [Description("Minimum relevance score (0.0-1.0)")] double minRelevance = 0.6
     )
     {
+        Console.WriteLine($"🔍 CrossKnowledgeSearchPlugin.SearchAllKnowledgeBasesAsync called with query: '{query}'");
+        
         try
         {
             var collections = await _knowledgeManager.GetAvailableCollectionsAsync();

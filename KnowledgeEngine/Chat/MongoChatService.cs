@@ -4,6 +4,7 @@ using ChatCompletion;
 using ChatCompletion.Config;
 using Knowledge.Contracts;
 using Knowledge.Contracts.Types;
+using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Persistence.Conversations;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
@@ -59,16 +60,34 @@ public sealed class MongoChatService : IChatService
 
        // If reducer returned null ⇒ no trimming needed
         var historyForLLM = new ChatHistory(reduced ?? skMessages);
-        // 4️⃣  Ask the model (ChatComplete adds system msg + the enriched user prompt)
-        var replyText = await _chat.AskAsync(
-            dto.Message,
-            dto.KnowledgeId,
-            historyForLLM,
-            dto.Temperature,
-            provider,
-            dto.UseExtendedInstructions,
-            dto.OllamaModel,
-            ct);
+        // 4️⃣ Ask the model - route to agent or traditional based on UseAgent flag
+        string replyText;
+        if (dto.UseAgent)
+        {
+            var agentResponse = await _chat.AskWithAgentAsync(
+                dto.Message,
+                dto.KnowledgeId,
+                historyForLLM,
+                dto.Temperature,
+                provider,
+                dto.UseExtendedInstructions,
+                enableAgentTools: true,
+                dto.OllamaModel,
+                ct);
+            replyText = agentResponse.Response;
+        }
+        else
+        {
+            replyText = await _chat.AskAsync(
+                dto.Message,
+                dto.KnowledgeId,
+                historyForLLM,
+                dto.Temperature,
+                provider,
+                dto.UseExtendedInstructions,
+                dto.OllamaModel,
+                ct);
+        }
 
         // 5️⃣  Persist assistant turn
         await _convos.AppendMessageAsync(dto.ConversationId!, new ChatMessage
