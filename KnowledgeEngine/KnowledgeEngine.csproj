@@ -36,4 +36,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <None Include="Prompts\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

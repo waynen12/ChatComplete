@@ -1,0 +1,3 @@
+{{$userMessage}}
+
+No relevant documentation was found in the initial search. Use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for information related to this query.

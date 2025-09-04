@@ -1,0 +1,4 @@
+{{$userMessage}}
+
+Refer to the following documentation to help answer:
+{{$context}}

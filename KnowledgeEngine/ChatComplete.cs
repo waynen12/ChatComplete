@@ -28,6 +28,10 @@ namespace ChatCompletion
         ChatCompleteSettings _settings;
         IOptions<ChatCompleteSettings> _options;
         private readonly ConcurrentDictionary<string, Kernel> _kernels = new();
+        
+        // File-based prompt plugins
+        private KernelPlugin? _chatAssistantPlugin;
+        private KernelPlugin? _contextualChatPlugin;
 
         public ChatComplete(
             KnowledgeEngine.KnowledgeManager knowledgeManager,
@@ -39,6 +43,210 @@ namespace ChatCompletion
             _serviceProvider = serviceProvider;
             _settings = settings;
             _options = Options.Create(settings);
+            
+            // Load file-based prompt plugins
+            LoadPromptPlugins();
+        }
+        
+        private void LoadPromptPlugins()
+        {
+            try
+            {
+                var promptsDirectory = Path.Combine(AppContext.BaseDirectory, "Prompts");
+                
+                // Create a temporary kernel for loading prompt plugins
+                var tempKernel = Kernel.CreateBuilder().Build();
+                
+                // Load system prompt plugins
+                _chatAssistantPlugin = tempKernel.CreatePluginFromPromptDirectory(
+                    Path.Combine(promptsDirectory, "ChatAssistant"));
+                    
+                _contextualChatPlugin = tempKernel.CreatePluginFromPromptDirectory(
+                    Path.Combine(promptsDirectory, "ContextualChat"));
+                    
+                Console.WriteLine("✅ Loaded file-based prompt plugins successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to load prompt plugins: {ex.Message}. Using fallback prompts.");
+            }
+        }
+        
+        private async Task<string> GetSystemPromptAsync(bool useExtendedInstructions, bool enableAgentTools)
+        {
+            // Try to use file-based prompts first, fallback to appsettings.json
+            try
+            {
+                var (pluginName, functionName) = (useExtendedInstructions, enableAgentTools) switch
+                {
+                    (true, true) => ("ChatAssistant", "AgentCodingChat"),   // Graham with tools
+                    (true, false) => ("ChatAssistant", "CodingAssistant"),  // Graham without tools
+                    (false, true) => ("ChatAssistant", "AgentChat"),        // Standard with tools
+                    (false, false) => ("ChatAssistant", "StandardChat")     // Standard without tools
+                };
+                
+                if (_chatAssistantPlugin != null && _chatAssistantPlugin.TryGetFunction(functionName, out var promptFunction))
+                {
+                    // Create a minimal kernel to invoke the prompt function
+                    var tempKernel = Kernel.CreateBuilder().Build();
+                    
+                    var result = await tempKernel.InvokeAsync(promptFunction);
+                    var promptContent = result.ToString();
+                    
+                    Console.WriteLine($"📝 Using file-based prompt: {functionName}");
+                    return promptContent;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to get file-based prompt: {ex.Message}");
+            }
+            
+            // Fallback to hardcoded prompts
+            return useExtendedInstructions
+                ? _settings.SystemPromptWithCoding
+                : _settings.SystemPrompt;
+        }
+
+        private async Task<string> GetUserPromptFromTemplateAsync(string userMessage, string? context = null)
+        {
+            // Try to use file-based contextual prompts first
+            try
+            {
+                var hasContext = !string.IsNullOrEmpty(context);
+                var functionName = hasContext ? "WithContext" : "WithoutContext";
+                
+                if (_contextualChatPlugin != null && _contextualChatPlugin.TryGetFunction(functionName, out var promptFunction))
+                {
+                    var tempKernel = Kernel.CreateBuilder().Build();
+                    var kernelArguments = new KernelArguments
+                    {
+                        ["userMessage"] = userMessage
+                    };
+                    
+                    if (hasContext)
+                    {
+                        kernelArguments["context"] = context;
+                    }
+                    
+                    var result = await tempKernel.InvokeAsync(promptFunction, kernelArguments);
+                    Console.WriteLine($"📝 Using contextual template: {functionName}");
+                    return result.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to get contextual template: {ex.Message}");
+            }
+            
+            // Fallback: Read template content directly from files
+            try
+            {
+                var hasContext = !string.IsNullOrEmpty(context);
+                var templatePath = hasContext 
+                    ? Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat", "WithContext", "skprompt.txt")
+                    : Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat", "WithoutContext", "skprompt.txt");
+                
+                if (File.Exists(templatePath))
+                {
+                    var template = await File.ReadAllTextAsync(templatePath);
+                    var result = template.Replace("{{$userMessage}}", userMessage);
+                    if (hasContext)
+                    {
+                        result = result.Replace("{{$context}}", context);
+                    }
+                    Console.WriteLine($"📝 Using fallback template file: {Path.GetFileName(Path.GetDirectoryName(templatePath))}");
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to read fallback template files: {ex.Message}");
+            }
+            
+            // Final fallback: construct basic user message without file dependencies
+            return !string.IsNullOrEmpty(context)
+                ? $"{userMessage}\n\n{context}"
+                : userMessage;
+        }
+
+        private async Task<(string withContextInstruction, string withoutContextInstruction)> GetContextInstructionsAsync()
+        {
+            // Try to extract instruction strings from prompt templates
+            try
+            {
+                if (_contextualChatPlugin != null)
+                {
+                    var tempKernel = Kernel.CreateBuilder().Build();
+                    
+                    // Get WithContext template
+                    string withContextInstruction = "";
+                    if (_contextualChatPlugin.TryGetFunction("WithContext", out var withContextFunction))
+                    {
+                        var result = await tempKernel.InvokeAsync(withContextFunction, new KernelArguments
+                        {
+                            ["userMessage"] = "",
+                            ["context"] = ""
+                        });
+                        var template = result.ToString();
+                        // Extract the instruction part after the context placeholder
+                        var lines = template.Split('\n');
+                        withContextInstruction = lines.LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim() ?? "";
+                    }
+                    
+                    // Get WithoutContext template
+                    string withoutContextInstruction = "";
+                    if (_contextualChatPlugin.TryGetFunction("WithoutContext", out var withoutContextFunction))
+                    {
+                        var result = await tempKernel.InvokeAsync(withoutContextFunction, new KernelArguments
+                        {
+                            ["userMessage"] = ""
+                        });
+                        var template = result.ToString();
+                        // Extract the instruction part
+                        var lines = template.Split('\n');
+                        withoutContextInstruction = lines.LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim() ?? "";
+                    }
+                    
+                    if (!string.IsNullOrEmpty(withContextInstruction) && !string.IsNullOrEmpty(withoutContextInstruction))
+                    {
+                        Console.WriteLine("📝 Using context instructions from prompt files");
+                        return (withContextInstruction, withoutContextInstruction);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to extract context instructions: {ex.Message}");
+            }
+            
+            // Fallback: Read directly from template files
+            try
+            {
+                var withContextPath = Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat", "WithContext", "skprompt.txt");
+                var withoutContextPath = Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat", "WithoutContext", "skprompt.txt");
+                
+                if (File.Exists(withContextPath) && File.Exists(withoutContextPath))
+                {
+                    var withContextTemplate = await File.ReadAllTextAsync(withContextPath);
+                    var withoutContextTemplate = await File.ReadAllTextAsync(withoutContextPath);
+                    
+                    // Extract instruction lines
+                    var withContextInstruction = withContextTemplate.Split('\n').LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim() ?? "";
+                    var withoutContextInstruction = withoutContextTemplate.Split('\n').LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim() ?? "";
+                    
+                    Console.WriteLine("📝 Using fallback instructions from template files");
+                    return (withContextInstruction, withoutContextInstruction);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to read instruction fallback files: {ex.Message}");
+            }
+            
+            // Final resort: return empty strings to avoid hardcoded prompts
+            Console.WriteLine("⚠️ Unable to extract context instructions from any source");
+            return ("", "");
         }
 
         [Experimental("SKEXP0070")]
@@ -59,7 +267,8 @@ namespace ChatCompletion
         public async Task PerformChat()
         {
             ChatHistory history = new ChatHistory();
-            history.AddSystemMessage("Keep answers at 100 words minimum.");
+            var systemPrompt = await GetSystemPromptAsync(false, false);
+            history.AddSystemMessage(systemPrompt);
             var execSettings = new OpenAIPromptExecutionSettings
             {
                 Temperature = _settings.Temperature, // 0-1 or whatever you passed
@@ -108,9 +317,7 @@ namespace ChatCompletion
         {
             var kernel = GetOrCreateKernel(provider, ollamaModel);
             var chatService = kernel.GetRequiredService<IChatCompletionService>();
-            string systemMessage = useExtendedInstructions
-                ? _settings.SystemPromptWithCoding
-                : _settings.SystemPrompt;
+            string systemMessage = await GetSystemPromptAsync(useExtendedInstructions, false);
             chatHistory.AddSystemMessage(systemMessage);
 
             // 1. Vector search using new KnowledgeManager
@@ -137,15 +344,9 @@ namespace ChatCompletion
                 ? string.Join("\n---\n", contextChunks)
                 : "No relevant documentation was found for this query.";
 
-            // 3. Build prompt & call GPT (unchanged)
-            chatHistory.AddUserMessage(
-                $"""
-                {userMessage}
-
-                Refer to the following documentation to help answer:
-                {contextBlock}
-                """
-            );
+            // 3. Build prompt & call GPT using template
+            var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, contextChunks.Any() ? contextBlock : null);
+            chatHistory.AddUserMessage(userPrompt);
 
             double resolvedTemperature =
                 apiTemperature == -1 ? _settings.Temperature : apiTemperature;
@@ -232,9 +433,7 @@ namespace ChatCompletion
                 }
 
                 var chatService = kernel.GetRequiredService<IChatCompletionService>();
-                string systemMessage = useExtendedInstructions
-                    ? _settings.SystemPromptWithCoding
-                    : _settings.SystemPrompt;
+                string systemMessage = await GetSystemPromptAsync(useExtendedInstructions, true);
                 chatHistory.AddSystemMessage(systemMessage);
 
                 // Traditional knowledge search as fallback
@@ -262,21 +461,7 @@ namespace ChatCompletion
                     : "No relevant documentation was found for this query.";
 
                 // Add user message with explicit tool usage instruction
-                var userPrompt = contextChunks.Any()
-                    ? $"""
-                      {userMessage}
-
-                      Refer to the following documentation to help answer:
-                      {contextBlock}
-
-                      If this context doesn't fully answer the question, use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for more information.
-                      """
-                    : $"""
-                      {userMessage}
-
-                      No relevant documentation was found in the initial search. Use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for information related to this query.
-                      """;
-
+                var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, contextChunks.Any() ? contextBlock : null);
                 chatHistory.AddUserMessage(userPrompt);
 
                 // Configure execution settings with tool calling
@@ -372,10 +557,13 @@ namespace ChatCompletion
                     var lastUserMessage = chatHistory.LastOrDefault(m => m.Role == AuthorRole.User);
                     if (lastUserMessage != null)
                     {
+                        // Get instructions from prompt files for cleaning
+                        var (withContextInstruction, withoutContextInstruction) = await GetContextInstructionsAsync();
+                        
                         // Clean up the message to remove tool-specific instructions
                         var cleanMessage = lastUserMessage.Content?
-                            .Replace("Use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for information related to this query.", "")
-                            .Replace("If this context doesn't fully answer the question, use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for more information.", "")
+                            .Replace(withoutContextInstruction, "")
+                            .Replace(withContextInstruction, "")
                             .Trim();
                         
                         chatHistory.RemoveAt(chatHistory.Count - 1);
@@ -488,7 +676,8 @@ namespace ChatCompletion
             //  var kernel = KernelHelper.GetKernel();
             //  var chatService = kernel.GetRequiredService<IChatCompletionService>();
             var history = new ChatHistory();
-            history.AddSystemMessage(_settings.SystemPrompt);
+            var systemPrompt = await GetSystemPromptAsync(false, false);
+            history.AddSystemMessage(systemPrompt);
             Console.WriteLine("Assistant with Memory Mode. Type 'exit' to quit.\n");
 
             while (true)
@@ -518,16 +707,9 @@ namespace ChatCompletion
                     ? string.Join("\n---\n", orderedContext)
                     : "No relevant documentation was found for this query.";
 
-                // Step 2: Add user question and context
-                // Combine both as a single user message with context appended
-                history.AddUserMessage(
-                    $"""
-                    {userInput}
-
-                    Refer to the following documentation to help answer:
-                    {context}
-                    """
-                );
+                // Step 2: Add user question and context using template
+                var userPrompt = await GetUserPromptFromTemplateAsync(userInput, orderedContext.Any() ? context : null);
+                history.AddUserMessage(userPrompt);
 
                 // Step 3: Stream GPT response and add to history
                 var responseStream = _chatCompletionService.GetStreamingChatMessageContentsAsync(

@@ -1,0 +1,6 @@
+{{$userMessage}}
+
+Refer to the following documentation to help answer:
+{{$context}}
+
+If this context doesn't fully answer the question, use the SearchAllKnowledgeBasesAsync tool to search across all knowledge bases for more information.

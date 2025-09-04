@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "type": "completion",
+  "description": "Graham with tool access - Senior full-stack engineering assistant with cross-knowledge search capabilities.",
+  "completion": {
+    "max_tokens": 4096,
+    "temperature": 0.7,
+    "top_p": 1.0
+  },
+  "input": {
+    "parameters": []
+  }
+}

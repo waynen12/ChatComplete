@@ -262,3 +262,5 @@ VectorStore__Qdrant__Port=6333
 - [ ] Foundation established for advanced agent features and MCP integration
 
 This agent implementation leverages the existing Semantic Kernel infrastructure while building toward MCP ecosystem integration, providing both immediate utility and future extensibility.
+
+All documentation for this project is located in ./documentation
