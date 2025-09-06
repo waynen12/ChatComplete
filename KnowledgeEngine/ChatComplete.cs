@@ -246,6 +246,25 @@ namespace ChatCompletion
             return ("", "");
         }
 
+        private static string StripThinkingSections(string response)
+        {
+            if (string.IsNullOrEmpty(response))
+                return response;
+
+            // Remove <think>...</think> sections (case insensitive, multiline)
+            var pattern = @"<think>.*?</think>";
+            var result = System.Text.RegularExpressions.Regex.Replace(
+                response, 
+                pattern, 
+                string.Empty, 
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | 
+                System.Text.RegularExpressions.RegexOptions.Singleline
+            );
+
+            // Clean up extra whitespace that may be left behind
+            return result.Trim();
+        }
+
         [Experimental("SKEXP0070")]
         private Kernel GetOrCreateKernel(AiProvider provider, string? ollamaModel = null)
         {
@@ -391,9 +410,11 @@ namespace ChatCompletion
                 assistant.Append(chunk.Content);
             }
 
-            return assistant.Length > 0
+            var response = assistant.Length > 0
                 ? assistant.ToString().Trim()
                 : "There was no response from the AI.";
+            
+            return StripThinkingSections(response);
         }
 
         [Experimental("SKEXP0070")]
@@ -623,10 +644,11 @@ namespace ChatCompletion
                 var assistant = new System.Text.StringBuilder();
                 assistant.Append(chatResult?.Content ?? "");
 
-                response.Response =
-                    assistant.Length > 0
-                        ? assistant.ToString().Trim()
-                        : "There was no response from the AI.";
+                var rawResponse = assistant.Length > 0
+                    ? assistant.ToString().Trim()
+                    : "There was no response from the AI.";
+                
+                response.Response = StripThinkingSections(rawResponse);
                 return response;
             }
             catch (Exception ex)

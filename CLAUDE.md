@@ -2,6 +2,22 @@ You are joining AI Knowledge Manager, an open-source stack for uploading technic
 
 You must remain critical but friendly at all times. Do not always accept the first solution to a problem. Always check if there are alternatives. Do not be afraid to ask questions or seek clarification from others when needed.
 
+## ⚠️ CRITICAL WORKFLOW REMINDER ⚠️
+
+**ALWAYS COMMIT CHANGES AFTER SUCCESSFUL BUILD**
+
+After completing any implementation work:
+1. ✅ Verify the build succeeds with `dotnet build`
+2. ✅ **IMMEDIATELY commit changes** to preserve the working state
+3. ✅ Use descriptive commit messages that explain what was implemented
+
+**Why this is critical:**
+- Git rollbacks can lose hours of work if changes aren't committed
+- Successful builds represent stable checkpoints that should be preserved
+- Database migrations, API changes, and feature implementations must be saved immediately
+
+**Never assume you can recreate complex implementations from memory - commit early, commit often!**
+
 Tech stack:
 
 Layer	Tech
