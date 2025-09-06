@@ -22,7 +22,6 @@ namespace ChatCompletion
 {
     public class ChatComplete
     {
-        IChatCompletionService? _chatCompletionService;
         private readonly KnowledgeManager _knowledgeManager;
         private readonly IServiceProvider _serviceProvider;
         private readonly ChatCompleteSettings _settings;
@@ -273,6 +272,9 @@ namespace ChatCompletion
 
         public async Task PerformChat()
         {
+            var kernel = GetOrCreateKernel(AiProvider.OpenAi);
+            var chatService = kernel.GetRequiredService<IChatCompletionService>();
+            
             ChatHistory history = new ChatHistory();
             var systemPrompt = await GetSystemPromptAsync(false, false);
             history.AddSystemMessage(systemPrompt);
@@ -295,7 +297,7 @@ namespace ChatCompletion
                     }
                     Console.WriteLine($"You:{userMessage}");
                     history.AddUserMessage(userMessage);
-                    var enumerator = _chatCompletionService
+                    var enumerator = chatService
                         .GetStreamingChatMessageContentsAsync(history, execSettings)
                         .GetAsyncEnumerator();
                     Console.Write($"Bot: ");
@@ -798,7 +800,9 @@ namespace ChatCompletion
                 history.AddUserMessage(userPrompt);
 
                 // Step 3: Stream GPT response and add to history
-                var responseStream = _chatCompletionService.GetStreamingChatMessageContentsAsync(
+                var kernel = GetOrCreateKernel(AiProvider.OpenAi);
+                var chatService = kernel.GetRequiredService<IChatCompletionService>();
+                var responseStream = chatService.GetStreamingChatMessageContentsAsync(
                     history,
                     new OpenAIPromptExecutionSettings { Temperature = _settings.Temperature }
                 );
