@@ -1,6 +1,7 @@
 using ChatCompletion;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
+using KnowledgeEngine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;

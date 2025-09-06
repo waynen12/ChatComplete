@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
-using KnowledgeEngine;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Agents.Plugins;
 using KnowledgeEngine.Models;
@@ -18,7 +17,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050, SKEXP0070
 
-namespace ChatCompletion
+namespace KnowledgeEngine
 {
     public class ChatComplete
     {
@@ -72,7 +71,7 @@ namespace ChatCompletion
             // Try to use file-based prompts first, fallback to appsettings.json
             try
             {
-                var (pluginName, functionName) = (useExtendedInstructions, enableAgentTools) switch
+                var (_, functionName) = (useExtendedInstructions, enableAgentTools) switch
                 {
                     (true, true) => ("ChatAssistant", "AgentCodingChat"),   // Graham with tools
                     (true, false) => ("ChatAssistant", "CodingAssistant"),  // Graham without tools
@@ -349,16 +348,17 @@ namespace ChatCompletion
                 .Select(r => r.Text)
                 .Distinct();
 
-            var contextBlock = contextChunks.Any()
-                ? string.Join("\n---\n", contextChunks)
+            var enumerable = contextChunks.ToList();
+            var contextBlock = enumerable.Any()
+                ? string.Join("\n---\n", enumerable)
                 : "No relevant documentation was found for this query.";
 
             // 3. Build prompt & call GPT using template
-            var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, contextChunks.Any() ? contextBlock : null);
+            var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, enumerable.Any() ? contextBlock : null);
             chatHistory.AddUserMessage(userPrompt);
 
             double resolvedTemperature =
-                apiTemperature == -1 ? _settings.Temperature : apiTemperature;
+                apiTemperature < 0 ? _settings.Temperature : apiTemperature;
             PromptExecutionSettings execSettings;
 
             switch (provider)
@@ -471,17 +471,18 @@ namespace ChatCompletion
                     .Select(r => r.Text)
                     .Distinct();
 
-                var contextBlock = contextChunks.Any()
-                    ? string.Join("\n---\n", contextChunks)
+                var enumerable = contextChunks.ToList();
+                var contextBlock = enumerable.Any()
+                    ? string.Join("\n---\n", enumerable)
                     : "No relevant documentation was found for this query.";
 
                 // Add user message with explicit tool usage instruction
-                var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, contextChunks.Any() ? contextBlock : null);
+                var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, enumerable.Any() ? contextBlock : null);
                 chatHistory.AddUserMessage(userPrompt);
 
                 // Configure execution settings with tool calling
                 double resolvedTemperature =
-                    apiTemperature == -1 ? _settings.Temperature : apiTemperature;
+                    apiTemperature < 0 ? _settings.Temperature : apiTemperature;
                 Console.WriteLine($"🔧 Configuring execution settings for provider: {provider}, shouldUseTools: {shouldUseTools}");
                 PromptExecutionSettings execSettings = provider switch
                 {
@@ -599,9 +600,9 @@ namespace ChatCompletion
                     };
                 }
 
-                Console.WriteLine($"🔍 Chat result received. Content length: {chatResult?.Content?.Length ?? 0}");
-                Console.WriteLine($"🔍 Function call results count: {chatResult?.Items?.OfType<FunctionCallContent>()?.Count() ?? 0}");
-                Console.WriteLine($"🔍 Function result items count: {chatResult?.Items?.OfType<FunctionResultContent>()?.Count() ?? 0}");
+                Console.WriteLine($"🔍 Chat result received. Content length: {chatResult.Content?.Length ?? 0}");
+                Console.WriteLine($"🔍 Function call results count: {chatResult?.Items.OfType<FunctionCallContent>().Count() ?? 0}");
+                Console.WriteLine($"🔍 Function result items count: {chatResult?.Items.OfType<FunctionResultContent>().Count() ?? 0}");
                 
                 // Log any function calls/results
                 var hasToolCalls = false;
@@ -791,12 +792,13 @@ namespace ChatCompletion
                     .Select(r => r.Text)
                     .Distinct();
 
-                string context = orderedContext.Any()
-                    ? string.Join("\n---\n", orderedContext)
+                var enumerable = orderedContext.ToList();
+                string context = enumerable.Any()
+                    ? string.Join("\n---\n", enumerable)
                     : "No relevant documentation was found for this query.";
 
                 // Step 2: Add user question and context using template
-                var userPrompt = await GetUserPromptFromTemplateAsync(userInput, orderedContext.Any() ? context : null);
+                var userPrompt = await GetUserPromptFromTemplateAsync(userInput, enumerable.Any() ? context : null);
                 history.AddUserMessage(userPrompt);
 
                 // Step 3: Stream GPT response and add to history

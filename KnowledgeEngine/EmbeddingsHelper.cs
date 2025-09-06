@@ -1,14 +1,10 @@
-using System;
-using System.ComponentModel;
-using System.Threading.Tasks;
 using ConnectingApps.Refit.OpenAI;
 using ConnectingApps.Refit.OpenAI.Embeddings;
 using ConnectingApps.Refit.OpenAI.Embeddings.Request;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Refit;
+
+namespace KnowledgeEngine;
 
 public static class EmbeddingsHelper
 {
