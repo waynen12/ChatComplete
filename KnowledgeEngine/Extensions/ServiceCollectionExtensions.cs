@@ -4,7 +4,8 @@ using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Persistence.Conversations;
 using KnowledgeEngine.Persistence.IndexManagers;
 using KnowledgeEngine.Persistence.VectorStores;
-using KnowledgeEngine.Persistence.Sqlite;
+using Knowledge.Data;
+using Knowledge.Data.Extensions;
 using KnowledgeEngine.Persistence.Sqlite.Repositories;
 using KnowledgeEngine.Persistence.Sqlite.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -163,16 +164,15 @@ public static class ServiceCollectionExtensions
             }
         }
 
-        // Register SQLite database context
-        services.AddScoped<SqliteDbContext>(provider => new SqliteDbContext(databasePath));
+        // Use the new Knowledge.Data layer
+        services.AddKnowledgeData(databasePath);
 
         // Register encryption service (static methods, but good to have for DI)
         services.AddSingleton<EncryptionService>();
 
-        // Register SQLite repositories
+        // Register remaining SQLite repositories that haven't been moved to Knowledge.Data yet
         services.AddScoped<SqliteAppSettingsRepository>();
         services.AddScoped<SqliteKnowledgeRepository>();
-        services.AddScoped<SqliteOllamaRepository>();
         services.AddScoped<SqliteConversationRepository>();
 
         // Register SQLite services

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using KnowledgeEngine.Persistence.Sqlite.Repositories;
+using Knowledge.Data.Interfaces;
+using Knowledge.Entities;
 
 namespace Knowledge.Api.Services;
 
@@ -11,7 +12,7 @@ namespace Knowledge.Api.Services;
 public class OllamaDownloadService
 {
     private readonly IOllamaApiService _ollamaApi;
-    private readonly SqliteOllamaRepository _repository;
+    private readonly IOllamaRepository _repository;
     private readonly ILogger<OllamaDownloadService> _logger;
 
     // Track active downloads for real-time updates
@@ -19,7 +20,7 @@ public class OllamaDownloadService
 
     public OllamaDownloadService(
         IOllamaApiService ollamaApi,
-        SqliteOllamaRepository repository,
+        IOllamaRepository repository,
         ILogger<OllamaDownloadService> logger
     )
     {

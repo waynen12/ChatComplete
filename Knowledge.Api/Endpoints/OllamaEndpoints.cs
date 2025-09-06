@@ -1,7 +1,8 @@
 using System.Text.Json;
 using Knowledge.Api.Services;
 using KnowledgeEngine.Logging;
-using KnowledgeEngine.Persistence.Sqlite.Repositories;
+using Knowledge.Data.Interfaces;
+using Knowledge.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 
@@ -53,7 +54,7 @@ public static class OllamaEndpoints
             .MapGet(
                 "/models/details",
                 async (
-                    [FromServices] SqliteOllamaRepository repository,
+                    [FromServices] IOllamaRepository repository,
                     [FromServices] IOllamaApiService ollamaService,
                     CancellationToken ct
                 ) =>
@@ -390,7 +391,7 @@ public static class OllamaEndpoints
                 async (
                     string modelName,
                     [FromServices] IOllamaApiService ollamaService,
-                    [FromServices] SqliteOllamaRepository repository,
+                    [FromServices] IOllamaRepository repository,
                     CancellationToken ct
                 ) =>
                 {

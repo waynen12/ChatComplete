@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\KnowledgeEngine\KnowledgeEngine.csproj" />
     <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
+    <ProjectReference Include="..\Knowledge.Data\Knowledge.Data.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Markdig" Version="0.41.3" />

@@ -15,7 +15,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.4" />
     <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="9.7.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
     <PackageReference Include="Microsoft.KernelMemory.Core" Version="0.98.250508.3" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.64.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.64.0-alpha" />
@@ -35,6 +35,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
+    <ProjectReference Include="..\Knowledge.Data\Knowledge.Data.csproj" />
+    <ProjectReference Include="..\Knowledge.Entities\Knowledge.Entities.csproj" />
   </ItemGroup>
   
   <ItemGroup>

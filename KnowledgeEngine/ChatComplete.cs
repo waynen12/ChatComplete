@@ -5,7 +5,7 @@ using Knowledge.Contracts.Types;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Agents.Plugins;
 using KnowledgeEngine.Models;
-using KnowledgeEngine.Persistence.Sqlite.Repositories;
+using Knowledge.Data.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
@@ -26,7 +26,7 @@ namespace KnowledgeEngine
         private readonly ChatCompleteSettings _settings;
         private readonly IOptions<ChatCompleteSettings> _options;
         private readonly ConcurrentDictionary<string, Kernel> _kernels = new();
-        private readonly SqliteOllamaRepository? _ollamaRepository;
+        private readonly IOllamaRepository? _ollamaRepository;
         
 
         public ChatComplete(
@@ -41,7 +41,7 @@ namespace KnowledgeEngine
             _options = Options.Create(settings);
             
             // Try to get the Ollama repository for tool support detection
-            _ollamaRepository = serviceProvider.GetService<SqliteOllamaRepository>();
+            _ollamaRepository = serviceProvider.GetService<IOllamaRepository>();
             
             // Load file-based prompt plugins
             LoadPromptPlugins();

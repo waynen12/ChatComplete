@@ -6,8 +6,10 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Knowledge.Api.Services;
-using KnowledgeEngine.Persistence.Sqlite;
-using KnowledgeEngine.Persistence.Sqlite.Repositories;
+using Knowledge.Data;
+using Knowledge.Data.Interfaces;
+using Knowledge.Data.Repositories;
+using Knowledge.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Xunit;
@@ -23,7 +25,7 @@ public class OllamaModelManagementTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
     private readonly SqliteDbContext _dbContext;
-    private readonly SqliteOllamaRepository _repository;
+    private readonly IOllamaRepository _repository;
     private readonly OllamaApiService _ollamaService;
     private readonly OllamaDownloadService _downloadService;
     private readonly string _testDatabasePath;
