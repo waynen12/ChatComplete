@@ -1,7 +1,7 @@
 using System.Data;
 using Microsoft.Data.Sqlite;
 
-namespace KnowledgeEngine.Persistence.Sqlite;
+namespace Knowledge.Data;
 
 /// <summary>
 /// SQLite database context for local configuration and metadata storage
@@ -245,6 +245,38 @@ public class SqliteDbContext : IDisposable
         await ExecuteNonQueryAsync(sql);
     }
 
+    private async Task CreateUsageMetricsTablesAsync()
+    {
+        const string sql = """
+            CREATE TABLE IF NOT EXISTS UsageMetrics (
+                Id VARCHAR(36) PRIMARY KEY,
+                ConversationId VARCHAR(36),
+                KnowledgeId VARCHAR(255),
+                Provider VARCHAR(50) NOT NULL,
+                ModelName VARCHAR(100),
+                InputTokens INTEGER DEFAULT 0,
+                OutputTokens INTEGER DEFAULT 0,
+                Temperature REAL DEFAULT 0.7,
+                UsedAgentCapabilities BOOLEAN DEFAULT 0,
+                ToolExecutions INTEGER DEFAULT 0,
+                ResponseTimeMs REAL DEFAULT 0,
+                Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                ClientId VARCHAR(255),
+                WasSuccessful BOOLEAN DEFAULT 1,
+                ErrorMessage TEXT,
+                FOREIGN KEY (ConversationId) REFERENCES Conversations(ConversationId) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_usage_metrics_timestamp ON UsageMetrics(Timestamp);
+            CREATE INDEX IF NOT EXISTS idx_usage_metrics_conversation ON UsageMetrics(ConversationId);
+            CREATE INDEX IF NOT EXISTS idx_usage_metrics_knowledge ON UsageMetrics(KnowledgeId);
+            CREATE INDEX IF NOT EXISTS idx_usage_metrics_provider ON UsageMetrics(Provider);
+            CREATE INDEX IF NOT EXISTS idx_usage_metrics_model ON UsageMetrics(ModelName);
+            """;
+
+        await ExecuteNonQueryAsync(sql);
+    }
+
     private async Task MigrateDatabaseAsync()
     {
         // Add SupportsTools column to OllamaModels table if it doesn't exist
@@ -337,38 +369,6 @@ public class SqliteDbContext : IDisposable
         {
             // Failed to check/migrate foreign key constraints - continuing with table creation
         }
-    }
-
-    private async Task CreateUsageMetricsTablesAsync()
-    {
-        const string sql = """
-            CREATE TABLE IF NOT EXISTS UsageMetrics (
-                Id VARCHAR(36) PRIMARY KEY,
-                ConversationId VARCHAR(36),
-                KnowledgeId VARCHAR(255),
-                Provider VARCHAR(50) NOT NULL,
-                ModelName VARCHAR(100),
-                InputTokens INTEGER DEFAULT 0,
-                OutputTokens INTEGER DEFAULT 0,
-                Temperature REAL DEFAULT 0.7,
-                UsedAgentCapabilities BOOLEAN DEFAULT 0,
-                ToolExecutions INTEGER DEFAULT 0,
-                ResponseTimeMs REAL DEFAULT 0,
-                Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                ClientId VARCHAR(255),
-                WasSuccessful BOOLEAN DEFAULT 1,
-                ErrorMessage TEXT,
-                FOREIGN KEY (ConversationId) REFERENCES Conversations(ConversationId) ON DELETE CASCADE
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_usage_metrics_timestamp ON UsageMetrics(Timestamp);
-            CREATE INDEX IF NOT EXISTS idx_usage_metrics_conversation ON UsageMetrics(ConversationId);
-            CREATE INDEX IF NOT EXISTS idx_usage_metrics_knowledge ON UsageMetrics(KnowledgeId);
-            CREATE INDEX IF NOT EXISTS idx_usage_metrics_provider ON UsageMetrics(Provider);
-            CREATE INDEX IF NOT EXISTS idx_usage_metrics_model ON UsageMetrics(ModelName);
-            """;
-
-        await ExecuteNonQueryAsync(sql);
     }
 
     public void Dispose()

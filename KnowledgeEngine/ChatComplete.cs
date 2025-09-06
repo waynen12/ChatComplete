@@ -488,7 +488,6 @@ namespace KnowledgeEngine
                 {
                     AiProvider.OpenAi => new OpenAIPromptExecutionSettings
                     {
-                        Temperature = resolvedTemperature,
                         TopP = 1,
                         MaxTokens = 4096,
                         ToolCallBehavior = shouldUseTools

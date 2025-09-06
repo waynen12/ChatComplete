@@ -1,0 +1,20 @@
+using Knowledge.Data.Interfaces;
+using Knowledge.Data.Repositories;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Knowledge.Data.Extensions;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddKnowledgeData(this IServiceCollection services, string databasePath)
+    {
+        // Register DbContext with database path
+        services.AddSingleton(provider => new SqliteDbContext(databasePath));
+        
+        // Register repositories
+        services.AddScoped<IOllamaRepository, SqliteOllamaRepository>();
+        services.AddScoped<IUsageMetricsRepository, SqliteUsageMetricsRepository>();
+        
+        return services;
+    }
+}
