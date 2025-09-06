@@ -16,8 +16,16 @@ internal sealed class SpyChatComplete : ChatComplete
         : base(
             knowledgeManager:  null!,                 // not used by spy
             settings: new ChatCompleteSettings { Temperature = 0.7 },
-            serviceProvider: null!)                   // not used by spy
+            serviceProvider: CreateMockServiceProvider())
     { }
+
+    private static IServiceProvider CreateMockServiceProvider()
+    {
+        var services = new ServiceCollection();
+        // Add any required services here - currently ChatComplete only tries to get SqliteOllamaRepository
+        // which is optional (can be null), so we don't need to register it
+        return services.BuildServiceProvider();
+    }
 
     public override Task<string> AskAsync(
         string userMessage, string? knowledgeId, ChatHistory chatHistory,
