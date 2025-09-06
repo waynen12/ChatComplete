@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine;
@@ -23,20 +22,17 @@ namespace ChatCompletion
 {
     public class ChatComplete
     {
-        IChatCompletionService _chatCompletionService;
-        private readonly KnowledgeEngine.KnowledgeManager _knowledgeManager;
+        IChatCompletionService? _chatCompletionService;
+        private readonly KnowledgeManager _knowledgeManager;
         private readonly IServiceProvider _serviceProvider;
-        ChatCompleteSettings _settings;
-        IOptions<ChatCompleteSettings> _options;
+        private readonly ChatCompleteSettings _settings;
+        private readonly IOptions<ChatCompleteSettings> _options;
         private readonly ConcurrentDictionary<string, Kernel> _kernels = new();
         private readonly SqliteOllamaRepository? _ollamaRepository;
         
-        // File-based prompt plugins
-        private KernelPlugin? _chatAssistantPlugin;
-        private KernelPlugin? _contextualChatPlugin;
 
         public ChatComplete(
-            KnowledgeEngine.KnowledgeManager knowledgeManager,
+            KnowledgeManager knowledgeManager,
             ChatCompleteSettings settings,
             IServiceProvider serviceProvider
         )
@@ -53,23 +49,18 @@ namespace ChatCompletion
             LoadPromptPlugins();
         }
         
-        private void LoadPromptPlugins()
+        private static void LoadPromptPlugins()
         {
             try
             {
                 var promptsDirectory = Path.Combine(AppContext.BaseDirectory, "Prompts");
                 
-                // Create a temporary kernel for loading prompt plugins
-                var tempKernel = Kernel.CreateBuilder().Build();
-                
-                // Load system prompt plugins
-                _chatAssistantPlugin = tempKernel.CreatePluginFromPromptDirectory(
-                    Path.Combine(promptsDirectory, "ChatAssistant"));
-                    
-                _contextualChatPlugin = tempKernel.CreatePluginFromPromptDirectory(
-                    Path.Combine(promptsDirectory, "ContextualChat"));
-                    
-                Console.WriteLine("✅ Loaded file-based prompt plugins successfully");
+                // Verify prompt directories exist
+                if (Directory.Exists(Path.Combine(promptsDirectory, "ChatAssistant")) &&
+                    Directory.Exists(Path.Combine(promptsDirectory, "ContextualChat")))
+                {
+                    Console.WriteLine("✅ Prompt directories found successfully");
+                }
             }
             catch (Exception ex)
             {
@@ -446,7 +437,7 @@ namespace ChatCompletion
                 if (shouldUseTools)
                 {
                     Console.WriteLine("🔧 Registering agent plugins...");
-                    await RegisterAgentPluginsAsync(kernel);
+                    RegisterAgentPlugins(kernel);
                     response.UsedAgentCapabilities = true;
                 }
                 else
@@ -738,7 +729,7 @@ namespace ChatCompletion
             }
         }
 
-        private async Task RegisterAgentPluginsAsync(Kernel kernel)
+        private void RegisterAgentPlugins(Kernel kernel)
         {
             try
             {
