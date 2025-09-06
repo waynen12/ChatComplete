@@ -24,7 +24,7 @@ public class SqliteOllamaRepository
         const string sql = """
             SELECT Name, DisplayName, Size, Family, ParameterSize, QuantizationLevel, 
                    Format, Template, Parameters, ModifiedAt, InstalledAt, LastUsedAt, 
-                   IsAvailable, Status
+                   IsAvailable, Status, SupportsTools
             FROM OllamaModels 
             WHERE IsAvailable = 1
             ORDER BY LastUsedAt DESC, InstalledAt DESC
@@ -52,7 +52,8 @@ public class SqliteOllamaRepository
                 InstalledAt = reader.GetDateTime(10),
                 LastUsedAt = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
                 IsAvailable = reader.GetBoolean(12),
-                Status = reader.GetString(13)
+                Status = reader.GetString(13),
+                SupportsTools = reader.IsDBNull(14) ? null : reader.GetBoolean(14)
             });
         }
 
@@ -67,9 +68,9 @@ public class SqliteOllamaRepository
         const string sql = """
             INSERT INTO OllamaModels 
             (Name, DisplayName, Size, Family, ParameterSize, QuantizationLevel, Format, 
-             Template, Parameters, ModifiedAt, IsAvailable, Status, UpdatedAt)
+             Template, Parameters, ModifiedAt, IsAvailable, Status, SupportsTools, UpdatedAt)
             VALUES (@name, @displayName, @size, @family, @parameterSize, @quantizationLevel, 
-                    @format, @template, @parameters, @modifiedAt, @isAvailable, @status, CURRENT_TIMESTAMP)
+                    @format, @template, @parameters, @modifiedAt, @isAvailable, @status, @supportsTools, CURRENT_TIMESTAMP)
             ON CONFLICT(Name) DO UPDATE SET
                 DisplayName = @displayName,
                 Size = @size,
@@ -82,6 +83,7 @@ public class SqliteOllamaRepository
                 ModifiedAt = @modifiedAt,
                 IsAvailable = @isAvailable,
                 Status = @status,
+                SupportsTools = COALESCE(@supportsTools, SupportsTools),
                 UpdatedAt = CURRENT_TIMESTAMP
             """;
 
@@ -100,6 +102,7 @@ public class SqliteOllamaRepository
         command.Parameters.AddWithValue("@modifiedAt", model.ModifiedAt ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@isAvailable", model.IsAvailable);
         command.Parameters.AddWithValue("@status", model.Status);
+        command.Parameters.AddWithValue("@supportsTools", model.SupportsTools ?? (object)DBNull.Value);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -118,6 +121,68 @@ public class SqliteOllamaRepository
         var connection = await _dbContext.GetConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         command.Parameters.AddWithValue("@name", modelName);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets a specific model by name
+    /// </summary>
+    public async Task<OllamaModelRecord?> GetModelAsync(string modelName, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT Name, DisplayName, Size, Family, ParameterSize, QuantizationLevel, 
+                   Format, Template, Parameters, ModifiedAt, InstalledAt, LastUsedAt, 
+                   IsAvailable, Status, SupportsTools
+            FROM OllamaModels 
+            WHERE Name = @name
+            """;
+
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@name", modelName);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (await reader.ReadAsync(cancellationToken))
+        {
+            return new OllamaModelRecord
+            {
+                Name = reader.GetString(0),
+                DisplayName = reader.IsDBNull(1) ? null : reader.GetString(1),
+                Size = reader.GetInt64(2),
+                Family = reader.IsDBNull(3) ? null : reader.GetString(3),
+                ParameterSize = reader.IsDBNull(4) ? null : reader.GetString(4),
+                QuantizationLevel = reader.IsDBNull(5) ? null : reader.GetString(5),
+                Format = reader.IsDBNull(6) ? null : reader.GetString(6),
+                Template = reader.IsDBNull(7) ? null : reader.GetString(7),
+                Parameters = reader.IsDBNull(8) ? null : reader.GetString(8),
+                ModifiedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                InstalledAt = reader.GetDateTime(10),
+                LastUsedAt = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
+                IsAvailable = reader.GetBoolean(12),
+                Status = reader.GetString(13),
+                SupportsTools = reader.IsDBNull(14) ? null : reader.GetBoolean(14)
+            };
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Updates the tool support status for a model
+    /// </summary>
+    public async Task UpdateSupportsToolsAsync(string modelName, bool supportsTools, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE OllamaModels 
+            SET SupportsTools = @supportsTools, UpdatedAt = CURRENT_TIMESTAMP
+            WHERE Name = @name
+            """;
+
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@name", modelName);
+        command.Parameters.AddWithValue("@supportsTools", supportsTools);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -314,6 +379,7 @@ public class OllamaModelRecord
     public DateTime? LastUsedAt { get; set; }
     public bool IsAvailable { get; set; } = true;
     public string Status { get; set; } = "Ready";
+    public bool? SupportsTools { get; set; } = null;
 }
 
 /// <summary>

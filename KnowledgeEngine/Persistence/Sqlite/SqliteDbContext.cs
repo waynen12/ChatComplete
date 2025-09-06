@@ -59,6 +59,7 @@ public class SqliteDbContext : IDisposable
         await CreateChatHistoryTablesAsync();
         await CreateKnowledgeMetadataTablesAsync();
         await CreateOllamaModelTablesAsync();
+        await MigrateDatabaseAsync();
     }
 
     private async Task CreateAppSettingsTableAsync()
@@ -202,6 +203,7 @@ public class SqliteDbContext : IDisposable
                 LastUsedAt DATETIME,
                 IsAvailable BOOLEAN DEFAULT 1,
                 Status VARCHAR(50) DEFAULT 'Ready',
+                SupportsTools BIT DEFAULT NULL,
                 CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
                 UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -240,6 +242,35 @@ public class SqliteDbContext : IDisposable
             """;
 
         await ExecuteNonQueryAsync(sql);
+    }
+
+    private async Task MigrateDatabaseAsync()
+    {
+        // Add SupportsTools column to OllamaModels table if it doesn't exist
+        try
+        {
+            const string checkColumnSql = """
+                SELECT COUNT(*) FROM pragma_table_info('OllamaModels') 
+                WHERE name = 'SupportsTools'
+                """;
+            
+            using var checkCommand = new SqliteCommand(checkColumnSql, _connection);
+            var columnExists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+            
+            if (!columnExists)
+            {
+                const string addColumnSql = """
+                    ALTER TABLE OllamaModels 
+                    ADD COLUMN SupportsTools BIT DEFAULT NULL
+                    """;
+                
+                await ExecuteNonQueryAsync(addColumnSql);
+            }
+        }
+        catch (Exception)
+        {
+            // Column migration failed - this is acceptable as the table might not exist yet
+        }
     }
 
     private async Task ExecuteNonQueryAsync(string sql)
