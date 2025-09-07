@@ -14,6 +14,7 @@ public static class ApiConstants
         public const string Knowledge = "/knowledge";
         public const string Chat = "/chat";
         public const string Ollama = "/ollama";
+        public const string Analytics = "/analytics";
         public const string Health = "/health";
         public const string Ping = "/ping";
         public const string OllamaModels = "/models";
@@ -55,6 +56,7 @@ public static class ApiConstants
         public const string Chat = "Chat";
         public const string Health = "Health";
         public const string Ollama = "Ollama";
+        public const string Analytics = "Analytics";
     }
 
     /// <summary>

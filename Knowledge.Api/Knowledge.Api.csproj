@@ -4,6 +4,7 @@
     <ProjectReference Include="..\KnowledgeEngine\KnowledgeEngine.csproj" />
     <ProjectReference Include="..\Knowledge.Contracts\Knowledge.Contracts.csproj" />
     <ProjectReference Include="..\Knowledge.Data\Knowledge.Data.csproj" />
+    <ProjectReference Include="..\Knowledge.Analytics\Knowledge.Analytics.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Markdig" Version="0.41.3" />

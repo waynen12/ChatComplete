@@ -3,6 +3,7 @@
 using System.Text.Json.Serialization;
 using ChatCompletion;
 using ChatCompletion.Config;
+using Knowledge.Analytics.Extensions;
 using Knowledge.Api.Constants;
 using Knowledge.Api.Endpoints;
 using Knowledge.Api.Filters;
@@ -71,6 +72,10 @@ builder.Services.AddSingleton<KernelFactory>();
 
 // Add SQLite persistence for zero-dependency deployment
 builder.Services.AddSqlitePersistence(settings);
+
+// Add analytics services (includes Knowledge.Data layer)
+var databasePath = settings.DatabasePath ?? Path.Combine(AppContext.BaseDirectory, "data", "knowledge.db");
+builder.Services.AddAnalyticsServices(databasePath);
 
 // Add conversation persistence (SQLite is now used for conversations in Qdrant mode)
 var vectorStoreProvider = settings.VectorStore?.Provider?.ToLower() ?? "mongodb";
@@ -178,6 +183,7 @@ var api = app.MapGroup(ApiConstants.Routes.Api).WithOpenApi();
 api.MapGroup(ApiConstants.Routes.Knowledge).MapKnowledgeEndpoints();
 api.MapGroup(ApiConstants.Routes.Chat).MapChatEndpoints();
 api.MapGroup(ApiConstants.Routes.Ollama).MapOllamaEndpoints();
+api.MapGroup(ApiConstants.Routes.Analytics).MapAnalyticsEndpoints();
 api.MapGroup("").MapHealthEndpoints(); // Health endpoints at root level
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────
