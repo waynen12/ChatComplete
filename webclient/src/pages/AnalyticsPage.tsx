@@ -6,6 +6,7 @@ import { UsageTrendsChart } from "@/components/analytics/UsageTrendsChart";
 import { CostBreakdownChart } from "@/components/analytics/CostBreakdownChart";
 import { ProviderStatusCards } from "@/components/analytics/ProviderStatusCards";
 import { PerformanceMetrics } from "@/components/analytics/PerformanceMetrics";
+import { OpenAIBalanceWidget } from "@/components/analytics/OpenAIBalanceWidget";
 
 interface ModelUsageStats {
   modelName: string;
@@ -230,6 +231,27 @@ export default function AnalyticsPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* OpenAI Balance Widget - Real-time updates */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <OpenAIBalanceWidget className="lg:col-span-1" />
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Real-time Provider Monitoring</CardTitle>
+              <CardDescription>
+                Live updates from your AI provider accounts with balance and usage tracking
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                The OpenAI balance widget updates automatically every 2 minutes via WebSocket connection.
+                More provider widgets will be added as the dashboard expands.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Provider Status Cards */}

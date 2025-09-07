@@ -76,6 +76,9 @@ builder.Services.AddSqlitePersistence(settings);
 // Add analytics services (uses existing DAL from AddSqlitePersistence)
 builder.Services.AddAnalyticsServices(builder.Configuration);
 
+// Add SignalR for real-time analytics updates
+builder.Services.AddSignalR();
+
 // Add conversation persistence (SQLite is now used for conversations in Qdrant mode)
 var vectorStoreProvider = settings.VectorStore?.Provider?.ToLower() ?? "mongodb";
 if (vectorStoreProvider == "qdrant")
@@ -126,8 +129,8 @@ builder.Services.AddCors(options =>
                 .WithOrigins(cors.AllowedOrigins)
                 .WithHeaders(cors.AllowedHeaders)
                 .AllowAnyMethod()
+                .AllowCredentials() // Required for SignalR
                 .SetPreflightMaxAge(TimeSpan.FromHours(cors.MaxAgeHours));
-            // no .AllowCredentials() yet
         }
     );
 });
@@ -161,6 +164,12 @@ builder.Services.AddHttpClient<IOllamaApiService, OllamaApiService>();
 // Register Ollama download service for real-time progress tracking
 builder.Services.AddScoped<OllamaDownloadService>();
 
+// Register analytics update service for real-time WebSocket updates
+builder.Services.Configure<Knowledge.Api.Services.AnalyticsUpdateOptions>(
+    builder.Configuration.GetSection("Analytics:RealTimeUpdates")
+);
+builder.Services.AddHostedService<Knowledge.Api.Services.AnalyticsUpdateService>();
+
 var app = builder.Build();
 
 // Initialize SQLite database for Qdrant deployments
@@ -184,6 +193,9 @@ api.MapGroup(ApiConstants.Routes.Chat).MapChatEndpoints();
 api.MapGroup(ApiConstants.Routes.Ollama).MapOllamaEndpoints();
 api.MapGroup(ApiConstants.Routes.Analytics).MapAnalyticsEndpoints();
 api.MapGroup("").MapHealthEndpoints(); // Health endpoints at root level
+
+// Map SignalR hub for real-time analytics
+app.MapHub<Knowledge.Api.Hubs.AnalyticsHub>("/api/analytics/hub");
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 app.UseSerilogRequestLogging(); // keep logs consistent
