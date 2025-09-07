@@ -28,7 +28,7 @@ public class OpenAIProviderApiService : IProviderApiService
         ConfigureHttpClient();
     }
 
-    public async Task<ProviderAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default)
+    public async Task<ProviderApiAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
         {
@@ -51,7 +51,7 @@ public class OpenAIProviderApiService : IProviderApiService
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             var subscription = JsonSerializer.Deserialize<OpenAISubscription>(content, JsonOptions);
 
-            return new ProviderAccountInfo
+            return new ProviderApiAccountInfo
             {
                 ProviderName = ProviderName,
                 AccountId = subscription?.Organization?.Id,
@@ -73,7 +73,7 @@ public class OpenAIProviderApiService : IProviderApiService
         }
     }
 
-    public async Task<ProviderUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default)
+    public async Task<ProviderApiUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
         {
@@ -114,7 +114,7 @@ public class OpenAIProviderApiService : IProviderApiService
                 })
                 .ToList();
 
-            return new ProviderUsageInfo
+            return new ProviderApiUsageInfo
             {
                 ProviderName = ProviderName,
                 StartDate = startDate,

@@ -26,10 +26,22 @@ public class ProviderAggregationService
             {
                 try
                 {
-                    var accountInfo = await provider.GetAccountInfoAsync(cancellationToken);
-                    if (accountInfo != null)
+                    var apiAccountInfo = await provider.GetAccountInfoAsync(cancellationToken);
+                    if (apiAccountInfo != null)
                     {
-                        return accountInfo;
+                        // Convert from API model to Analytics model
+                        return new ProviderAccountInfo
+                        {
+                            Provider = apiAccountInfo.ProviderName,
+                            IsConnected = provider.IsConfigured,
+                            ApiKeyConfigured = provider.IsConfigured,
+                            LastSyncAt = DateTime.UtcNow,
+                            Balance = apiAccountInfo.Balance,
+                            BalanceUnit = apiAccountInfo.Currency ?? "USD",
+                            MonthlyUsage = apiAccountInfo.CreditUsed ?? 0m,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
                     }
                 }
                 catch (Exception ex)
@@ -55,10 +67,29 @@ public class ProviderAggregationService
             {
                 try
                 {
-                    var usageInfo = await provider.GetUsageInfoAsync(days, cancellationToken);
-                    if (usageInfo != null)
+                    var apiUsageInfo = await provider.GetUsageInfoAsync(days, cancellationToken);
+                    if (apiUsageInfo != null)
                     {
-                        return usageInfo;
+                        // Convert from API model to Analytics model
+                        return new ProviderUsageInfo
+                        {
+                            Provider = apiUsageInfo.ProviderName,
+                            TotalCost = apiUsageInfo.TotalCost,
+                            TotalRequests = apiUsageInfo.TotalRequests,
+                            SuccessRate = 100.0, // Default success rate since API models don't track this
+                            ModelBreakdown = apiUsageInfo.ModelBreakdown.ToDictionary(
+                                m => m.ModelName,
+                                m => new ModelUsageBreakdown
+                                {
+                                    ModelName = m.ModelName,
+                                    Requests = m.Requests,
+                                    TokensUsed = m.InputTokens + m.OutputTokens,
+                                    Cost = m.Cost
+                                }
+                            ),
+                            PeriodStart = apiUsageInfo.StartDate,
+                            PeriodEnd = apiUsageInfo.EndDate
+                        };
                     }
                 }
                 catch (Exception ex)
@@ -87,27 +118,32 @@ public class ProviderAggregationService
         return new ProviderSummary
         {
             TotalProviders = _providerServices.Count(),
-            ConfiguredProviders = _providerServices.Count(p => p.IsConfigured),
-            TotalCost = usages.Sum(u => u.TotalCost),
+            ConnectedProviders = _providerServices.Count(p => p.IsConfigured),
+            TotalMonthlyCost = usages.Sum(u => u.TotalCost),
             TotalRequests = usages.Sum(u => u.TotalRequests),
-            TotalTokens = usages.Sum(u => u.TotalTokens),
-            Currency = usages.FirstOrDefault()?.Currency ?? "USD",
-            AccountSummaries = accounts.Select(a => new ProviderAccountSummary
-            {
-                ProviderName = a.ProviderName,
-                IsConfigured = true,
-                Balance = a.Balance,
-                CreditUsed = a.CreditUsed,
-                PlanType = a.PlanType
-            }).ToList(),
-            UsageSummaries = usages.Select(u => new ProviderUsageSummary
-            {
-                ProviderName = u.ProviderName,
-                Cost = u.TotalCost,
-                Requests = u.TotalRequests,
-                Tokens = u.TotalTokens,
-                TopModel = u.ModelBreakdown.OrderByDescending(m => m.Requests).FirstOrDefault()?.ModelName
-            }).ToList()
+            AverageSuccessRate = usages.Any() ? usages.Average(u => u.SuccessRate) : 0,
+            Providers = accounts.ToDictionary(
+                a => a.Provider,
+                a => new ProviderInfo
+                {
+                    Provider = a.Provider,
+                    IsConnected = a.IsConnected,
+                    MonthlyCost = usages.FirstOrDefault(u => u.Provider == a.Provider)?.TotalCost ?? 0,
+                    RequestCount = usages.FirstOrDefault(u => u.Provider == a.Provider)?.TotalRequests ?? 0,
+                    SuccessRate = usages.FirstOrDefault(u => u.Provider == a.Provider)?.SuccessRate ?? 0
+                }
+            ),
+            ProviderBreakdown = usages.ToDictionary(
+                u => u.Provider,
+                u => new ProviderBreakdown
+                {
+                    Cost = u.TotalCost,
+                    Requests = u.TotalRequests,
+                    SuccessRate = u.SuccessRate,
+                    IsConnected = accounts.Any(a => a.Provider == u.Provider && a.IsConnected)
+                }
+            ),
+            LastUpdated = DateTime.UtcNow
         };
     }
 
@@ -122,32 +158,3 @@ public class ProviderAggregationService
     }
 }
 
-public record ProviderSummary
-{
-    public int TotalProviders { get; init; }
-    public int ConfiguredProviders { get; init; }
-    public decimal TotalCost { get; init; }
-    public int TotalRequests { get; init; }
-    public int TotalTokens { get; init; }
-    public string Currency { get; init; } = "USD";
-    public List<ProviderAccountSummary> AccountSummaries { get; init; } = new();
-    public List<ProviderUsageSummary> UsageSummaries { get; init; } = new();
-}
-
-public record ProviderAccountSummary
-{
-    public string ProviderName { get; init; } = string.Empty;
-    public bool IsConfigured { get; init; }
-    public decimal? Balance { get; init; }
-    public decimal? CreditUsed { get; init; }
-    public string? PlanType { get; init; }
-}
-
-public record ProviderUsageSummary
-{
-    public string ProviderName { get; init; } = string.Empty;
-    public decimal Cost { get; init; }
-    public int Requests { get; init; }
-    public int Tokens { get; init; }
-    public string? TopModel { get; init; }
-}

@@ -9,8 +9,16 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddAnalyticsServices(this IServiceCollection services)
     {
+        // Add caching services (must be registered before cached services)
+        services.AddMemoryCache();
+        services.AddSingleton<IAnalyticsCacheService, AnalyticsCacheService>();
+        services.AddSingleton<IProviderApiRateLimiter, ProviderApiRateLimiter>();
+        
         // Add analytics-specific services (Knowledge.Data repositories already registered by AddSqlitePersistence)
         services.AddScoped<IUsageTrackingService, SqliteUsageTrackingService>();
+        
+        // Add cached analytics services
+        services.AddScoped<ICachedAnalyticsService, CachedAnalyticsService>();
         
         // Add external provider API services
         services.AddHttpClient<OpenAIProviderApiService>();
@@ -22,8 +30,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IProviderApiService, AnthropicProviderApiService>();
         services.AddScoped<IProviderApiService, GoogleAIProviderApiService>();
         
-        // Add aggregation service
+        // Add aggregation services (both regular and cached)
         services.AddScoped<ProviderAggregationService>();
+        services.AddScoped<ICachedProviderAggregationService, CachedProviderAggregationService>();
         
         return services;
     }

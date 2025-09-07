@@ -4,13 +4,13 @@ namespace Knowledge.Analytics.Services;
 
 public interface IProviderApiService
 {
-    Task<ProviderAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default);
-    Task<ProviderUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default);
+    Task<ProviderApiAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default);
+    Task<ProviderApiUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default);
     bool IsConfigured { get; }
     string ProviderName { get; }
 }
 
-public record ProviderAccountInfo
+public record ProviderApiAccountInfo
 {
     public string ProviderName { get; init; } = string.Empty;
     public string? AccountId { get; init; }
@@ -22,7 +22,7 @@ public record ProviderAccountInfo
     public Dictionary<string, object> AdditionalInfo { get; init; } = new();
 }
 
-public record ProviderUsageInfo
+public record ProviderApiUsageInfo
 {
     public string ProviderName { get; init; } = string.Empty;
     public DateTime StartDate { get; init; }

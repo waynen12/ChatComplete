@@ -28,7 +28,7 @@ public class AnthropicProviderApiService : IProviderApiService
         ConfigureHttpClient();
     }
 
-    public async Task<ProviderAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default)
+    public async Task<ProviderApiAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
         {
@@ -42,7 +42,7 @@ public class AnthropicProviderApiService : IProviderApiService
             // This would need to be updated when Anthropic adds these features
             _logger.LogInformation("Anthropic account info endpoint not yet available in public API");
             
-            return new ProviderAccountInfo
+            return new ProviderApiAccountInfo
             {
                 ProviderName = ProviderName,
                 AdditionalInfo = new()
@@ -59,7 +59,7 @@ public class AnthropicProviderApiService : IProviderApiService
         }
     }
 
-    public async Task<ProviderUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default)
+    public async Task<ProviderApiUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
         {
@@ -78,7 +78,7 @@ public class AnthropicProviderApiService : IProviderApiService
             var endDate = DateTime.UtcNow.Date;
             var startDate = endDate.AddDays(-days);
 
-            return new ProviderUsageInfo
+            return new ProviderApiUsageInfo
             {
                 ProviderName = ProviderName,
                 StartDate = startDate,

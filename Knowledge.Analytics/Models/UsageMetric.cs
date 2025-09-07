@@ -51,3 +51,65 @@ public record KnowledgeUsageStats
     public string VectorStore { get; init; } = string.Empty;
     public long TotalFileSize { get; init; }
 }
+
+public record ProviderAccountInfo
+{
+    public string Provider { get; init; } = string.Empty;
+    public bool IsConnected { get; init; }
+    public bool ApiKeyConfigured { get; init; }
+    public DateTime? LastSyncAt { get; init; }
+    public decimal? Balance { get; init; }
+    public string? BalanceUnit { get; init; }
+    public decimal MonthlyUsage { get; init; }
+    public string? ErrorMessage { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
+}
+
+public record ProviderUsageInfo
+{
+    public string Provider { get; init; } = string.Empty;
+    public decimal TotalCost { get; init; }
+    public int TotalRequests { get; init; }
+    public double SuccessRate { get; init; }
+    public Dictionary<string, ModelUsageBreakdown> ModelBreakdown { get; init; } = new();
+    public DateTime PeriodStart { get; init; }
+    public DateTime PeriodEnd { get; init; }
+}
+
+public record ModelUsageBreakdown
+{
+    public string ModelName { get; init; } = string.Empty;
+    public int Requests { get; init; }
+    public int TokensUsed { get; init; }
+    public decimal Cost { get; init; }
+}
+
+public record ProviderInfo
+{
+    public string Provider { get; init; } = string.Empty;
+    public bool IsConnected { get; init; }
+    public decimal MonthlyCost { get; init; }
+    public int RequestCount { get; init; }
+    public double SuccessRate { get; init; }
+}
+
+public record ProviderSummary
+{
+    public int TotalProviders { get; init; }
+    public int ConnectedProviders { get; init; }
+    public decimal TotalMonthlyCost { get; init; }
+    public int TotalRequests { get; init; }
+    public double AverageSuccessRate { get; init; }
+    public Dictionary<string, ProviderInfo> Providers { get; init; } = new();
+    public Dictionary<string, ProviderBreakdown> ProviderBreakdown { get; init; } = new();
+    public DateTime LastUpdated { get; init; }
+}
+
+public record ProviderBreakdown
+{
+    public decimal Cost { get; init; }
+    public int Requests { get; init; }
+    public double SuccessRate { get; init; }
+    public bool IsConnected { get; init; }
+}

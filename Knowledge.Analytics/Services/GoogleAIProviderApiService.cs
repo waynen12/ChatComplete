@@ -28,7 +28,7 @@ public class GoogleAIProviderApiService : IProviderApiService
         ConfigureHttpClient();
     }
 
-    public async Task<ProviderAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default)
+    public async Task<ProviderApiAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
         {
@@ -42,7 +42,7 @@ public class GoogleAIProviderApiService : IProviderApiService
             // This would require Google Cloud Console API integration
             _logger.LogInformation("Google AI billing information requires Cloud Console access");
             
-            return new ProviderAccountInfo
+            return new ProviderApiAccountInfo
             {
                 ProviderName = ProviderName,
                 AdditionalInfo = new()
@@ -60,7 +60,7 @@ public class GoogleAIProviderApiService : IProviderApiService
         }
     }
 
-    public async Task<ProviderUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default)
+    public async Task<ProviderApiUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
         {
@@ -78,7 +78,7 @@ public class GoogleAIProviderApiService : IProviderApiService
             var startDate = endDate.AddDays(-days);
 
             // For now, return a placeholder response indicating the limitation
-            return new ProviderUsageInfo
+            return new ProviderApiUsageInfo
             {
                 ProviderName = ProviderName,
                 StartDate = startDate,

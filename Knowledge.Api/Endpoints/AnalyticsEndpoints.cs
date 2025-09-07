@@ -23,11 +23,11 @@ public static class AnalyticsEndpoints
             .MapGet(
                 "/models",
                 async (
-                    [FromServices] IUsageTrackingService usageService,
+                    [FromServices] ICachedAnalyticsService cachedAnalyticsService,
                     CancellationToken ct
                 ) =>
                 {
-                    var modelStats = await usageService.GetModelUsageStatsAsync(ct);
+                    var modelStats = await cachedAnalyticsService.GetModelUsageStatsAsync(ct);
                     return Results.Ok(modelStats);
                 }
             )
@@ -48,12 +48,12 @@ public static class AnalyticsEndpoints
                     [FromQuery] string? knowledgeId,
                     [FromQuery] AiProvider? provider,
                     [FromQuery] int days,
-                    [FromServices] IUsageTrackingService usageService,
+                    [FromServices] ICachedAnalyticsService cachedAnalyticsService,
                     CancellationToken ct
                 ) =>
                 {
                     days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
-                    var usageHistory = await usageService.GetUsageHistoryAsync(days, ct);
+                    var usageHistory = await cachedAnalyticsService.GetUsageHistoryAsync(days, ct);
 
                     // Filter by knowledgeId if provided
                     if (!string.IsNullOrEmpty(knowledgeId))
@@ -119,11 +119,11 @@ public static class AnalyticsEndpoints
             .MapGet(
                 "/knowledge-bases",
                 async (
-                    [FromServices] IUsageTrackingService usageService,
+                    [FromServices] ICachedAnalyticsService cachedAnalyticsService,
                     CancellationToken ct
                 ) =>
                 {
-                    var knowledgeStats = await usageService.GetKnowledgeUsageStatsAsync(ct);
+                    var knowledgeStats = await cachedAnalyticsService.GetKnowledgeUsageStatsAsync(ct);
                     return Results.Ok(knowledgeStats);
                 }
             )
@@ -143,12 +143,12 @@ public static class AnalyticsEndpoints
                 async (
                     [FromQuery] int days,
                     [FromQuery] AiProvider? provider,
-                    [FromServices] IUsageTrackingService usageService,
+                    [FromServices] ICachedAnalyticsService cachedAnalyticsService,
                     CancellationToken ct
                 ) =>
                 {
                     days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
-                    var usageHistory = await usageService.GetUsageHistoryAsync(days, ct);
+                    var usageHistory = await cachedAnalyticsService.GetUsageHistoryAsync(days, ct);
 
                     // Filter by provider if provided
                     if (provider.HasValue)
@@ -215,11 +215,11 @@ public static class AnalyticsEndpoints
                 "/conversation/{conversationId}",
                 async (
                     [FromRoute] string conversationId,
-                    [FromServices] IUsageTrackingService usageService,
+                    [FromServices] ICachedAnalyticsService cachedAnalyticsService,
                     CancellationToken ct
                 ) =>
                 {
-                    var usageMetric = await usageService.GetUsageByConversationAsync(conversationId, ct);
+                    var usageMetric = await cachedAnalyticsService.GetUsageByConversationAsync(conversationId, ct);
                     if (usageMetric == null)
                     {
                         return Results.NotFound(new { error = "Conversation not found or no usage data available" });
@@ -242,11 +242,11 @@ public static class AnalyticsEndpoints
             .MapGet(
                 "/providers/accounts",
                 async (
-                    [FromServices] ProviderAggregationService aggregationService,
+                    [FromServices] ICachedProviderAggregationService cachedAggregationService,
                     CancellationToken ct
                 ) =>
                 {
-                    var accountInfos = await aggregationService.GetAllAccountInfoAsync(ct);
+                    var accountInfos = await cachedAggregationService.GetAllAccountInfoAsync(ct);
                     return Results.Ok(accountInfos);
                 }
             )
@@ -265,12 +265,12 @@ public static class AnalyticsEndpoints
                 "/providers/usage",
                 async (
                     [FromQuery] int days,
-                    [FromServices] ProviderAggregationService aggregationService,
+                    [FromServices] ICachedProviderAggregationService cachedAggregationService,
                     CancellationToken ct
                 ) =>
                 {
                     days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
-                    var usageInfos = await aggregationService.GetAllUsageInfoAsync(days, ct);
+                    var usageInfos = await cachedAggregationService.GetAllUsageInfoAsync(days, ct);
                     return Results.Ok(usageInfos);
                 }
             )
@@ -299,12 +299,12 @@ public static class AnalyticsEndpoints
                 "/providers/summary",
                 async (
                     [FromQuery] int days,
-                    [FromServices] ProviderAggregationService aggregationService,
+                    [FromServices] ICachedProviderAggregationService cachedAggregationService,
                     CancellationToken ct
                 ) =>
                 {
                     days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
-                    var summary = await aggregationService.GetProviderSummaryAsync(days, ct);
+                    var summary = await cachedAggregationService.GetProviderSummaryAsync(days, ct);
                     return Results.Ok(summary);
                 }
             )
@@ -331,10 +331,10 @@ public static class AnalyticsEndpoints
         group
             .MapGet(
                 "/providers/status",
-                ([FromServices] ProviderAggregationService aggregationService) =>
+                async ([FromServices] ICachedProviderAggregationService cachedAggregationService, CancellationToken ct) =>
                 {
-                    var configured = aggregationService.GetConfiguredProviders();
-                    var unconfigured = aggregationService.GetUnconfiguredProviders();
+                    var configured = await cachedAggregationService.GetConfiguredProvidersAsync(ct);
+                    var unconfigured = await cachedAggregationService.GetUnconfiguredProvidersAsync(ct);
                     
                     return Results.Ok(new
                     {
@@ -406,12 +406,12 @@ public static class AnalyticsEndpoints
                 async (
                     [FromQuery] string? knowledgeId,
                     [FromQuery] int days,
-                    [FromServices] IUsageTrackingService usageService,
+                    [FromServices] ICachedAnalyticsService cachedAnalyticsService,
                     CancellationToken ct
                 ) =>
                 {
                     days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
-                    var usageHistory = await usageService.GetUsageHistoryAsync(days, ct);
+                    var usageHistory = await cachedAnalyticsService.GetUsageHistoryAsync(days, ct);
 
                     // Filter by knowledge ID if provided
                     var filteredUsage = string.IsNullOrEmpty(knowledgeId) 
