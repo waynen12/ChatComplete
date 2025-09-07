@@ -17,6 +17,9 @@ export default function AppLayout() {
             <Button asChild variant="ghost" size="sm">
               <NavLink to="/chat">Chat</NavLink>
             </Button>
+            <Button asChild variant="ghost" size="sm">
+              <NavLink to="/analytics">Analytics</NavLink>
+            </Button>
             <ThemeToggle />
           </div>
         </nav>

@@ -17,9 +17,6 @@ export default function LandingPage() {
           <Button asChild size="lg">
             <Link to="/knowledge">Manage Knowledge</Link>
           </Button>
-          <Button asChild variant="secondary" size="lg">
-            <Link to="/chat">Chat with AI</Link>
-          </Button>
         </div>
       </section>
     </main>

@@ -8,6 +8,7 @@ import LandingPage from "./pages/LandingPage";
 import KnowledgeListPage from "./pages/KnowledgeListPage";
 import KnowledgeFormPage from "./pages/KnowledgeFormPage";
 import ChatPage from "./pages/ChatPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import { Suspense } from "react";
 import {PageWrapper} from "./layouts/PageWrapper";
@@ -33,6 +34,10 @@ const routes: RouteObject[] = [
           { index: true, element: <ChatPage /> },
           { path: ":id", element: <ChatPage /> },
         ],
+      },
+      {
+        path: "analytics",
+        element: <PageWrapper><AnalyticsPage /></PageWrapper>,
       },
       { path: "*", element: <NotFoundPage /> },
     ],
