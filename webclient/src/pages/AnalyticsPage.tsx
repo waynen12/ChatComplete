@@ -1,6 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { UsageTrendsChart } from "@/components/analytics/UsageTrendsChart";
+import { CostBreakdownChart } from "@/components/analytics/CostBreakdownChart";
+import { ProviderStatusCards } from "@/components/analytics/ProviderStatusCards";
+import { PerformanceMetrics } from "@/components/analytics/PerformanceMetrics";
 
 interface ModelUsageStats {
   modelName: string;
@@ -33,34 +38,74 @@ interface KnowledgeUsageStats {
 export default function AnalyticsPage() {
   const [modelStats, setModelStats] = useState<ModelUsageStats[]>([]);
   const [knowledgeStats, setKnowledgeStats] = useState<KnowledgeUsageStats[]>([]);
+  const [usageTrends, setUsageTrends] = useState<any[]>([]);
+  const [costBreakdown, setCostBreakdown] = useState<any[]>([]);
+  const [providerAccounts, setProviderAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [
+        modelsResponse, 
+        knowledgeResponse, 
+        trendsResponse,
+        costResponse,
+        accountsResponse
+      ] = await Promise.all([
+        fetch('/api/analytics/models'),
+        fetch('/api/analytics/knowledge-bases'),
+        fetch('/api/analytics/usage-trends?days=7'),
+        fetch('/api/analytics/cost-breakdown?days=30'),
+        fetch('/api/analytics/providers/accounts')
+      ]);
+
+      if (modelsResponse.ok) {
+        const models = await modelsResponse.json();
+        setModelStats(models);
+      }
+
+      if (knowledgeResponse.ok) {
+        const knowledge = await knowledgeResponse.json();
+        setKnowledgeStats(knowledge);
+      }
+
+      if (trendsResponse.ok) {
+        const trends = await trendsResponse.json();
+        setUsageTrends(trends);
+      }
+
+      if (costResponse.ok) {
+        const cost = await costResponse.json();
+        setCostBreakdown(cost);
+      }
+
+      if (accountsResponse.ok) {
+        const accounts = await accountsResponse.json();
+        setProviderAccounts(accounts);
+      }
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        const [modelsResponse, knowledgeResponse] = await Promise.all([
-          fetch('/api/analytics/models'),
-          fetch('/api/analytics/knowledge-bases')
-        ]);
-
-        if (modelsResponse.ok) {
-          const models = await modelsResponse.json();
-          setModelStats(models);
-        }
-
-        if (knowledgeResponse.ok) {
-          const knowledge = await knowledgeResponse.json();
-          setKnowledgeStats(knowledge);
-        }
-      } catch (error) {
-        console.error('Failed to fetch analytics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAnalytics();
-  }, []);
+  }, [fetchAnalytics]);
+
+  // Auto-refresh every 30 seconds if enabled
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      fetchAnalytics();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchAnalytics, autoRefresh]);
 
   if (loading) {
     return (
@@ -118,6 +163,18 @@ export default function AnalyticsPage() {
             Monitor your AI model usage, performance, and knowledge base activity
           </p>
         </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={autoRefresh ? "default" : "outline"}
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            {autoRefresh ? '⏸️' : '▶️'} Auto-refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchAnalytics}>
+            🔄 Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -174,6 +231,23 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Provider Status Cards */}
+      <ProviderStatusCards 
+        accounts={providerAccounts}
+        usage={costBreakdown}
+        loading={loading}
+        onRefresh={fetchAnalytics}
+      />
+
+      {/* Charts Section */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <UsageTrendsChart data={usageTrends} loading={loading} />
+        <CostBreakdownChart data={costBreakdown} loading={loading} />
+      </div>
+
+      {/* Performance Metrics */}
+      <PerformanceMetrics data={modelStats} loading={loading} />
 
       {/* Model Performance Table */}
       <Card>
