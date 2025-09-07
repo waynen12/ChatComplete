@@ -1,13 +1,14 @@
 using Knowledge.Analytics.Services;
 using Knowledge.Data.Interfaces;
 using Knowledge.Data.Repositories;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Knowledge.Analytics.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddAnalyticsServices(this IServiceCollection services)
+    public static IServiceCollection AddAnalyticsServices(this IServiceCollection services, IConfiguration configuration)
     {
         // Add caching services (must be registered before cached services)
         services.AddMemoryCache();
@@ -33,6 +34,11 @@ public static class ServiceCollectionExtensions
         // Add aggregation services (both regular and cached)
         services.AddScoped<ProviderAggregationService>();
         services.AddScoped<ICachedProviderAggregationService, CachedProviderAggregationService>();
+        
+        // Add background sync services
+        services.Configure<BackgroundSyncOptions>(configuration.GetSection("Analytics:BackgroundSync"));
+        services.AddSingleton<IBackgroundSyncService, BackgroundSyncService>();
+        services.AddHostedService<BackgroundSyncService>();
         
         return services;
     }

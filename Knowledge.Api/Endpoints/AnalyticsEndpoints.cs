@@ -473,6 +473,86 @@ public static class AnalyticsEndpoints
             })
             .WithTags("Analytics");
 
+        // GET /api/analytics/sync/status
+        group
+            .MapGet(
+                "/sync/status",
+                ([FromServices] IBackgroundSyncService backgroundSyncService) =>
+                {
+                    var status = backgroundSyncService.GetSyncStatus();
+                    return Results.Ok(status);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get background sync service status";
+                op.Description = "Returns the current status of the background sync service including last sync times, next sync schedule, and sync statistics.";
+                return op;
+            })
+            .Produces<BackgroundSyncStatus>()
+            .WithTags("Analytics");
+
+        // POST /api/analytics/sync/trigger
+        group
+            .MapPost(
+                "/sync/trigger",
+                async (
+                    [FromQuery] string? type,
+                    [FromServices] IBackgroundSyncService backgroundSyncService,
+                    CancellationToken ct
+                ) =>
+                {
+                    try
+                    {
+                        switch (type?.ToLower())
+                        {
+                            case "accounts":
+                                await backgroundSyncService.SyncProviderAccountsAsync(ct);
+                                return Results.Ok(new { message = "Account sync triggered successfully", type = "accounts" });
+                            case "usage":
+                                await backgroundSyncService.SyncProviderUsageAsync(ct);
+                                return Results.Ok(new { message = "Usage sync triggered successfully", type = "usage" });
+                            case "all":
+                            case null:
+                                await backgroundSyncService.SyncAllProvidersAsync(ct);
+                                return Results.Ok(new { message = "Full sync triggered successfully", type = "all" });
+                            default:
+                                return Results.BadRequest(new { error = "Invalid sync type. Use 'accounts', 'usage', or 'all'" });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return Results.Problem(
+                            title: "Sync Failed",
+                            detail: ex.Message,
+                            statusCode: 500
+                        );
+                    }
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Manually trigger background sync";
+                op.Description = "Triggers an immediate sync of provider data. Use 'type' parameter to specify 'accounts', 'usage', or 'all'.";
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "type",
+                    In = ParameterLocation.Query,
+                    Description = "Type of sync to trigger: 'accounts', 'usage', or 'all' (default)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "string", Enum = new List<IOpenApiAny>
+                    {
+                        new OpenApiString("accounts"),
+                        new OpenApiString("usage"),
+                        new OpenApiString("all")
+                    }}
+                });
+                
+                return op;
+            })
+            .WithTags("Analytics");
+
         return group;
     }
 }

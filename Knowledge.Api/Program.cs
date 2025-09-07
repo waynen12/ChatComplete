@@ -74,7 +74,7 @@ builder.Services.AddSingleton<KernelFactory>();
 builder.Services.AddSqlitePersistence(settings);
 
 // Add analytics services (uses existing DAL from AddSqlitePersistence)
-builder.Services.AddAnalyticsServices();
+builder.Services.AddAnalyticsServices(builder.Configuration);
 
 // Add conversation persistence (SQLite is now used for conversations in Qdrant mode)
 var vectorStoreProvider = settings.VectorStore?.Provider?.ToLower() ?? "mongodb";
