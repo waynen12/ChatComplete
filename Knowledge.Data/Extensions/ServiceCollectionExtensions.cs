@@ -14,6 +14,8 @@ public static class ServiceCollectionExtensions
         // Register repositories
         services.AddScoped<IOllamaRepository, SqliteOllamaRepository>();
         services.AddScoped<IUsageMetricsRepository, SqliteUsageMetricsRepository>();
+        services.AddScoped<IProviderUsageRepository, SqliteProviderUsageRepository>();
+        services.AddScoped<IProviderAccountRepository, SqliteProviderAccountRepository>();
         
         return services;
     }

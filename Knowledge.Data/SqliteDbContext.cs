@@ -60,6 +60,7 @@ public class SqliteDbContext : IDisposable
         await CreateKnowledgeMetadataTablesAsync();
         await CreateOllamaModelTablesAsync();
         await CreateUsageMetricsTablesAsync();
+        await CreateProviderTrackingTablesAsync();
         await MigrateDatabaseAsync();
     }
 
@@ -272,6 +273,46 @@ public class SqliteDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_usage_metrics_knowledge ON UsageMetrics(KnowledgeId);
             CREATE INDEX IF NOT EXISTS idx_usage_metrics_provider ON UsageMetrics(Provider);
             CREATE INDEX IF NOT EXISTS idx_usage_metrics_model ON UsageMetrics(ModelName);
+            """;
+
+        await ExecuteNonQueryAsync(sql);
+    }
+
+    private async Task CreateProviderTrackingTablesAsync()
+    {
+        const string sql = """
+            CREATE TABLE IF NOT EXISTS ProviderUsage (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Provider VARCHAR(50) NOT NULL,
+                ModelName VARCHAR(100),
+                UsageDate DATE NOT NULL,
+                TokensUsed INTEGER DEFAULT 0,
+                CostUSD DECIMAL(10,4) DEFAULT 0,
+                RequestCount INTEGER DEFAULT 0,
+                SuccessRate DECIMAL(5,2) DEFAULT 100.00,
+                AvgResponseTimeMs DECIMAL(8,2),
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS ProviderAccounts (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Provider VARCHAR(50) NOT NULL UNIQUE,
+                IsConnected BOOLEAN DEFAULT 0,
+                ApiKeyConfigured BOOLEAN DEFAULT 0,
+                LastSyncAt DATETIME,
+                Balance DECIMAL(10,4),
+                BalanceUnit VARCHAR(20),
+                MonthlyUsage DECIMAL(10,4) DEFAULT 0,
+                ErrorMessage TEXT,
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_provider_usage_provider ON ProviderUsage(Provider);
+            CREATE INDEX IF NOT EXISTS idx_provider_usage_date ON ProviderUsage(UsageDate);
+            CREATE INDEX IF NOT EXISTS idx_provider_usage_model ON ProviderUsage(ModelName);
+            CREATE INDEX IF NOT EXISTS idx_provider_accounts_provider ON ProviderAccounts(Provider);
             """;
 
         await ExecuteNonQueryAsync(sql);

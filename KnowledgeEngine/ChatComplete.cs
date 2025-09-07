@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
+using Knowledge.Analytics.Models;
+using Knowledge.Analytics.Services;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Agents.Plugins;
@@ -27,6 +29,7 @@ namespace KnowledgeEngine
         private readonly IOptions<ChatCompleteSettings> _options;
         private readonly ConcurrentDictionary<string, Kernel> _kernels = new();
         private readonly IOllamaRepository? _ollamaRepository;
+        private readonly IUsageTrackingService? _usageTrackingService;
         
 
         public ChatComplete(
@@ -42,6 +45,9 @@ namespace KnowledgeEngine
             
             // Try to get the Ollama repository for tool support detection
             _ollamaRepository = serviceProvider.GetService<IOllamaRepository>();
+            
+            // Try to get the usage tracking service for analytics
+            _usageTrackingService = serviceProvider.GetService<IUsageTrackingService>();
             
             // Load file-based prompt plugins
             LoadPromptPlugins();
@@ -254,6 +260,33 @@ namespace KnowledgeEngine
             return result.Trim();
         }
 
+        private static string? ExtractConversationId(ChatHistory chatHistory)
+        {
+            // Try to find conversation ID in the chat history metadata or system messages
+            // This is a simple implementation - could be enhanced based on how conversation IDs are stored
+            try
+            {
+                var systemMessage = chatHistory.FirstOrDefault(m => m.Role == AuthorRole.System);
+                if (systemMessage?.Content != null)
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(
+                        systemMessage.Content, 
+                        @"ConversationId:\s*([a-fA-F0-9-]+)"
+                    );
+                    if (match.Success)
+                    {
+                        return match.Groups[1].Value;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to extract conversation ID: {ex.Message}");
+            }
+            
+            return null;
+        }
+
         [Experimental("SKEXP0070")]
         private Kernel GetOrCreateKernel(AiProvider provider, string? ollamaModel = null)
         {
@@ -323,91 +356,157 @@ namespace KnowledgeEngine
             CancellationToken ct = default
         )
         {
-            var kernel = GetOrCreateKernel(provider, ollamaModel);
-            var chatService = kernel.GetRequiredService<IChatCompletionService>();
-            string systemMessage = await GetSystemPromptAsync(useExtendedInstructions, false);
-            chatHistory.AddSystemMessage(systemMessage);
-
-            // 1. Vector search using new KnowledgeManager
-            var searchResults = new List<KnowledgeSearchResult>();
-
-            if (!string.IsNullOrEmpty(knowledgeId))
-            {
-                searchResults = await _knowledgeManager.SearchAsync(
-                    knowledgeId,
-                    userMessage,
-                    limit: 10,
-                    minRelevanceScore: 0.6,
-                    cancellationToken: ct
-                );
-            }
-
-            // 2. Convert to ordered distinct strings
-            IEnumerable<string> contextChunks = searchResults
-                .OrderBy(r => r.ChunkOrder)
-                .Select(r => r.Text)
-                .Distinct();
-
-            var enumerable = contextChunks.ToList();
-            var contextBlock = enumerable.Any()
-                ? string.Join("\n---\n", enumerable)
-                : "No relevant documentation was found for this query.";
-
-            // 3. Build prompt & call GPT using template
-            var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, enumerable.Any() ? contextBlock : null);
-            chatHistory.AddUserMessage(userPrompt);
-
-            double resolvedTemperature =
-                apiTemperature < 0 ? _settings.Temperature : apiTemperature;
-            PromptExecutionSettings execSettings;
-
-            switch (provider)
-            {
-                case AiProvider.OpenAi:
-                default:
-                    execSettings = new OpenAIPromptExecutionSettings
-                    {
-                        Temperature = resolvedTemperature, // 0-1 or whatever you passed
-                        TopP = 1, // keep defaults or expose later
-                        MaxTokens = 4096,
-                    };
-                    break;
-                case AiProvider.Google:
-                    execSettings = new GeminiPromptExecutionSettings()
-                    {
-                        Temperature = resolvedTemperature,
-                        TopP = 1,
-                        MaxTokens = 4096,
-                    };
-                    break;
-                case AiProvider.Anthropic:
-                    execSettings = new AnthropicPromptExecutionSettings()
-                    {
-                        Temperature = resolvedTemperature,
-                        TopP = 1,
-                        MaxTokens = 4096,
-                    };
-                    break;
-            }
-
-            var responseStream = chatService.GetStreamingChatMessageContentsAsync(
-                chatHistory,
-                execSettings,
-                null,
-                ct
-            );
-            var assistant = new System.Text.StringBuilder();
-
-            await foreach (var chunk in responseStream.WithCancellation(ct))
-            {
-                assistant.Append(chunk.Content);
-            }
-
-            var response = assistant.Length > 0
-                ? assistant.ToString().Trim()
-                : "There was no response from the AI.";
+            var startTime = DateTime.UtcNow;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            bool wasSuccessful = false;
+            string? conversationId = null;
+            int totalTokens = 0;
             
-            return StripThinkingSections(response);
+            try
+            {
+                var kernel = GetOrCreateKernel(provider, ollamaModel);
+                var chatService = kernel.GetRequiredService<IChatCompletionService>();
+                string systemMessage = await GetSystemPromptAsync(useExtendedInstructions, false);
+                chatHistory.AddSystemMessage(systemMessage);
+
+                // Extract conversation ID from chat history if available
+                conversationId = ExtractConversationId(chatHistory) ?? Guid.NewGuid().ToString();
+
+                // 1. Vector search using new KnowledgeManager
+                var searchResults = new List<KnowledgeSearchResult>();
+
+                if (!string.IsNullOrEmpty(knowledgeId))
+                {
+                    searchResults = await _knowledgeManager.SearchAsync(
+                        knowledgeId,
+                        userMessage,
+                        limit: 10,
+                        minRelevanceScore: 0.6,
+                        cancellationToken: ct
+                    );
+                }
+
+                // 2. Convert to ordered distinct strings
+                IEnumerable<string> contextChunks = searchResults
+                    .OrderBy(r => r.ChunkOrder)
+                    .Select(r => r.Text)
+                    .Distinct();
+
+                var enumerable = contextChunks.ToList();
+                var contextBlock = enumerable.Any()
+                    ? string.Join("\n---\n", enumerable)
+                    : "No relevant documentation was found for this query.";
+
+                // 3. Build prompt & call GPT using template
+                var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, enumerable.Any() ? contextBlock : null);
+                chatHistory.AddUserMessage(userPrompt);
+
+                double resolvedTemperature =
+                    apiTemperature < 0 ? _settings.Temperature : apiTemperature;
+                PromptExecutionSettings execSettings;
+
+                switch (provider)
+                {
+                    case AiProvider.OpenAi:
+                    default:
+                        execSettings = new OpenAIPromptExecutionSettings
+                        {
+                            Temperature = resolvedTemperature, // 0-1 or whatever you passed
+                            TopP = 1, // keep defaults or expose later
+                            MaxTokens = 4096,
+                        };
+                        break;
+                    case AiProvider.Google:
+                        execSettings = new GeminiPromptExecutionSettings()
+                        {
+                            Temperature = resolvedTemperature,
+                            TopP = 1,
+                            MaxTokens = 4096,
+                        };
+                        break;
+                    case AiProvider.Anthropic:
+                        execSettings = new AnthropicPromptExecutionSettings()
+                        {
+                            Temperature = resolvedTemperature,
+                            TopP = 1,
+                            MaxTokens = 4096,
+                        };
+                        break;
+                }
+
+                var responseStream = chatService.GetStreamingChatMessageContentsAsync(
+                    chatHistory,
+                    execSettings,
+                    null,
+                    ct
+                );
+                var assistant = new System.Text.StringBuilder();
+
+                await foreach (var chunk in responseStream.WithCancellation(ct))
+                {
+                    assistant.Append(chunk.Content);
+                    
+                    // Estimate token usage from content length (rough approximation: 1 token ≈ 4 characters)
+                    if (!string.IsNullOrEmpty(chunk.Content))
+                    {
+                        totalTokens += chunk.Content.Length / 4;
+                    }
+                }
+
+                var response = assistant.Length > 0
+                    ? assistant.ToString().Trim()
+                    : "There was no response from the AI.";
+                
+                wasSuccessful = !string.IsNullOrEmpty(response) && !response.Contains("There was no response from the AI.");
+                
+                // Include input tokens in estimate (user message + system prompt + context)
+                var inputContent = userMessage + systemMessage + (enumerable.Any() ? contextBlock : "");
+                totalTokens += inputContent.Length / 4;
+                
+                return StripThinkingSections(response);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Error in AskAsync: {ex.Message}");
+                wasSuccessful = false;
+                throw;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                
+                // Track usage metrics if service is available
+                if (_usageTrackingService != null)
+                {
+                    try
+                    {
+                        var modelName = provider == AiProvider.Ollama ? ollamaModel : provider.ToString();
+                        
+                        var usageMetric = new UsageMetric
+                        {
+                            ConversationId = conversationId ?? Guid.NewGuid().ToString(),
+                            KnowledgeId = knowledgeId,
+                            Provider = provider,
+                            ModelName = modelName ?? provider.ToString(),
+                            Timestamp = startTime,
+                            ResponseTime = stopwatch.Elapsed,
+                            InputTokens = totalTokens / 2, // Rough split between input and output
+                            OutputTokens = totalTokens - (totalTokens / 2),
+                            WasSuccessful = wasSuccessful,
+                            Temperature = apiTemperature < 0 ? _settings.Temperature : apiTemperature,
+                            UsedAgentCapabilities = false, // Standard chat doesn't use agent capabilities
+                            ToolExecutions = 0
+                        };
+                        
+                        await _usageTrackingService.TrackUsageAsync(usageMetric, ct);
+                        Console.WriteLine($"📊 Usage tracked: {provider}/{modelName} - {totalTokens} tokens - {stopwatch.ElapsedMilliseconds}ms - Success: {wasSuccessful}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"⚠️ Failed to track usage: {ex.Message}");
+                    }
+                }
+            }
         }
 
         [Experimental("SKEXP0070")]
@@ -423,11 +522,19 @@ namespace KnowledgeEngine
             CancellationToken ct = default
         )
         {
+            var startTime = DateTime.UtcNow;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            bool wasSuccessful = false;
+            string? conversationId = null;
+            int totalTokens = 0;
             var response = new AgentChatResponse();
 
             try
             {
                 Console.WriteLine($"🤖 AskWithAgentAsync called - Provider: {provider}, Model: {ollamaModel}, EnableTools: {enableAgentTools}");
+                
+                // Extract conversation ID from chat history if available
+                conversationId = ExtractConversationId(chatHistory) ?? Guid.NewGuid().ToString();
                 
                 var kernel = GetOrCreateKernel(provider, ollamaModel);
 
@@ -641,11 +748,27 @@ namespace KnowledgeEngine
                     ? assistant.ToString().Trim()
                     : "There was no response from the AI.";
                 
+                // Estimate token usage from response content
+                if (!string.IsNullOrEmpty(rawResponse))
+                {
+                    totalTokens += rawResponse.Length / 4;
+                }
+                
+                // Include input tokens in estimate (user message + system prompt)
+                var systemPrompt = await GetSystemPromptAsync(useExtendedInstructions, true);
+                var inputContent = userMessage + systemPrompt;
+                totalTokens += inputContent.Length / 4;
+                
+                wasSuccessful = !string.IsNullOrEmpty(rawResponse) && !rawResponse.Contains("There was no response from the AI.");
+                
                 response.Response = StripThinkingSections(rawResponse);
                 return response;
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"⚠️ Error in AskWithAgentAsync: {ex.Message}");
+                wasSuccessful = false;
+                
                 // Graceful degradation - fall back to traditional chat
                 response.Response = await AskAsync(
                     userMessage,
@@ -667,6 +790,42 @@ namespace KnowledgeEngine
                     }
                 );
                 return response;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                
+                // Track usage metrics if service is available
+                if (_usageTrackingService != null)
+                {
+                    try
+                    {
+                        var modelName = provider == AiProvider.Ollama ? ollamaModel : provider.ToString();
+                        
+                        var usageMetric = new UsageMetric
+                        {
+                            ConversationId = conversationId ?? Guid.NewGuid().ToString(),
+                            KnowledgeId = knowledgeId,
+                            Provider = provider,
+                            ModelName = modelName ?? provider.ToString(),
+                            Timestamp = startTime,
+                            ResponseTime = stopwatch.Elapsed,
+                            InputTokens = totalTokens / 2, // Rough split between input and output
+                            OutputTokens = totalTokens - (totalTokens / 2),
+                            WasSuccessful = wasSuccessful,
+                            Temperature = apiTemperature < 0 ? _settings.Temperature : apiTemperature,
+                            UsedAgentCapabilities = response.UsedAgentCapabilities,
+                            ToolExecutions = response.ToolExecutions?.Count ?? 0
+                        };
+                        
+                        await _usageTrackingService.TrackUsageAsync(usageMetric, ct);
+                        Console.WriteLine($"📊 Agent usage tracked: {provider}/{modelName} - {totalTokens} tokens - {stopwatch.ElapsedMilliseconds}ms - Success: {wasSuccessful} - Agent: {response.UsedAgentCapabilities}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"⚠️ Failed to track agent usage: {ex.Message}");
+                    }
+                }
             }
         }
 

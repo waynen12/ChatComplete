@@ -1,6 +1,7 @@
 using Knowledge.Analytics.Models;
 using Knowledge.Analytics.Services;
 using Knowledge.Contracts.Types;
+using Knowledge.Data.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
@@ -350,6 +351,124 @@ public static class AnalyticsEndpoints
             {
                 op.Summary = "Get provider configuration status";
                 op.Description = "Returns the configuration status of all available external AI providers.";
+                return op;
+            })
+            .WithTags("Analytics");
+
+        // GET /api/analytics/cost-breakdown
+        group
+            .MapGet(
+                "/cost-breakdown",
+                async (
+                    [FromQuery] int days,
+                    [FromServices] IProviderUsageRepository providerUsageRepo,
+                    CancellationToken ct
+                ) =>
+                {
+                    days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
+                    var endDate = DateTime.UtcNow.Date;
+                    var startDate = endDate.AddDays(-days);
+                    
+                    var costBreakdown = await providerUsageRepo.GetCostBreakdownAsync(startDate, endDate, ct);
+                    
+                    var results = costBreakdown.Select(cb => new
+                    {
+                        Provider = cb.Provider,
+                        TotalCost = cb.TotalCost,
+                        Period = new { StartDate = startDate, EndDate = endDate, Days = days }
+                    });
+
+                    return Results.Ok(results);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get cost breakdown by provider";
+                op.Description = "Returns total costs spent per provider for the specified time period.";
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "days",
+                    In = ParameterLocation.Query,
+                    Description = "Number of days to analyze (1-365, default: 30)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "integer", Minimum = 1, Maximum = 365, Default = new OpenApiInteger(30) }
+                });
+                
+                return op;
+            })
+            .WithTags("Analytics");
+
+        // GET /api/analytics/knowledge-correlation
+        group
+            .MapGet(
+                "/knowledge-correlation",
+                async (
+                    [FromQuery] string? knowledgeId,
+                    [FromQuery] int days,
+                    [FromServices] IUsageTrackingService usageService,
+                    CancellationToken ct
+                ) =>
+                {
+                    days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
+                    var usageHistory = await usageService.GetUsageHistoryAsync(days, ct);
+
+                    // Filter by knowledge ID if provided
+                    var filteredUsage = string.IsNullOrEmpty(knowledgeId) 
+                        ? usageHistory 
+                        : usageHistory.Where(u => u.KnowledgeId == knowledgeId);
+
+                    // Group by knowledge base and model to show correlations
+                    var correlations = filteredUsage
+                        .Where(u => !string.IsNullOrEmpty(u.KnowledgeId))
+                        .GroupBy(u => new { u.KnowledgeId, u.ModelName, u.Provider })
+                        .Select(g => new
+                        {
+                            KnowledgeId = g.Key.KnowledgeId,
+                            ModelName = g.Key.ModelName,
+                            Provider = g.Key.Provider,
+                            ConversationCount = g.Select(u => u.ConversationId).Distinct().Count(),
+                            TotalTokens = g.Sum(u => u.TotalTokens),
+                            AverageResponseTime = g.Average(u => u.ResponseTime.TotalMilliseconds),
+                            SuccessRate = g.Count(u => u.WasSuccessful) / (double)g.Count() * 100,
+                            LastUsed = g.Max(u => u.Timestamp),
+                            UsageFrequency = g.Count()
+                        })
+                        .OrderByDescending(c => c.ConversationCount)
+                        .ToList();
+
+                    return Results.Ok(new
+                    {
+                        Period = new { Days = days, EndDate = DateTime.UtcNow.Date },
+                        TotalKnowledgeBases = correlations.Select(c => c.KnowledgeId).Distinct().Count(),
+                        TotalModels = correlations.Select(c => new { c.ModelName, c.Provider }).Distinct().Count(),
+                        Correlations = correlations
+                    });
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get knowledge base and model correlation analytics";
+                op.Description = "Returns detailed analytics showing which models are used with which knowledge bases, including usage patterns and performance metrics.";
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "knowledgeId",
+                    In = ParameterLocation.Query,
+                    Description = "Filter by specific knowledge base ID (optional)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "string" }
+                });
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "days",
+                    In = ParameterLocation.Query,
+                    Description = "Number of days to analyze (1-365, default: 30)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "integer", Minimum = 1, Maximum = 365, Default = new OpenApiInteger(30) }
+                });
+                
                 return op;
             })
             .WithTags("Analytics");
