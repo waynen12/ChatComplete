@@ -73,9 +73,8 @@ builder.Services.AddSingleton<KernelFactory>();
 // Add SQLite persistence for zero-dependency deployment
 builder.Services.AddSqlitePersistence(settings);
 
-// Add analytics services (includes Knowledge.Data layer)
-var databasePath = settings.DatabasePath ?? Path.Combine(AppContext.BaseDirectory, "data", "knowledge.db");
-builder.Services.AddAnalyticsServices(databasePath);
+// Add analytics services (uses existing DAL from AddSqlitePersistence)
+builder.Services.AddAnalyticsServices();
 
 // Add conversation persistence (SQLite is now used for conversations in Qdrant mode)
 var vectorStoreProvider = settings.VectorStore?.Provider?.ToLower() ?? "mongodb";

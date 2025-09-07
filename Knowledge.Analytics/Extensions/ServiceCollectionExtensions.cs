@@ -1,17 +1,15 @@
 using Knowledge.Analytics.Services;
-using Knowledge.Data.Extensions;
+using Knowledge.Data.Interfaces;
+using Knowledge.Data.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Knowledge.Analytics.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddAnalyticsServices(this IServiceCollection services, string databasePath)
+    public static IServiceCollection AddAnalyticsServices(this IServiceCollection services)
     {
-        // Add the Knowledge.Data layer
-        services.AddKnowledgeData(databasePath);
-        
-        // Add analytics-specific services
+        // Add analytics-specific services (Knowledge.Data repositories already registered by AddSqlitePersistence)
         services.AddScoped<IUsageTrackingService, SqliteUsageTrackingService>();
         
         // Add external provider API services

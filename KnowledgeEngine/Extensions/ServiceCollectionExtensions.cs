@@ -167,6 +167,10 @@ public static class ServiceCollectionExtensions
         // Use the new Knowledge.Data layer
         services.AddKnowledgeData(databasePath);
 
+        // Register the old SqliteDbContext for legacy repositories (temporary during migration)
+        services.AddSingleton<KnowledgeEngine.Persistence.Sqlite.SqliteDbContext>(provider => 
+            new KnowledgeEngine.Persistence.Sqlite.SqliteDbContext(databasePath));
+
         // Register encryption service (static methods, but good to have for DI)
         services.AddSingleton<EncryptionService>();
 
