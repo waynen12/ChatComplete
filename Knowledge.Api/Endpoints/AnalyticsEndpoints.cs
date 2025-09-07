@@ -236,6 +236,124 @@ public static class AnalyticsEndpoints
             .Produces(404)
             .WithTags("Analytics");
 
+        // GET /api/analytics/providers/accounts
+        group
+            .MapGet(
+                "/providers/accounts",
+                async (
+                    [FromServices] ProviderAggregationService aggregationService,
+                    CancellationToken ct
+                ) =>
+                {
+                    var accountInfos = await aggregationService.GetAllAccountInfoAsync(ct);
+                    return Results.Ok(accountInfos);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get account information for all configured providers";
+                op.Description = "Returns billing and account details from configured external AI providers (OpenAI, Anthropic, Google AI).";
+                return op;
+            })
+            .Produces<List<ProviderAccountInfo>>()
+            .WithTags("Analytics");
+
+        // GET /api/analytics/providers/usage
+        group
+            .MapGet(
+                "/providers/usage",
+                async (
+                    [FromQuery] int days,
+                    [FromServices] ProviderAggregationService aggregationService,
+                    CancellationToken ct
+                ) =>
+                {
+                    days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
+                    var usageInfos = await aggregationService.GetAllUsageInfoAsync(days, ct);
+                    return Results.Ok(usageInfos);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get usage information from external providers";
+                op.Description = "Returns usage metrics and costs from configured external AI providers with breakdown by model.";
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "days",
+                    In = ParameterLocation.Query,
+                    Description = "Number of days to look back (1-365, default: 30)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "integer", Minimum = 1, Maximum = 365, Default = new OpenApiInteger(30) }
+                });
+                
+                return op;
+            })
+            .Produces<List<ProviderUsageInfo>>()
+            .WithTags("Analytics");
+
+        // GET /api/analytics/providers/summary
+        group
+            .MapGet(
+                "/providers/summary",
+                async (
+                    [FromQuery] int days,
+                    [FromServices] ProviderAggregationService aggregationService,
+                    CancellationToken ct
+                ) =>
+                {
+                    days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
+                    var summary = await aggregationService.GetProviderSummaryAsync(days, ct);
+                    return Results.Ok(summary);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get comprehensive provider summary";
+                op.Description = "Returns aggregated summary of all providers including configuration status, total costs, and usage statistics.";
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "days",
+                    In = ParameterLocation.Query,
+                    Description = "Number of days to analyze (1-365, default: 30)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "integer", Minimum = 1, Maximum = 365, Default = new OpenApiInteger(30) }
+                });
+                
+                return op;
+            })
+            .Produces<ProviderSummary>()
+            .WithTags("Analytics");
+
+        // GET /api/analytics/providers/status
+        group
+            .MapGet(
+                "/providers/status",
+                ([FromServices] ProviderAggregationService aggregationService) =>
+                {
+                    var configured = aggregationService.GetConfiguredProviders();
+                    var unconfigured = aggregationService.GetUnconfiguredProviders();
+                    
+                    return Results.Ok(new
+                    {
+                        TotalProviders = configured.Count + unconfigured.Count,
+                        ConfiguredProviders = configured,
+                        UnconfiguredProviders = unconfigured,
+                        ConfigurationStatus = configured.ToDictionary(p => p, _ => "configured")
+                            .Concat(unconfigured.ToDictionary(p => p, _ => "not configured"))
+                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+                    });
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get provider configuration status";
+                op.Description = "Returns the configuration status of all available external AI providers.";
+                return op;
+            })
+            .WithTags("Analytics");
+
         return group;
     }
 }
