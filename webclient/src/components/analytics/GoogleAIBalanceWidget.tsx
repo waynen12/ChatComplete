@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { AlertCircle, DollarSign, Activity, Wifi } from 'lucide-react';
+import { AlertCircle, Cloud, Activity, Wifi } from 'lucide-react';
 import { motion } from 'framer-motion';
 import * as signalR from '@microsoft/signalr';
 
-interface OpenAIBalanceData {
+interface GoogleAIBalanceData {
   provider: string;
   balance?: number;
   balanceUnit?: string;
@@ -16,12 +15,12 @@ interface OpenAIBalanceData {
   updateType?: string;
 }
 
-interface OpenAIBalanceWidgetProps {
+interface GoogleAIBalanceWidgetProps {
   className?: string;
 }
 
-export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ className }) => {
-  const [balanceData, setBalanceData] = useState<OpenAIBalanceData | null>(null);
+export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ className }) => {
+  const [balanceData, setBalanceData] = useState<GoogleAIBalanceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -48,7 +47,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         setConnectionStatus('connected');
         // Re-join analytics group and request initial data
         newConnection.invoke('JoinAnalyticsGroup');
-        newConnection.invoke('RequestProviderData', 'OpenAI');
+        newConnection.invoke('RequestProviderData', 'Google AI');
       });
 
       newConnection.onclose(() => {
@@ -56,25 +55,10 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         setConnectionStatus('disconnected');
       });
 
-      // Listen for OpenAI balance updates
-      newConnection.on('OpenAIBalanceUpdate', (data: OpenAIBalanceData) => {
-        console.log('OpenAI Balance Update:', data);
-        setBalanceData(data);
-        setError(null);
-        setIsLoading(false);
-      });
-
-      // Listen for OpenAI balance errors
-      newConnection.on('OpenAIBalanceError', (errorData: { error: string, timestamp: string }) => {
-        console.error('OpenAI Balance Error:', errorData);
-        setError(errorData.error);
-        setIsLoading(false);
-      });
-
       // Listen for provider data updates (from direct requests)
       newConnection.on('ProviderDataUpdate', (data: { Provider: string, Data: any, Timestamp: string }) => {
-        if (data.Provider.toLowerCase() === 'openai') {
-          console.log('Provider Data Update (OpenAI):', data);
+        if (data.Provider.toLowerCase().includes('google')) {
+          console.log('Provider Data Update (Google AI):', data);
           setBalanceData({
             provider: data.Provider,
             balance: data.Data.balance,
@@ -90,8 +74,8 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
 
       // Listen for provider data errors
       newConnection.on('ProviderDataError', (errorData: { Provider: string, Error: string, Timestamp: string }) => {
-        if (errorData.Provider.toLowerCase() === 'openai') {
-          console.error('Provider Data Error (OpenAI):', errorData);
+        if (errorData.Provider.toLowerCase().includes('google')) {
+          console.error('Provider Data Error (Google AI):', errorData);
           setError(errorData.Error);
           setIsLoading(false);
         }
@@ -103,9 +87,9 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         console.log('SignalR: Connected to analytics hub');
         setConnectionStatus('connected');
         
-        // Join analytics group and request OpenAI data
+        // Join analytics group and request Google AI data
         await newConnection.invoke('JoinAnalyticsGroup');
-        await newConnection.invoke('RequestProviderData', 'OpenAI');
+        await newConnection.invoke('RequestProviderData', 'Google AI');
         
         setConnection(newConnection);
       } catch (error) {
@@ -114,11 +98,11 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         setError('Failed to connect to real-time updates');
         
         // Fallback to REST API
-        fetchOpenAIDataFallback();
+        fetchGoogleAIDataFallback();
       }
     };
 
-    const fetchOpenAIDataFallback = async () => {
+    const fetchGoogleAIDataFallback = async () => {
       try {
         const response = await fetch('/api/analytics/providers/accounts');
         if (!response.ok) {
@@ -126,26 +110,26 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         }
         
         const accounts = await response.json();
-        const openAIAccount = accounts.find((acc: any) => 
-          acc.provider?.toLowerCase() === 'openai'
+        const googleAIAccount = accounts.find((acc: any) => 
+          acc.provider?.toLowerCase().includes('google')
         );
         
-        if (openAIAccount) {
+        if (googleAIAccount) {
           setBalanceData({
-            provider: 'OpenAI',
-            balance: openAIAccount.balance,
-            balanceUnit: openAIAccount.balanceUnit || 'USD',
-            monthlyUsage: openAIAccount.monthlyUsage || 0,
-            isConnected: openAIAccount.isConnected || false,
+            provider: 'Google AI',
+            balance: googleAIAccount.balance,
+            balanceUnit: googleAIAccount.balanceUnit || 'USD',
+            monthlyUsage: googleAIAccount.monthlyUsage || 0,
+            isConnected: googleAIAccount.isConnected || false,
             lastUpdated: new Date().toISOString(),
           });
           setError(null);
         } else {
-          setError('OpenAI account not found or not configured');
+          setError('Google AI account not found or not configured');
         }
       } catch (error) {
-        console.error('Failed to fetch OpenAI data:', error);
-        setError('Failed to fetch OpenAI balance data');
+        console.error('Failed to fetch Google AI data:', error);
+        setError('Failed to fetch Google AI balance data');
       } finally {
         setIsLoading(false);
       }
@@ -159,29 +143,6 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
       }
     };
   }, []);
-
-  const formatCurrency = (amount?: number, unit: string = 'USD') => {
-    if (amount === undefined || amount === null) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: unit,
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const getUsagePercentage = () => {
-    if (!balanceData?.balance || balanceData.balance === 0 || balanceData.balance === null) return 0;
-    return Math.min((balanceData.monthlyUsage / balanceData.balance) * 100, 100);
-  };
-
-  const getStatusColor = () => {
-    if (!balanceData?.isConnected) return 'bg-gray-500';
-    if (balanceData?.balance === null) return 'bg-blue-500'; // Blue for "API working but no billing access"
-    const usage = getUsagePercentage();
-    if (usage > 80) return 'bg-red-500';
-    if (usage > 60) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
 
   const getConnectionIcon = () => {
     switch (connectionStatus) {
@@ -198,8 +159,8 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
     return (
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">OpenAI Balance</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Google AI Balance</CardTitle>
+          <Cloud className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="animate-pulse">
@@ -215,8 +176,8 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
     return (
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">OpenAI Balance</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Google AI Balance</CardTitle>
+          <Cloud className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -232,11 +193,11 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
     return (
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">OpenAI Balance</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Google AI Balance</CardTitle>
+          <Cloud className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No OpenAI data available</p>
+          <p className="text-sm text-muted-foreground">No Google AI data available</p>
         </CardContent>
       </Card>
     );
@@ -251,24 +212,21 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center space-x-2">
-            <CardTitle className="text-sm font-medium">OpenAI Balance</CardTitle>
+            <CardTitle className="text-sm font-medium">Google AI Balance</CardTitle>
             {getConnectionIcon()}
           </div>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Cloud className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {/* Current Balance */}
             <div>
               <div className="text-2xl font-bold">
-                {balanceData.balance !== null 
-                  ? formatCurrency(balanceData.balance, balanceData.balanceUnit)
-                  : 'Not Available'
-                }
+                Not Available
               </div>
               <div className="flex items-center space-x-2">
                 <p className="text-xs text-muted-foreground">
-                  {balanceData.balance !== null ? 'Available balance' : 'Balance requires billing API access'}
+                  Billing data requires Cloud Console access
                 </p>
                 <Badge 
                   variant={balanceData.isConnected ? "default" : "secondary"}
@@ -279,45 +237,32 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
               </div>
             </div>
 
-            {/* Monthly Usage or API Status */}
-            {balanceData.balance !== null ? (
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm text-muted-foreground">Monthly Usage</span>
-                  <span className="text-sm font-medium">
-                    {formatCurrency(balanceData.monthlyUsage, balanceData.balanceUnit)}
-                  </span>
-                </div>
-                <Progress 
-                  value={getUsagePercentage()} 
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {getUsagePercentage().toFixed(1)}% of available balance
-                </p>
-              </div>
-            ) : (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-700">
-                  ✅ API Connected - Billing data not available via API
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  OpenAI billing endpoints require session tokens, not API keys. Visit{' '}
-                  <a href="https://platform.openai.com/account/usage" target="_blank" rel="noopener noreferrer" 
-                     className="underline hover:text-blue-800">
-                    platform.openai.com
-                  </a>{' '}
-                  to view billing information.
-                </p>
-              </div>
-            )}
+            {/* Cloud Console Message */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-700">
+                ✅ API Connected - Billing data not available via API
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Google AI billing requires{' '}
+                <a href="https://cloud.google.com/billing/docs" target="_blank" rel="noopener noreferrer" 
+                   className="underline hover:text-blue-800">
+                  Cloud Console access
+                </a>{' '}
+                and Cloud Billing API setup. Visit the{' '}
+                <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener noreferrer" 
+                   className="underline hover:text-blue-800">
+                  Google Cloud Console
+                </a>{' '}
+                to view billing information.
+              </p>
+            </div>
 
             {/* Last Updated */}
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
                 Last updated: {new Date(balanceData.lastUpdated).toLocaleTimeString()}
               </p>
-              <div className={`w-2 h-2 rounded-full ${getStatusColor()}`}></div>
+              <div className={`w-2 h-2 rounded-full ${balanceData.isConnected ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
             </div>
           </div>
         </CardContent>
