@@ -38,6 +38,8 @@ public class OpenAIProviderApiService : IProviderApiService
 
         try
         {
+            _logger.LogDebug("Attempting to connect to OpenAI API at {BaseAddress}", _httpClient.BaseAddress);
+            
             // Use the models endpoint to verify API key is working and get organization info
             var response = await _httpClient.GetAsync("v1/models", cancellationToken);
             
@@ -68,9 +70,47 @@ public class OpenAIProviderApiService : IProviderApiService
                 }
             };
         }
+        catch (HttpRequestException httpEx)
+        {
+            _logger.LogError(httpEx, "HTTP error when connecting to OpenAI API. This might be a network or SSL issue.");
+            return new ProviderApiAccountInfo
+            {
+                ProviderName = ProviderName,
+                AccountId = "openai-account",
+                Balance = null,
+                Currency = "USD",
+                PlanType = "API",
+                AdditionalInfo = new()
+                {
+                    ["error"] = "SSL/Network connection failed",
+                    ["detailed_error"] = httpEx.Message,
+                    ["api_status"] = "connection_error",
+                    ["is_connected"] = false,
+                    ["troubleshooting"] = "Check network connectivity and SSL configuration"
+                }
+            };
+        }
+        catch (TaskCanceledException taskEx) when (taskEx.InnerException is TimeoutException)
+        {
+            _logger.LogError(taskEx, "Timeout when connecting to OpenAI API");
+            return new ProviderApiAccountInfo
+            {
+                ProviderName = ProviderName,
+                AccountId = "openai-account",
+                Balance = null,
+                Currency = "USD",
+                PlanType = "API",
+                AdditionalInfo = new()
+                {
+                    ["error"] = "Request timeout",
+                    ["api_status"] = "timeout",
+                    ["is_connected"] = false
+                }
+            };
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving OpenAI account information");
+            _logger.LogError(ex, "Unexpected error retrieving OpenAI account information");
             return new ProviderApiAccountInfo
             {
                 ProviderName = ProviderName,
