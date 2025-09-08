@@ -51,7 +51,7 @@ public class CachedProviderAggregationService : ICachedProviderAggregationServic
                 _logger.LogDebug("Fetching provider account info with rate limiting");
                 
                 var accountInfos = new List<ProviderAccountInfo>();
-                var providers = new[] { "OpenAi", "Anthropic", "Google", "Ollama" };
+                var providers = new[] { "OpenAI", "Anthropic", "Google AI", "Ollama" };
                 
                 foreach (var provider in providers)
                 {
@@ -81,9 +81,9 @@ public class CachedProviderAggregationService : ICachedProviderAggregationServic
                         {
                             accountInfo = provider switch
                             {
-                                "OpenAi" => await GetOpenAiAccountInfoAsync(cancellationToken),
+                                "OpenAI" => await GetOpenAiAccountInfoAsync(cancellationToken),
                                 "Anthropic" => await GetAnthropicAccountInfoAsync(cancellationToken),
-                                "Google" => await GetGoogleAccountInfoAsync(cancellationToken),
+                                "Google AI" => await GetGoogleAccountInfoAsync(cancellationToken),
                                 "Ollama" => await GetOllamaAccountInfoAsync(cancellationToken),
                                 _ => null
                             };
@@ -239,7 +239,7 @@ public class CachedProviderAggregationService : ICachedProviderAggregationServic
     private async Task<List<ProviderUsageInfo>> GetUsageInfoWithRateLimitingAsync(int days, CancellationToken cancellationToken)
     {
         var usageInfos = new List<ProviderUsageInfo>();
-        var providers = new[] { "OpenAi", "Anthropic", "Google", "Ollama" };
+        var providers = new[] { "OpenAI", "Anthropic", "Google AI", "Ollama" };
         
         foreach (var provider in providers)
         {
@@ -273,7 +273,7 @@ public class CachedProviderAggregationService : ICachedProviderAggregationServic
     private async Task<ProviderAccountInfo?> GetOpenAiAccountInfoAsync(CancellationToken cancellationToken)
     {
         var accountInfos = await _aggregationService.GetAllAccountInfoAsync(cancellationToken);
-        return accountInfos.FirstOrDefault(a => a.Provider == "OpenAi");
+        return accountInfos.FirstOrDefault(a => a.Provider == "OpenAI");
     }
 
     private async Task<ProviderAccountInfo?> GetAnthropicAccountInfoAsync(CancellationToken cancellationToken)
@@ -285,7 +285,7 @@ public class CachedProviderAggregationService : ICachedProviderAggregationServic
     private async Task<ProviderAccountInfo?> GetGoogleAccountInfoAsync(CancellationToken cancellationToken)
     {
         var accountInfos = await _aggregationService.GetAllAccountInfoAsync(cancellationToken);
-        return accountInfos.FirstOrDefault(a => a.Provider == "Google");
+        return accountInfos.FirstOrDefault(a => a.Provider == "Google AI");
     }
 
     private async Task<ProviderAccountInfo?> GetOllamaAccountInfoAsync(CancellationToken cancellationToken)
