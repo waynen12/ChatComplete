@@ -170,12 +170,13 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
   };
 
   const getUsagePercentage = () => {
-    if (!balanceData?.balance || balanceData.balance === 0) return 0;
+    if (!balanceData?.balance || balanceData.balance === 0 || balanceData.balance === null) return 0;
     return Math.min((balanceData.monthlyUsage / balanceData.balance) * 100, 100);
   };
 
   const getStatusColor = () => {
     if (!balanceData?.isConnected) return 'bg-gray-500';
+    if (balanceData?.balance === null) return 'bg-blue-500'; // Blue for "API working but no billing access"
     const usage = getUsagePercentage();
     if (usage > 80) return 'bg-red-500';
     if (usage > 60) return 'bg-yellow-500';
@@ -260,11 +261,14 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
             {/* Current Balance */}
             <div>
               <div className="text-2xl font-bold">
-                {formatCurrency(balanceData.balance, balanceData.balanceUnit)}
+                {balanceData.balance !== null 
+                  ? formatCurrency(balanceData.balance, balanceData.balanceUnit)
+                  : 'Not Available'
+                }
               </div>
               <div className="flex items-center space-x-2">
                 <p className="text-xs text-muted-foreground">
-                  Available balance
+                  {balanceData.balance !== null ? 'Available balance' : 'Balance requires billing API access'}
                 </p>
                 <Badge 
                   variant={balanceData.isConnected ? "default" : "secondary"}
@@ -275,22 +279,33 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
               </div>
             </div>
 
-            {/* Monthly Usage */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm text-muted-foreground">Monthly Usage</span>
-                <span className="text-sm font-medium">
-                  {formatCurrency(balanceData.monthlyUsage, balanceData.balanceUnit)}
-                </span>
+            {/* Monthly Usage or API Status */}
+            {balanceData.balance !== null ? (
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-muted-foreground">Monthly Usage</span>
+                  <span className="text-sm font-medium">
+                    {formatCurrency(balanceData.monthlyUsage, balanceData.balanceUnit)}
+                  </span>
+                </div>
+                <Progress 
+                  value={getUsagePercentage()} 
+                  className="h-2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {getUsagePercentage().toFixed(1)}% of available balance
+                </p>
               </div>
-              <Progress 
-                value={getUsagePercentage()} 
-                className="h-2"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {getUsagePercentage().toFixed(1)}% of available balance
-              </p>
-            </div>
+            ) : (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-700">
+                  ✅ API Key Working - Balance info requires billing API access
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Regular API keys can't access billing endpoints. Your API key is valid and working.
+                </p>
+              </div>
+            )}
 
             {/* Last Updated */}
             <div className="flex items-center justify-between">
