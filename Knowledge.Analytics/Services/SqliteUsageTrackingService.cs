@@ -87,7 +87,7 @@ public class SqliteUsageTrackingService : IUsageTrackingService
             ORDER BY TotalTokens DESC
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = connection.CreateCommand();
         command.CommandText = sql;
 
@@ -146,7 +146,7 @@ public class SqliteUsageTrackingService : IUsageTrackingService
             ORDER BY QueryCount DESC, kc.Name
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = connection.CreateCommand();
         command.CommandText = sql;
 

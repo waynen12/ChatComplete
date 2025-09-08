@@ -45,6 +45,21 @@ public class SqliteDbContext : IDisposable
     }
 
     /// <summary>
+    /// Creates a new SQLite connection for concurrent operations
+    /// Use this for operations that might run in parallel to avoid connection sharing issues
+    /// </summary>
+    public async Task<SqliteConnection> CreateConnectionAsync()
+    {
+        // Ensure database is initialized with the shared connection first
+        await GetConnectionAsync();
+        
+        // Create a new connection for this operation
+        var newConnection = new SqliteConnection(_connectionString);
+        await newConnection.OpenAsync();
+        return newConnection;
+    }
+
+    /// <summary>
     /// Creates database schema if it doesn't exist
     /// </summary>
     private async Task EnsureDatabaseInitializedAsync()

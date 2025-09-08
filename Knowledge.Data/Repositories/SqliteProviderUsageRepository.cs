@@ -15,7 +15,7 @@ public class SqliteProviderUsageRepository : IProviderUsageRepository
 
     public async Task<IEnumerable<ProviderUsageRecord>> GetUsageByProviderAsync(string provider, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         var sql = "SELECT * FROM ProviderUsage WHERE Provider = @Provider";
         var parameters = new List<SqliteParameter> { new("@Provider", provider) };
 
@@ -49,7 +49,7 @@ public class SqliteProviderUsageRepository : IProviderUsageRepository
 
     public async Task<IEnumerable<ProviderUsageRecord>> GetUsageByModelAsync(string modelName, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         var sql = "SELECT * FROM ProviderUsage WHERE ModelName = @ModelName";
         var parameters = new List<SqliteParameter> { new("@ModelName", modelName) };
 
@@ -83,7 +83,7 @@ public class SqliteProviderUsageRepository : IProviderUsageRepository
 
     public async Task<IEnumerable<ProviderUsageRecord>> GetUsageByDateRangeAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         const string sql = "SELECT * FROM ProviderUsage WHERE UsageDate >= @StartDate AND UsageDate <= @EndDate ORDER BY UsageDate DESC";
 
         using var command = new SqliteCommand(sql, connection);
@@ -103,7 +103,7 @@ public class SqliteProviderUsageRepository : IProviderUsageRepository
 
     public async Task<ProviderUsageRecord?> GetDailyUsageAsync(string provider, string? modelName, DateTime date, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         var sql = "SELECT * FROM ProviderUsage WHERE Provider = @Provider AND UsageDate = @Date";
         var parameters = new List<SqliteParameter>
         {
@@ -132,7 +132,7 @@ public class SqliteProviderUsageRepository : IProviderUsageRepository
 
     public async Task CreateOrUpdateDailyUsageAsync(ProviderUsageRecord usage, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         
         // Check if record exists
         var existing = await GetDailyUsageAsync(usage.Provider, usage.ModelName, usage.UsageDate, cancellationToken);
@@ -190,7 +190,7 @@ public class SqliteProviderUsageRepository : IProviderUsageRepository
 
     public async Task<decimal> GetTotalCostByProviderAsync(string provider, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         var sql = "SELECT SUM(CostUSD) FROM ProviderUsage WHERE Provider = @Provider";
         var parameters = new List<SqliteParameter> { new("@Provider", provider) };
 
@@ -215,7 +215,7 @@ public class SqliteProviderUsageRepository : IProviderUsageRepository
 
     public async Task<IEnumerable<(string Provider, decimal TotalCost)>> GetCostBreakdownAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         var sql = "SELECT Provider, SUM(CostUSD) as TotalCost FROM ProviderUsage WHERE 1=1";
         var parameters = new List<SqliteParameter>();
 

@@ -32,7 +32,7 @@ public class SqliteOllamaRepository : IOllamaRepository
             """;
 
         var models = new List<OllamaModelRecord>();
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
 
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -88,7 +88,7 @@ public class SqliteOllamaRepository : IOllamaRepository
                 UpdatedAt = CURRENT_TIMESTAMP
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         
         command.Parameters.AddWithValue("@name", model.Name);
@@ -119,7 +119,7 @@ public class SqliteOllamaRepository : IOllamaRepository
             WHERE Name = @name
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         command.Parameters.AddWithValue("@name", modelName);
 
@@ -139,7 +139,7 @@ public class SqliteOllamaRepository : IOllamaRepository
             WHERE Name = @name
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         command.Parameters.AddWithValue("@name", modelName);
 
@@ -180,7 +180,7 @@ public class SqliteOllamaRepository : IOllamaRepository
             WHERE Name = @name
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         command.Parameters.AddWithValue("@name", modelName);
         command.Parameters.AddWithValue("@supportsTools", supportsTools);
@@ -193,7 +193,7 @@ public class SqliteOllamaRepository : IOllamaRepository
     /// </summary>
     public async Task DeleteModelAsync(string modelName, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         
         // Start a transaction to ensure both deletions succeed or fail together
         using var transaction = connection.BeginTransaction();
@@ -239,7 +239,7 @@ public class SqliteOllamaRepository : IOllamaRepository
             WHERE ModelName = @modelName
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var updateCommand = new SqliteCommand(updateSql, connection);
         
         updateCommand.Parameters.AddWithValue("@modelName", download.ModelName);
@@ -285,7 +285,7 @@ public class SqliteOllamaRepository : IOllamaRepository
             WHERE ModelName = @modelName
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         command.Parameters.AddWithValue("@modelName", modelName);
 
@@ -322,7 +322,7 @@ public class SqliteOllamaRepository : IOllamaRepository
             """;
 
         var downloads = new List<OllamaDownloadRecord>();
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
 
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -355,7 +355,7 @@ public class SqliteOllamaRepository : IOllamaRepository
               AND UpdatedAt < datetime('now', '-30 days')
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }

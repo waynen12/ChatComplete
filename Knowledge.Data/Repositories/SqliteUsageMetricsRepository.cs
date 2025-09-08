@@ -32,7 +32,7 @@ public class SqliteUsageMetricsRepository : IUsageMetricsRepository
             )
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         
         command.Parameters.AddWithValue("@Id", metric.Id);
@@ -66,7 +66,7 @@ public class SqliteUsageMetricsRepository : IUsageMetricsRepository
             ORDER BY Timestamp DESC
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         command.Parameters.AddWithValue("@Days", days);
 
@@ -111,7 +111,7 @@ public class SqliteUsageMetricsRepository : IUsageMetricsRepository
             LIMIT 1
             """;
 
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         using var command = new SqliteCommand(sql, connection);
         command.Parameters.AddWithValue("@ConversationId", conversationId);
 

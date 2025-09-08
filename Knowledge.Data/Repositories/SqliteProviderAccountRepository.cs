@@ -15,7 +15,7 @@ public class SqliteProviderAccountRepository : IProviderAccountRepository
 
     public async Task<IEnumerable<ProviderAccountRecord>> GetAllAccountsAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         const string sql = "SELECT * FROM ProviderAccounts ORDER BY Provider";
 
         using var command = new SqliteCommand(sql, connection);
@@ -32,7 +32,7 @@ public class SqliteProviderAccountRepository : IProviderAccountRepository
 
     public async Task<ProviderAccountRecord?> GetAccountByProviderAsync(string provider, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         const string sql = "SELECT * FROM ProviderAccounts WHERE Provider = @Provider";
 
         using var command = new SqliteCommand(sql, connection);
@@ -50,7 +50,7 @@ public class SqliteProviderAccountRepository : IProviderAccountRepository
 
     public async Task CreateOrUpdateAccountAsync(ProviderAccountRecord account, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         
         var existing = await GetAccountByProviderAsync(account.Provider, cancellationToken);
         
@@ -110,7 +110,7 @@ public class SqliteProviderAccountRepository : IProviderAccountRepository
 
     public async Task UpdateConnectionStatusAsync(string provider, bool isConnected, string? errorMessage = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         const string sql = """
             UPDATE ProviderAccounts 
             SET IsConnected = @IsConnected, ErrorMessage = @ErrorMessage, UpdatedAt = @UpdatedAt
@@ -130,7 +130,7 @@ public class SqliteProviderAccountRepository : IProviderAccountRepository
 
     public async Task UpdateBalanceAsync(string provider, decimal? balance, string? balanceUnit = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         const string sql = """
             UPDATE ProviderAccounts 
             SET Balance = @Balance, BalanceUnit = @BalanceUnit, UpdatedAt = @UpdatedAt
@@ -150,7 +150,7 @@ public class SqliteProviderAccountRepository : IProviderAccountRepository
 
     public async Task UpdateLastSyncAsync(string provider, DateTime syncTime, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         const string sql = """
             UPDATE ProviderAccounts 
             SET LastSyncAt = @LastSyncAt, UpdatedAt = @UpdatedAt
@@ -169,7 +169,7 @@ public class SqliteProviderAccountRepository : IProviderAccountRepository
 
     public async Task<IEnumerable<string>> GetConnectedProvidersAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.CreateConnectionAsync();
         const string sql = "SELECT Provider FROM ProviderAccounts WHERE IsConnected = 1";
 
         using var command = new SqliteCommand(sql, connection);

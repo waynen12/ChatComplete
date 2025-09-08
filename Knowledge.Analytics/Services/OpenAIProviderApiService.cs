@@ -38,8 +38,8 @@ public class OpenAIProviderApiService : IProviderApiService
 
         try
         {
-            // OpenAI doesn't have a direct account info endpoint, so we'll use organization details
-            var response = await _httpClient.GetAsync("v1/dashboard/billing/subscription", cancellationToken);
+            // Use the models endpoint to verify API key is working and get organization info
+            var response = await _httpClient.GetAsync("v1/models", cancellationToken);
             
             if (!response.IsSuccessStatusCode)
             {
@@ -49,27 +49,42 @@ public class OpenAIProviderApiService : IProviderApiService
             }
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            var subscription = JsonSerializer.Deserialize<OpenAISubscription>(content, JsonOptions);
+            var modelsResponse = JsonSerializer.Deserialize<OpenAIModelsResponse>(content, JsonOptions);
 
+            // Since we can't get billing info with regular API keys, provide basic account info
             return new ProviderApiAccountInfo
             {
                 ProviderName = ProviderName,
-                AccountId = subscription?.Organization?.Id,
-                Balance = subscription?.HardLimitUsd,
+                AccountId = "openai-account", // Generic ID since we can't access organization details
+                Balance = null, // Cannot access billing information with regular API keys
                 Currency = "USD",
-                PlanType = subscription?.PlanType,
+                PlanType = "API", // Generic plan type
                 AdditionalInfo = new()
                 {
-                    ["max_balance"] = subscription?.MaxUsageUsd ?? 0m,
-                    ["organization_name"] = subscription?.Organization?.Name ?? "",
-                    ["is_delinquent"] = subscription?.AccessUntil.HasValue ?? false
+                    ["models_available"] = modelsResponse?.Data?.Count ?? 0,
+                    ["api_status"] = "connected",
+                    ["is_connected"] = true,
+                    ["note"] = "Balance information requires billing API access"
                 }
             };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving OpenAI account information");
-            return null;
+            return new ProviderApiAccountInfo
+            {
+                ProviderName = ProviderName,
+                AccountId = "openai-account",
+                Balance = null,
+                Currency = "USD",
+                PlanType = "API",
+                AdditionalInfo = new()
+                {
+                    ["error"] = ex.Message,
+                    ["api_status"] = "error",
+                    ["is_connected"] = false
+                }
+            };
         }
     }
 
@@ -86,43 +101,21 @@ public class OpenAIProviderApiService : IProviderApiService
             var endDate = DateTime.UtcNow.Date;
             var startDate = endDate.AddDays(-days);
 
-            // OpenAI usage endpoint format: https://api.openai.com/v1/dashboard/billing/usage
-            var url = $"v1/dashboard/billing/usage?start_date={startDate:yyyy-MM-dd}&end_date={endDate:yyyy-MM-dd}";
-            var response = await _httpClient.GetAsync(url, cancellationToken);
+            // OpenAI's billing endpoints require special access, so we'll simulate usage data
+            // In a real scenario, you could track usage from your own application logs
+            _logger.LogInformation("OpenAI usage data not available - billing API requires special access");
 
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Failed to get OpenAI usage info: {StatusCode} {Reason}", 
-                    response.StatusCode, response.ReasonPhrase);
-                return null;
-            }
-
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            var usage = JsonSerializer.Deserialize<OpenAIUsage>(content, JsonOptions);
-
-            if (usage == null)
-                return null;
-
-            var modelBreakdown = usage.DailyUsage
-                .SelectMany(d => d.LineItems)
-                .GroupBy(item => item.Name)
-                .Select(g => new ModelUsageInfo
-                {
-                    ModelName = g.Key,
-                    Requests = g.Sum(x => x.Quantity ?? 0),
-                    Cost = g.Sum(x => x.Cost) / 100m // OpenAI returns cost in cents
-                })
-                .ToList();
-
+            // Return a placeholder response indicating billing API limitations
             return new ProviderApiUsageInfo
             {
                 ProviderName = ProviderName,
                 StartDate = startDate,
                 EndDate = endDate,
-                TotalCost = usage.TotalUsage / 100m, // Convert from cents
+                TotalCost = 0m, // Cannot access billing information
                 Currency = "USD",
-                TotalRequests = modelBreakdown.Sum(m => m.Requests),
-                ModelBreakdown = modelBreakdown
+                TotalRequests = 0,
+                TotalTokens = 0,
+                ModelBreakdown = new List<ModelUsageInfo>()
             };
         }
         catch (Exception ex)
@@ -156,36 +149,16 @@ public class OpenAIProviderApiService : IProviderApiService
 }
 
 // OpenAI API Response Models
-internal record OpenAISubscription
+internal record OpenAIModelsResponse
 {
-    public string? PlanType { get; init; }
-    public decimal? HardLimitUsd { get; init; }
-    public decimal? MaxUsageUsd { get; init; }
-    public DateTime? AccessUntil { get; init; }
-    public OpenAIOrganization? Organization { get; init; }
+    public string Object { get; init; } = string.Empty;
+    public List<OpenAIModel> Data { get; init; } = new();
 }
 
-internal record OpenAIOrganization
+internal record OpenAIModel
 {
-    public string? Id { get; init; }
-    public string? Name { get; init; }
-}
-
-internal record OpenAIUsage
-{
-    public decimal TotalUsage { get; init; }
-    public List<OpenAIDailyUsage> DailyUsage { get; init; } = new();
-}
-
-internal record OpenAIDailyUsage
-{
-    public DateTime Timestamp { get; init; }
-    public List<OpenAILineItem> LineItems { get; init; } = new();
-}
-
-internal record OpenAILineItem
-{
-    public string Name { get; init; } = string.Empty;
-    public decimal Cost { get; init; }
-    public int? Quantity { get; init; }
+    public string Id { get; init; } = string.Empty;
+    public string Object { get; init; } = string.Empty;
+    public long Created { get; init; }
+    public string OwnedBy { get; init; } = string.Empty;
 }
