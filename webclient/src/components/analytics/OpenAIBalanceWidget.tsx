@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, DollarSign, Activity, Wifi } from 'lucide-react';
+import { AlertCircle, Activity, Wifi } from 'lucide-react';
+import OpenAIIcon from '@/components/icons/OpenAIIcon';
 import { motion } from 'framer-motion';
 import * as signalR from '@microsoft/signalr';
 
@@ -199,7 +201,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">OpenAI Balance</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <OpenAIIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="animate-pulse">
@@ -216,7 +218,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">OpenAI Balance</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <OpenAIIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -233,7 +235,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">OpenAI Balance</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <OpenAIIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">No OpenAI data available</p>
@@ -254,7 +256,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
             <CardTitle className="text-sm font-medium">OpenAI Balance</CardTitle>
             {getConnectionIcon()}
           </div>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <OpenAIIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="space-y-3">

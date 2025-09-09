@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Cloud, Activity, Wifi } from 'lucide-react';
+import { AlertCircle, Activity, Wifi } from 'lucide-react';
+import GoogleAIIcon from '@/components/icons/GoogleAIIcon';
 import { motion } from 'framer-motion';
 import * as signalR from '@microsoft/signalr';
 
@@ -160,7 +161,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Google AI Balance</CardTitle>
-          <Cloud className="h-4 w-4 text-muted-foreground" />
+          <GoogleAIIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="animate-pulse">
@@ -177,7 +178,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Google AI Balance</CardTitle>
-          <Cloud className="h-4 w-4 text-muted-foreground" />
+          <GoogleAIIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -194,7 +195,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Google AI Balance</CardTitle>
-          <Cloud className="h-4 w-4 text-muted-foreground" />
+          <GoogleAIIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">No Google AI data available</p>
@@ -215,7 +216,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
             <CardTitle className="text-sm font-medium">Google AI Balance</CardTitle>
             {getConnectionIcon()}
           </div>
-          <Cloud className="h-4 w-4 text-muted-foreground" />
+          <GoogleAIIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
