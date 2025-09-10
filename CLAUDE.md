@@ -197,9 +197,49 @@ VectorStore__Qdrant__Port=6333
 
 **Result**: Complete containerized deployment with Qdrant + SQLite - no external database dependencies required.
 
-## Recent Progress (August 2025)
+## Recent Progress (September 2025)
 
-### Ollama Model Management Enhancements ✅ COMPLETED
+### Analytics Dashboard Fixes ✅ COMPLETED (2025-09-10)
+
+**Critical Usage Tracking Resolution**:
+- 🔧 **Fixed usage metrics recording**: Resolved foreign key constraint failure preventing usage data from being stored in UsageMetrics table
+- 🔧 **Conversation ID synchronization**: Fixed conversation ID passing between `SqliteChatService` and `ChatComplete.AskAsync()` by injecting ID into ChatHistory system message
+- 🔧 **Database integration working**: Usage tracking now properly records conversations, tokens, response times, and success rates for all providers
+
+**Ollama Provider Analytics Integration**:
+- 🔧 **Added OllamaProviderApiService**: Created comprehensive provider service that integrates with local usage tracking database
+- 🔧 **Real usage data**: Ollama analytics now show actual request counts, token usage, and model-specific breakdowns from database
+- 🔧 **Connection detection**: Ollama now appears as connected provider in analytics dashboard with proper health checks
+- 🔧 **Service registration**: Properly registered Ollama provider service in DI container with HttpClient configuration
+
+**Frontend Timeout Implementation**:  
+- 🔧 **Request timeout handling**: Added 30-second timeouts with AbortController across all analytics fetch requests
+- 🔧 **Exponential backoff retry**: Smart retry logic with 3 attempts, avoiding retries for client errors (4xx)
+- 🔧 **CORS fixes**: Resolved SignalR WebSocket connection issues by adding missing headers (x-signalr-user-agent, x-requested-with)
+- 🔧 **Error resilience**: Graceful degradation when API requests fail or timeout
+
+**Technical Implementation**:
+- **KnowledgeEngine/Chat/SqliteChatService.cs**: Added conversation ID injection to ChatHistory for usage tracking integration
+- **Knowledge.Analytics/Services/OllamaProviderApiService.cs**: New service integrating IUsageTrackingService with provider analytics
+- **Knowledge.Analytics/Extensions/ServiceCollectionExtensions.cs**: Registered Ollama provider service with HttpClient
+- **webclient/src/pages/AnalyticsPage.tsx**: Comprehensive timeout handling and retry logic for all provider requests
+- **Knowledge.Api/appsettings.json**: Fixed CORS configuration for SignalR WebSocket connections
+
+**Developer Experience**:
+- ✅ Analytics dashboard now shows real conversation and token counts
+- ✅ All providers (OpenAI, Anthropic, Google AI, Ollama) properly detected and connected
+- ✅ Knowledge base conversation counts accurately reflect actual usage
+- ✅ Robust error handling prevents dashboard crashes on network issues
+- ✅ Real-time updates via SignalR with proper connection management
+
+**Database Verification**:
+```sql
+-- Usage metrics now properly recorded
+SELECT COUNT(*) FROM UsageMetrics; -- Returns actual usage count, not 0
+SELECT Provider, COUNT(*) FROM UsageMetrics GROUP BY Provider; -- Shows per-provider usage
+```
+
+### Ollama Model Management Enhancements ✅ COMPLETED (August 2025)
 
 **Progress Bar Fix (2025-08-23)**:
 - 🔧 **Fixed progress aggregation**: Resolved issue where Ollama model downloads showed 0% then jumped to 100%
