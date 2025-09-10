@@ -553,6 +553,126 @@ public static class AnalyticsEndpoints
             })
             .WithTags("Analytics");
 
+        // GET /api/analytics/ollama/usage - Get comprehensive Ollama usage info
+        group
+            .MapGet(
+                "/ollama/usage",
+                async (
+                    [FromQuery] int days,
+                    [FromServices] IOllamaAnalyticsService ollamaService,
+                    CancellationToken ct
+                ) =>
+                {
+                    days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
+                    var usageInfo = await ollamaService.GetUsageInfoAsync(days, ct);
+                    return Results.Ok(usageInfo);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get comprehensive Ollama usage information";
+                op.Description = "Returns detailed usage metrics, model statistics, and resource usage for local Ollama models.";
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "days",
+                    In = ParameterLocation.Query,
+                    Description = "Number of days to analyze (1-365, default: 30)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "integer", Minimum = 1, Maximum = 365, Default = new OpenApiInteger(30) }
+                });
+                
+                return op;
+            })
+            .WithTags("Analytics", "Ollama");
+
+        // GET /api/analytics/ollama/models - Get Ollama model inventory
+        group
+            .MapGet(
+                "/ollama/models",
+                async (
+                    [FromServices] IOllamaAnalyticsService ollamaService,
+                    CancellationToken ct
+                ) =>
+                {
+                    var inventory = await ollamaService.GetModelInventoryAsync(ct);
+                    return Results.Ok(inventory);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get Ollama model inventory";
+                op.Description = "Returns detailed inventory of installed Ollama models including sizes, families, and capabilities.";
+                return op;
+            })
+            .WithTags("Analytics", "Ollama");
+
+        // GET /api/analytics/ollama/downloads - Get Ollama download statistics
+        group
+            .MapGet(
+                "/ollama/downloads",
+                async (
+                    [FromQuery] int days,
+                    [FromServices] IOllamaAnalyticsService ollamaService,
+                    CancellationToken ct
+                ) =>
+                {
+                    days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
+                    var downloadStats = await ollamaService.GetDownloadStatsAsync(days, ct);
+                    return Results.Ok(downloadStats);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get Ollama download statistics";
+                op.Description = "Returns download activity, success rates, and recent download history.";
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "days",
+                    In = ParameterLocation.Query,
+                    Description = "Number of days to analyze (1-365, default: 30)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "integer", Minimum = 1, Maximum = 365, Default = new OpenApiInteger(30) }
+                });
+                
+                return op;
+            })
+            .WithTags("Analytics", "Ollama");
+
+        // GET /api/analytics/ollama/performance - Get Ollama model performance metrics
+        group
+            .MapGet(
+                "/ollama/performance",
+                async (
+                    [FromQuery] int days,
+                    [FromServices] IOllamaAnalyticsService ollamaService,
+                    CancellationToken ct
+                ) =>
+                {
+                    days = Math.Max(1, Math.Min(days == 0 ? 30 : days, 365)); // Default 30 days, max 365
+                    var performance = await ollamaService.GetModelPerformanceAsync(days, ct);
+                    return Results.Ok(performance);
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Get Ollama model performance metrics";
+                op.Description = "Returns performance statistics by model including response times, success rates, and token throughput.";
+                
+                op.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "days",
+                    In = ParameterLocation.Query,
+                    Description = "Number of days to analyze (1-365, default: 30)",
+                    Required = false,
+                    Schema = new OpenApiSchema { Type = "integer", Minimum = 1, Maximum = 365, Default = new OpenApiInteger(30) }
+                });
+                
+                return op;
+            })
+            .WithTags("Analytics", "Ollama");
+
         return group;
     }
 }

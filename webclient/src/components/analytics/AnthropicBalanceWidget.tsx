@@ -1,26 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-import { AlertCircle, Activity, Wifi, DollarSign } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { AlertCircle, Activity, Wifi, TrendingUp, Zap } from 'lucide-react';
 import AnthropicIcon from '@/components/icons/AnthropicIcon';
 import { motion } from 'framer-motion';
 import * as signalR from '@microsoft/signalr';
 
-interface AnthropicBalanceData {
+interface AnthropicUsageData {
   provider: string;
-  balance?: number;
-  balanceUnit?: string;
-  monthlyUsage: number;
   isConnected: boolean;
   lastUpdated: string;
   updateType?: string;
-  // Anthropic-specific fields
+  // Detailed usage and cost data
   totalCost?: number;
   totalRequests?: number;
   totalTokens?: number;
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  webSearchRequests?: number;
+  uniqueModels?: number;
   hasAdminKey?: boolean;
   billingAccess?: boolean;
+  // Model breakdown
+  modelBreakdown?: Array<{
+    modelName: string;
+    requests: number;
+    inputTokens: number;
+    outputTokens: number;
+    cost: number;
+  }>;
+  // Date range
+  startDate?: string;
+  endDate?: string;
 }
 
 interface AnthropicBalanceWidgetProps {
@@ -28,7 +40,7 @@ interface AnthropicBalanceWidgetProps {
 }
 
 export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ className }) => {
-  const [balanceData, setBalanceData] = useState<AnthropicBalanceData | null>(null);
+  const [usageData, setUsageData] = useState<AnthropicUsageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -36,13 +48,27 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
 
   useEffect(() => {
     const setupSignalRConnection = async () => {
-      const hubUrl = `${window.location.origin}/api/analytics/hub`;
+      const hubUrl = `http://192.168.50.91:7040/api/analytics/hub`;
       
       const newConnection = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl, {
           withCredentials: true,
+          timeout: 30000, // 30 second timeout
         })
-        .withAutomaticReconnect()
+        .withAutomaticReconnect({
+          nextRetryDelayInMilliseconds: retryContext => {
+            // Exponential backoff: 0, 2, 10, 30 seconds, then every 30 seconds
+            if (retryContext.previousRetryCount === 0) {
+              return 0;
+            } else if (retryContext.previousRetryCount === 1) {
+              return 2000;
+            } else if (retryContext.previousRetryCount === 2) {
+              return 10000;
+            } else {
+              return 30000;
+            }
+          }
+        })
         .build();
 
       newConnection.onreconnecting(() => {
@@ -53,9 +79,6 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
       newConnection.onreconnected(() => {
         console.log('SignalR: Reconnected');
         setConnectionStatus('connected');
-        // Re-join analytics group and request initial data
-        newConnection.invoke('JoinAnalyticsGroup');
-        newConnection.invoke('RequestProviderData', 'Anthropic');
       });
 
       newConnection.onclose(() => {
@@ -63,115 +86,73 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
         setConnectionStatus('disconnected');
       });
 
-      // Listen for provider data updates (from direct requests)
-      newConnection.on('ProviderDataUpdate', (data: { Provider: string, Data: any, Timestamp: string }) => {
-        if (data.Provider.toLowerCase().includes('anthropic')) {
-          console.log('Provider Data Update (Anthropic):', data);
-          setBalanceData({
-            provider: data.Provider,
-            balance: data.Data.balance,
-            balanceUnit: data.Data.balanceUnit,
-            monthlyUsage: data.Data.monthlyUsage,
-            isConnected: data.Data.isConnected,
-            lastUpdated: data.Timestamp,
-            totalCost: data.Data.totalCost,
-            totalRequests: data.Data.totalRequests,
-            totalTokens: data.Data.totalTokens,
-            hasAdminKey: data.Data.hasAdminKey,
-            billingAccess: data.Data.billingAccess,
-          });
-          setError(null);
-          setIsLoading(false);
-        }
+      // Listen for Anthropic usage updates
+      newConnection.on('AnthropicUsageUpdate', (data: AnthropicUsageData) => {
+        console.log('Received Anthropic usage update:', data);
+        setUsageData(data);
+        setIsLoading(false);
+        setError(null);
       });
 
-      // Listen for provider data errors
-      newConnection.on('ProviderDataError', (errorData: { Provider: string, Error: string, Timestamp: string }) => {
-        if (errorData.Provider.toLowerCase().includes('anthropic')) {
-          console.error('Provider Data Error (Anthropic):', errorData);
-          setError(errorData.Error);
+      // Listen for provider errors
+      newConnection.on('ProviderError', (provider: string, errorMessage: string) => {
+        if (provider === 'Anthropic') {
+          console.error('Anthropic provider error:', errorMessage);
+          setError(errorMessage);
           setIsLoading(false);
         }
       });
 
       try {
-        setConnectionStatus('connecting');
-        await newConnection.start();
-        console.log('SignalR: Connected to analytics hub');
+        // Add connection timeout
+        const connectionPromise = newConnection.start();
+        const connectionTimeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Connection timeout')), 10000);
+        });
+        
+        await Promise.race([connectionPromise, connectionTimeout]);
+        
+        console.log('SignalR connection established for Anthropic widget');
         setConnectionStatus('connected');
-        
-        // Join analytics group and request Anthropic data
-        await newConnection.invoke('JoinAnalyticsGroup');
-        await newConnection.invoke('RequestProviderData', 'Anthropic');
-        
         setConnection(newConnection);
-      } catch (error) {
-        console.error('SignalR: Connection error:', error);
-        setConnectionStatus('disconnected');
-        setError('Failed to connect to real-time updates');
-        
-        // Fallback to REST API
-        fetchAnthropicDataFallback();
-      }
-    };
 
-    const fetchAnthropicDataFallback = async () => {
-      try {
-        const response = await fetch('/api/analytics/providers/accounts');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        // Request initial data with timeout
+        const requestPromise = newConnection.invoke('RequestProviderUpdate', 'Anthropic');
+        const requestTimeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 5000);
+        });
         
-        const accounts = await response.json();
-        const anthropicAccount = accounts.find((acc: any) => 
-          acc.provider?.toLowerCase().includes('anthropic')
-        );
+        await Promise.race([requestPromise, requestTimeout]);
+      } catch (err) {
+        console.error('Failed to start SignalR connection:', err);
+        setConnectionStatus('disconnected');
         
-        if (anthropicAccount) {
-          setBalanceData({
-            provider: 'Anthropic',
-            balance: anthropicAccount.balance,
-            balanceUnit: anthropicAccount.balanceUnit || 'USD',
-            monthlyUsage: anthropicAccount.monthlyUsage || 0,
-            isConnected: anthropicAccount.isConnected || false,
-            lastUpdated: new Date().toISOString(),
-            hasAdminKey: anthropicAccount.additionalInfo?.admin_key,
-            billingAccess: anthropicAccount.additionalInfo?.billing_access,
-          });
-          setError(null);
-        } else {
-          setError('Anthropic account not found or not configured');
-        }
-      } catch (error) {
-        console.error('Failed to fetch Anthropic data:', error);
-        setError('Failed to fetch Anthropic balance data');
-      } finally {
+        const errorMessage = err instanceof Error 
+          ? err.message.includes('timeout') 
+            ? 'Connection timeout - Check if backend is running' 
+            : 'Backend not running - Start the API server to see live data'
+          : 'Unknown connection error';
+          
+        setError(errorMessage);
         setIsLoading(false);
       }
     };
 
     setupSignalRConnection();
 
+    // Fallback timeout to stop loading if connection fails
+    const timeoutId = setTimeout(() => {
+      setIsLoading(false);
+      setError('Connection timeout - Backend may not be running');
+    }, 10000);
+
     return () => {
+      clearTimeout(timeoutId);
       if (connection) {
         connection.stop();
       }
     };
   }, []);
-
-  const formatCurrency = (amount?: number, unit: string = 'USD') => {
-    if (amount === undefined || amount === null) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: unit,
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const formatNumber = (num?: number) => {
-    if (num === undefined || num === null) return '0';
-    return num.toLocaleString();
-  };
 
   const getConnectionIcon = () => {
     switch (connectionStatus) {
@@ -179,15 +160,37 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
         return <Wifi className="h-3 w-3 text-green-500" />;
       case 'connecting':
         return <Activity className="h-3 w-3 text-yellow-500 animate-pulse" />;
-      default:
-        return <AlertCircle className="h-3 w-3 text-red-500" />;
+      case 'disconnected':
+        return <Wifi className="h-3 w-3 text-red-500" />;
     }
   };
 
-  const getStatusColor = () => {
-    if (!balanceData?.isConnected) return 'bg-gray-500';
-    if (balanceData?.billingAccess) return 'bg-green-500';
-    return 'bg-blue-500'; // Connected but no billing access
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4
+    }).format(amount);
+  };
+
+  const formatTokens = (tokens: number) => {
+    if (tokens >= 1000000) {
+      return `${(tokens / 1000000).toFixed(1)}M`;
+    } else if (tokens >= 1000) {
+      return `${(tokens / 1000).toFixed(1)}K`;
+    }
+    return tokens.toString();
+  };
+
+  const formatDateRange = (startDate?: string, endDate?: string) => {
+    if (!startDate || !endDate) return 'Last 30 days';
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return `Last ${days} day${days !== 1 ? 's' : ''}`;
   };
 
   if (isLoading) {
@@ -199,8 +202,8 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
         </CardHeader>
         <CardContent>
           <div className="animate-pulse">
-            <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-            <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+            <div className="h-8 bg-gray-200 rounded mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
           </div>
         </CardContent>
       </Card>
@@ -217,14 +220,14 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
         <CardContent>
           <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
             <AlertCircle className="h-4 w-4 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
+            <span className="text-sm text-red-700">{error}</span>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (!balanceData) {
+  if (!usageData) {
     return (
       <Card className={className}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -232,11 +235,38 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
           <AnthropicIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No Anthropic data available</p>
+          <p className="text-sm text-muted-foreground">No Anthropic usage data available</p>
         </CardContent>
       </Card>
     );
   }
+
+  if (!usageData.isConnected) {
+    return (
+      <Card className={className}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Anthropic Usage</CardTitle>
+          <AnthropicIcon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-sm text-yellow-700">
+              ⚠️ API Not Connected - Configure ANTHROPIC_API_KEY
+            </p>
+            <p className="text-xs text-yellow-600 mt-1">
+              Admin API key (sk-ant-admin...) required for detailed usage data
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const topModel = usageData.modelBreakdown && usageData.modelBreakdown.length > 0 
+    ? usageData.modelBreakdown.reduce((prev, current) => 
+        (current.cost > prev.cost) ? current : prev
+      )
+    : null;
 
   return (
     <motion.div
@@ -253,100 +283,89 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
           <AnthropicIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {/* Connection Status */}
-            <div className="flex items-center space-x-2">
-              <Badge 
-                variant={balanceData.isConnected ? "default" : "secondary"}
-                className="text-xs"
-              >
-                {balanceData.isConnected ? 'Connected' : 'Disconnected'}
-              </Badge>
-              {balanceData.hasAdminKey && (
-                <Badge variant="outline" className="text-xs">
-                  Admin Key
-                </Badge>
+          <div className="space-y-4">
+            {/* Key Metrics */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  {usageData.totalCost !== undefined ? formatCurrency(usageData.totalCost) : '$0.00'}
+                </p>
+                <p className="text-xs text-muted-foreground">Total Cost</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  {formatTokens(usageData.totalTokens || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">Total Tokens</p>
+              </div>
+            </div>
+
+            {/* Token Breakdown */}
+            {(usageData.totalInputTokens || usageData.totalOutputTokens) && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span>Input: {formatTokens(usageData.totalInputTokens || 0)}</span>
+                  <span>Output: {formatTokens(usageData.totalOutputTokens || 0)}</span>
+                </div>
+                <Progress 
+                  value={(usageData.totalOutputTokens || 0) / (usageData.totalTokens || 1) * 100} 
+                  className="h-1"
+                />
+              </div>
+            )}
+
+            {/* Additional Stats */}
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="flex items-center space-x-1">
+                <Zap className="h-3 w-3 text-blue-500" />
+                <span>{usageData.totalRequests || 0} requests</span>
+              </div>
+              {(usageData.webSearchRequests || 0) > 0 && (
+                <div className="flex items-center space-x-1">
+                  <TrendingUp className="h-3 w-3 text-green-500" />
+                  <span>{usageData.webSearchRequests} searches</span>
+                </div>
               )}
             </div>
 
-            {/* Usage Data - Only show if we have billing access */}
-            {balanceData.billingAccess && balanceData.hasAdminKey ? (
-              <div className="space-y-3">
-                {/* Total Cost */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium">Total Cost</span>
-                  </div>
-                  <span className="text-lg font-bold">
-                    {formatCurrency(balanceData.totalCost, balanceData.balanceUnit)}
-                  </span>
+            {/* Top Model */}
+            {topModel && (
+              <div className="p-2 bg-gray-50 rounded-md">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-medium">{topModel.modelName}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {formatCurrency(topModel.cost)}
+                  </Badge>
                 </div>
-
-                {/* Usage Stats */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <div className="text-lg font-semibold">{formatNumber(balanceData.totalRequests)}</div>
-                    <div className="text-xs text-muted-foreground">Requests</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold">{formatNumber(balanceData.totalTokens)}</div>
-                    <div className="text-xs text-muted-foreground">Tokens</div>
-                  </div>
-                </div>
-
-                {/* Full Billing Access Message */}
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm text-green-700">
-                    ✅ Full Billing API Access
-                  </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    Admin API key provides complete usage and cost data via Anthropic's Usage & Cost API.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              /* No Billing Access Message */
-              <div className="space-y-3">
-                <div className="text-2xl font-bold text-muted-foreground">
-                  Not Available
-                </div>
-                
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm text-blue-700">
-                    ✅ API Connected - Billing data requires Admin API key
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Regular API keys can't access billing data. You need an Admin API key (starts with{' '}
-                    <code className="bg-blue-100 px-1 rounded text-xs">sk-ant-admin</code>) from the{' '}
-                    <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" 
-                       className="underline hover:text-blue-800">
-                      Anthropic Console
-                    </a>.
-                  </p>
-                </div>
-                
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
-                  <p className="text-sm text-amber-700">
-                    💡 How to get Admin API access:
-                  </p>
-                  <ul className="text-xs text-amber-600 mt-1 list-disc list-inside space-y-1">
-                    <li>Log into the Anthropic Console</li>
-                    <li>Navigate to API Keys section</li>
-                    <li>Generate an Admin API key (organization admin role required)</li>
-                    <li>Admin keys enable access to Usage & Cost API endpoints</li>
-                  </ul>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {topModel.requests} requests • {formatTokens(topModel.inputTokens + topModel.outputTokens)} tokens
                 </div>
               </div>
             )}
 
-            {/* Last Updated */}
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                Last updated: {new Date(balanceData.lastUpdated).toLocaleTimeString()}
-              </p>
-              <div className={`w-2 h-2 rounded-full ${getStatusColor()}`}></div>
+            {/* Admin Key Status */}
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">
+                {formatDateRange(usageData.startDate, usageData.endDate)}
+              </span>
+              {usageData.hasAdminKey && (
+                <Badge variant="default" className="text-xs">
+                  Admin API
+                </Badge>
+              )}
             </div>
+
+            {/* No Admin Key Message */}
+            {!usageData.hasAdminKey && (
+              <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-xs text-blue-700">
+                  🔑 Limited data with regular API key
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Use Admin API key (sk-ant-admin...) for detailed billing data
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

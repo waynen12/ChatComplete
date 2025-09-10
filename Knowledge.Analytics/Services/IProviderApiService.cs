@@ -32,6 +32,7 @@ public record ProviderApiUsageInfo
     public int TotalRequests { get; init; }
     public int TotalTokens { get; init; }
     public List<ModelUsageInfo> ModelBreakdown { get; init; } = new();
+    public Dictionary<string, object> AdditionalInfo { get; init; } = new();
 }
 
 public record ModelUsageInfo

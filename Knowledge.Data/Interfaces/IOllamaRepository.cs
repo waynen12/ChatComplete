@@ -16,5 +16,6 @@ public interface IOllamaRepository
     Task UpsertDownloadProgressAsync(OllamaDownloadRecord download, CancellationToken cancellationToken = default);
     Task<OllamaDownloadRecord?> GetDownloadStatusAsync(string modelName, CancellationToken cancellationToken = default);
     Task<List<OllamaDownloadRecord>> GetActiveDownloadsAsync(CancellationToken cancellationToken = default);
+    Task<List<OllamaDownloadRecord>> GetDownloadHistoryAsync(DateTime since, CancellationToken cancellationToken = default);
     Task CleanupOldDownloadsAsync(CancellationToken cancellationToken = default);
 }

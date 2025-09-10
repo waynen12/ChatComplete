@@ -130,7 +130,7 @@ export default function ChatPage() {
           provider,
           conversationId,
           ollamaModel: provider === AI_PROVIDERS.OLLAMA ? ollamaModel : undefined,
-          useAgent: true
+          useAgent: false
         }),
       });
 

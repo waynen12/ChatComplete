@@ -23,6 +23,9 @@ public static class ServiceCollectionExtensions
         // Add cached analytics services
         services.AddScoped<ICachedAnalyticsService, CachedAnalyticsService>();
         
+        // Add Ollama-specific analytics service
+        services.AddScoped<IOllamaAnalyticsService, OllamaAnalyticsService>();
+        
         // Add external provider API services with SSL/TLS configuration
         services.AddHttpClient<OpenAIProviderApiService>(client =>
         {
@@ -64,6 +67,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IProviderApiService, OpenAIProviderApiService>();
         services.AddScoped<IProviderApiService, AnthropicProviderApiService>();
         services.AddScoped<IProviderApiService, GoogleAIProviderApiService>();
+        
+        // Register Ollama provider service with HttpClient
+        services.AddHttpClient<OllamaProviderApiService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(5); // Quick timeout for health checks
+        });
+        services.AddScoped<IProviderApiService, OllamaProviderApiService>();
         
         // Add aggregation services (both regular and cached)
         services.AddScoped<ProviderAggregationService>();

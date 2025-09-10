@@ -159,7 +159,11 @@ else
 }
 
 // Register Ollama API service
-builder.Services.AddHttpClient<IOllamaApiService, OllamaApiService>();
+builder.Services.AddHttpClient<IOllamaApiService, OllamaApiService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("User-Agent", "AIKnowledgeManager/1.0");
+});
 
 // Register Ollama download service for real-time progress tracking
 builder.Services.AddScoped<OllamaDownloadService>();

@@ -63,6 +63,19 @@ public sealed class SqliteChatService : IChatService
         // If reducer returned null ⇒ no trimming needed
         var historyForLLM = new ChatHistory(reduced ?? skMessages);
         
+        // Add conversation ID to system message for usage tracking
+        if (historyForLLM.Count > 0 && historyForLLM[0].Role == AuthorRole.System)
+        {
+            // Update existing system message to include conversation ID
+            var existingContent = historyForLLM[0].Content;
+            historyForLLM[0] = new ChatMessageContent(AuthorRole.System, $"{existingContent}\nConversationId: {dto.ConversationId}");
+        }
+        else
+        {
+            // Add a system message with conversation ID if none exists
+            historyForLLM.Insert(0, new ChatMessageContent(AuthorRole.System, $"ConversationId: {dto.ConversationId}"));
+        }
+        
         // 4️⃣ Ask the model - route to agent or traditional based on UseAgent flag
         string replyText;
         if (dto.UseAgent)

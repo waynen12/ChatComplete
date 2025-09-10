@@ -347,6 +347,40 @@ public class SqliteOllamaRepository : IOllamaRepository
     /// <summary>
     /// Cleans up old download records (keep last 30 days)
     /// </summary>
+    public async Task<List<OllamaDownloadRecord>> GetDownloadHistoryAsync(DateTime since, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT ModelName, Status, BytesDownloaded, TotalBytes, PercentComplete, 
+                   ErrorMessage, StartedAt, CompletedAt
+            FROM OllamaDownloads 
+            WHERE StartedAt >= @Since
+            ORDER BY StartedAt DESC
+            """;
+
+        var downloads = new List<OllamaDownloadRecord>();
+        using var connection = await _dbContext.CreateConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@Since", since);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            downloads.Add(new OllamaDownloadRecord
+            {
+                ModelName = reader.GetString(0),
+                Status = reader.GetString(1),
+                BytesDownloaded = reader.GetInt64(2),
+                TotalBytes = reader.GetInt64(3),
+                PercentComplete = reader.GetDouble(4),
+                ErrorMessage = reader.IsDBNull(5) ? null : reader.GetString(5),
+                StartedAt = reader.GetDateTime(6),
+                CompletedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7)
+            });
+        }
+
+        return downloads;
+    }
+
     public async Task CleanupOldDownloadsAsync(CancellationToken cancellationToken = default)
     {
         const string sql = """

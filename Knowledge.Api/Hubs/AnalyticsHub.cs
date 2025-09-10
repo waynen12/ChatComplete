@@ -1,4 +1,5 @@
 using Knowledge.Analytics.Services;
+using Knowledge.Analytics.Models;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Knowledge.Api.Hubs;
@@ -41,6 +42,14 @@ public class AnalyticsHub : Hub
     }
 
     /// <summary>
+    /// Request specific provider update (compatibility method for widgets)
+    /// </summary>
+    public async Task RequestProviderUpdate(string provider)
+    {
+        await RequestProviderData(provider);
+    }
+
+    /// <summary>
     /// Request specific provider data (e.g., OpenAI balance)
     /// </summary>
     public async Task RequestProviderData(string provider)
@@ -53,12 +62,20 @@ public class AnalyticsHub : Hub
             
             if (providerData != null)
             {
-                await Clients.Caller.SendAsync("ProviderDataUpdate", new
+                // Send provider-specific update
+                if (string.Equals(provider, "Anthropic", StringComparison.OrdinalIgnoreCase))
                 {
-                    Provider = provider,
-                    Data = providerData,
-                    Timestamp = DateTime.UtcNow
-                });
+                    await SendAnthropicUsageUpdate(providerData);
+                }
+                else
+                {
+                    await Clients.Caller.SendAsync("ProviderDataUpdate", new
+                    {
+                        Provider = provider,
+                        Data = providerData,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
                 
                 _logger.LogDebug("Sent {Provider} data to client {ConnectionId}", provider, Context.ConnectionId);
             }
@@ -136,5 +153,36 @@ public class AnalyticsHub : Hub
         {
             _logger.LogError(ex, "Error sending initial analytics data to client {ConnectionId}", Context.ConnectionId);
         }
+    }
+
+    /// <summary>
+    /// Send Anthropic-specific usage update with detailed billing data
+    /// </summary>
+    private async Task SendAnthropicUsageUpdate(object providerDataObj)
+    {
+        var providerData = (ProviderAccountInfo)providerDataObj;
+        
+        await Clients.Caller.SendAsync("AnthropicUsageUpdate", new
+        {
+            provider = "Anthropic",
+            isConnected = providerData.IsConnected,
+            lastUpdated = DateTime.UtcNow.ToString("O"),
+            updateType = "usage",
+            // Basic data from provider account info
+            totalCost = 0m, // Will be populated by background service with detailed data
+            totalRequests = 0,
+            totalTokens = 0,
+            totalInputTokens = 0,
+            totalOutputTokens = 0,
+            webSearchRequests = 0,
+            uniqueModels = 0,
+            hasAdminKey = providerData.IsConnected, // Admin key presence is indicated by successful connection
+            billingAccess = providerData.IsConnected, // Billing access is available if connection is successful
+            modelBreakdown = new List<object>(),
+            startDate = DateTime.UtcNow.AddDays(-30).ToString("O"),
+            endDate = DateTime.UtcNow.ToString("O")
+        });
+
+        _logger.LogDebug("Sent Anthropic usage update to client {ConnectionId}", Context.ConnectionId);
     }
 }

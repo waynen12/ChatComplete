@@ -7,6 +7,9 @@ import { CostBreakdownChart } from "@/components/analytics/CostBreakdownChart";
 import { ProviderStatusCards } from "@/components/analytics/ProviderStatusCards";
 import { PerformanceMetrics } from "@/components/analytics/PerformanceMetrics";
 import { OpenAIBalanceWidget } from "@/components/analytics/OpenAIBalanceWidget";
+import { AnthropicBalanceWidget } from "@/components/analytics/AnthropicBalanceWidget";
+import { GoogleAIBalanceWidget } from "@/components/analytics/GoogleAIBalanceWidget";
+import { OllamaUsageWidget } from "@/components/analytics/OllamaUsageWidget";
 
 interface ModelUsageStats {
   modelName: string;
@@ -45,9 +48,51 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
+  const fetchWithRetry = useCallback(async (url: string, maxRetries = 3): Promise<Response> => {
+    let lastError: Error = new Error('Unknown error');
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          return response;
+        }
+        
+        // If it's a client error (4xx), don't retry
+        if (response.status >= 400 && response.status < 500) {
+          throw new Error(`Client error: ${response.status} ${response.statusText}`);
+        }
+        
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        
+        // Don't retry on timeout or client errors
+        if (lastError.name === 'AbortError' || lastError.message.includes('Client error')) {
+          throw lastError;
+        }
+        
+        // If this isn't the last attempt, wait before retrying
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // Exponential backoff, max 10s
+          console.log(`Request failed, retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw lastError;
+  }, []);
+
   const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
+
       const [
         modelsResponse, 
         knowledgeResponse, 
@@ -55,11 +100,11 @@ export default function AnalyticsPage() {
         costResponse,
         accountsResponse
       ] = await Promise.all([
-        fetch('/api/analytics/models'),
-        fetch('/api/analytics/knowledge-bases'),
-        fetch('/api/analytics/usage-trends?days=7'),
-        fetch('/api/analytics/cost-breakdown?days=30'),
-        fetch('/api/analytics/providers/accounts')
+        fetchWithRetry('/api/analytics/models'),
+        fetchWithRetry('/api/analytics/knowledge-bases'),
+        fetchWithRetry('/api/analytics/usage-trends?days=7'),
+        fetchWithRetry('/api/analytics/cost-breakdown?days=30'),
+        fetchWithRetry('/api/analytics/providers/accounts')
       ]);
 
       if (modelsResponse.ok) {
@@ -88,10 +133,22 @@ export default function AnalyticsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      
+      // Handle different types of errors
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.error('Analytics request timed out after 30 seconds');
+          // Could add user notification here
+        } else if (error.message.includes('Failed to fetch')) {
+          console.error('Network error - backend may be unavailable');
+        } else {
+          console.error('Unexpected error:', error.message);
+        }
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchWithRetry]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -233,25 +290,27 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* OpenAI Balance Widget - Real-time updates */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <OpenAIBalanceWidget className="lg:col-span-1" />
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Real-time Provider Monitoring</CardTitle>
-              <CardDescription>
-                Live updates from your AI provider accounts with balance and usage tracking
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                The OpenAI balance widget updates automatically every 2 minutes via WebSocket connection.
-                More provider widgets will be added as the dashboard expands.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Provider Balance & Usage Widgets - Real-time updates */}
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Provider Analytics</CardTitle>
+            <CardDescription>
+              Real-time monitoring of your AI provider accounts with balance, usage, billing data, and local model analytics
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <AnthropicBalanceWidget />
+              <OpenAIBalanceWidget />
+              <GoogleAIBalanceWidget />
+              <OllamaUsageWidget />
+            </div>
+            <p className="text-sm text-muted-foreground mt-4">
+              Cloud provider widgets update automatically via WebSocket connections. Configure API keys in settings to enable provider data. Ollama shows local model usage and requires no configuration.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Provider Status Cards */}

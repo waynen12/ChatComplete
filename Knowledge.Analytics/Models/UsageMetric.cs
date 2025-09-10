@@ -113,3 +113,126 @@ public record ProviderBreakdown
     public double SuccessRate { get; init; }
     public bool IsConnected { get; init; }
 }
+
+/// <summary>
+/// Ollama-specific usage and resource information
+/// </summary>
+public record OllamaUsageInfo
+{
+    public string Provider { get; init; } = "Ollama";
+    public bool IsConnected { get; init; }
+    public int TotalModels { get; init; }
+    public long TotalDiskSpaceBytes { get; init; }
+    public int TotalRequests { get; init; }
+    public int TotalTokens { get; init; }
+    public double AverageResponseTimeMs { get; init; }
+    public double SuccessRate { get; init; }
+    public int ToolEnabledModels { get; init; }
+    public DateTime LastUpdated { get; init; } = DateTime.UtcNow;
+    public IEnumerable<OllamaModelUsage> TopModels { get; init; } = [];
+    public OllamaDownloadActivity RecentDownloads { get; init; } = new();
+    public DateTime PeriodStart { get; init; }
+    public DateTime PeriodEnd { get; init; }
+}
+
+/// <summary>
+/// Ollama model inventory and resource usage
+/// </summary>
+public record OllamaModelInventory
+{
+    public int TotalModels { get; init; }
+    public long TotalSizeBytes { get; init; }
+    public int AvailableModels { get; init; }
+    public int ToolEnabledModels { get; init; }
+    public IEnumerable<OllamaModelInfo> Models { get; init; } = [];
+    public Dictionary<string, int> ModelsByFamily { get; init; } = new();
+    public DateTime LastSyncAt { get; init; }
+}
+
+/// <summary>
+/// Download statistics and activity
+/// </summary>
+public record OllamaDownloadStats
+{
+    public int TotalDownloads { get; init; }
+    public int CompletedDownloads { get; init; }
+    public int FailedDownloads { get; init; }
+    public double SuccessRate => TotalDownloads > 0 ? (double)CompletedDownloads / TotalDownloads : 0;
+    public long TotalBytesDownloaded { get; init; }
+    public double AverageDownloadTimeMinutes { get; init; }
+    public IEnumerable<OllamaDownloadInfo> RecentDownloads { get; init; } = [];
+    public DateTime PeriodStart { get; init; }
+    public DateTime PeriodEnd { get; init; }
+}
+
+/// <summary>
+/// Performance metrics by model
+/// </summary>
+public record OllamaModelPerformance
+{
+    public string ModelName { get; init; } = string.Empty;
+    public int Requests { get; init; }
+    public double AverageResponseTimeMs { get; init; }
+    public double SuccessRate { get; init; }
+    public int TotalTokens { get; init; }
+    public double TokensPerSecond => AverageResponseTimeMs > 0 ? TotalTokens / (AverageResponseTimeMs / 1000.0) : 0;
+    public bool SupportsTools { get; init; }
+    public DateTime LastUsed { get; init; }
+}
+
+/// <summary>
+/// Model usage information for top models
+/// </summary>
+public record OllamaModelUsage
+{
+    public string ModelName { get; init; } = string.Empty;
+    public int Requests { get; init; }
+    public int TotalTokens { get; init; }
+    public double AverageResponseTimeMs { get; init; }
+    public long SizeBytes { get; init; }
+    public bool SupportsTools { get; init; }
+    public DateTime LastUsed { get; init; }
+}
+
+/// <summary>
+/// Model information for inventory
+/// </summary>
+public record OllamaModelInfo
+{
+    public string Name { get; init; } = string.Empty;
+    public string? DisplayName { get; init; }
+    public long SizeBytes { get; init; }
+    public string? Family { get; init; }
+    public string? ParameterSize { get; init; }
+    public bool IsAvailable { get; init; }
+    public bool SupportsTools { get; init; }
+    public DateTime InstalledAt { get; init; }
+    public DateTime? LastUsedAt { get; init; }
+}
+
+/// <summary>
+/// Download information for recent activity
+/// </summary>
+public record OllamaDownloadInfo
+{
+    public string ModelName { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public long TotalBytes { get; init; }
+    public DateTime StartedAt { get; init; }
+    public DateTime? CompletedAt { get; init; }
+    public string? ErrorMessage { get; init; }
+    public double DurationMinutes => CompletedAt.HasValue 
+        ? (CompletedAt.Value - StartedAt).TotalMinutes 
+        : 0;
+}
+
+/// <summary>
+/// Recent download activity summary
+/// </summary>
+public record OllamaDownloadActivity
+{
+    public int PendingDownloads { get; init; }
+    public int CompletedToday { get; init; }
+    public int FailedToday { get; init; }
+    public IEnumerable<OllamaDownloadInfo> RecentDownloads { get; init; } = [];
+}

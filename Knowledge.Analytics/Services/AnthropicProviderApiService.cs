@@ -64,9 +64,12 @@ public class AnthropicProviderApiService : IProviderApiService
                 };
             }
 
-            // For admin keys, we can access the usage/cost endpoints
-            // Note: Anthropic doesn't have a direct balance endpoint, but we can get cost data
-            var response = await _httpClient.GetAsync("v1/organizations/usage_report/messages", cancellationToken);
+            // For admin keys, we can test access with a minimal usage report request
+            // Use a small date range to test connectivity without retrieving too much data
+            var testStartDate = DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var testEndDate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var testUrl = $"v1/organizations/usage_report/messages?starting_at={testStartDate}&ending_at={testEndDate}&bucket_width=1d&limit=1";
+            var response = await _httpClient.GetAsync(testUrl, cancellationToken);
             
             if (response.IsSuccessStatusCode)
             {
@@ -160,13 +163,17 @@ public class AnthropicProviderApiService : IProviderApiService
                 };
             }
 
-            // Use Anthropic's Usage & Cost API endpoints
+            // Use Anthropic's Usage & Cost API endpoints with required parameters
+            var startDateIso = startDate.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var endDateIso = endDate.ToString("yyyy-MM-ddTHH:mm:ssZ");
             
-            // Get usage data from messages endpoint
-            var usageResponse = await _httpClient.GetAsync("v1/organizations/usage_report/messages", cancellationToken);
+            // Get usage data from messages endpoint with required parameters
+            var usageUrl = $"v1/organizations/usage_report/messages?starting_at={startDateIso}&ending_at={endDateIso}&bucket_width=1d";
+            var usageResponse = await _httpClient.GetAsync(usageUrl, cancellationToken);
             
-            // Get cost data from cost report endpoint
-            var costResponse = await _httpClient.GetAsync("v1/organizations/cost_report", cancellationToken);
+            // Get cost data from cost report endpoint with required parameters
+            var costUrl = $"v1/organizations/cost_report?starting_at={startDateIso}&ending_at={endDateIso}";
+            var costResponse = await _httpClient.GetAsync(costUrl, cancellationToken);
             
             if (usageResponse.IsSuccessStatusCode && costResponse.IsSuccessStatusCode)
             {
@@ -176,10 +183,42 @@ public class AnthropicProviderApiService : IProviderApiService
                 var usageData = JsonSerializer.Deserialize<AnthropicUsageResponse>(usageContent, JsonOptions);
                 var costData = JsonSerializer.Deserialize<AnthropicCostResponse>(costContent, JsonOptions);
                 
-                // Process the data (this is simplified - real implementation would parse the JSON properly)
-                var totalCost = costData?.TotalCost ?? 0m;
-                var totalRequests = usageData?.TotalRequests ?? 0;
-                var totalTokens = (usageData?.TotalInputTokens ?? 0) + (usageData?.TotalOutputTokens ?? 0);
+                // Aggregate usage data
+                var allUsageResults = usageData?.Data?.SelectMany(d => d.Results) ?? new List<AnthropicUsageResult>();
+                var totalInputTokens = allUsageResults.Sum(r => r.UncachedInputTokens + r.CacheReadInputTokens + 
+                    (r.CacheCreation?.Ephemeral1hInputTokens ?? 0) + (r.CacheCreation?.Ephemeral5mInputTokens ?? 0));
+                var totalOutputTokens = allUsageResults.Sum(r => r.OutputTokens);
+                var totalWebSearchRequests = allUsageResults.Sum(r => r.ServerToolUse?.WebSearchRequests ?? 0);
+                
+                // Aggregate cost data
+                var allCostResults = costData?.Data?.SelectMany(d => d.Results) ?? new List<AnthropicCostResult>();
+                var totalCost = allCostResults.Sum(r => r.Amount);
+                
+                // Group by model for breakdown
+                var modelGroups = allUsageResults.GroupBy(r => r.Model ?? "claude-unknown");
+                var modelBreakdown = new List<ModelUsageInfo>();
+                
+                foreach (var modelGroup in modelGroups)
+                {
+                    var modelName = modelGroup.Key;
+                    var modelUsageResults = modelGroup.ToList();
+                    var modelCostResults = allCostResults.Where(c => c.Model == modelName).ToList();
+                    
+                    var modelInputTokens = modelUsageResults.Sum(r => r.UncachedInputTokens + r.CacheReadInputTokens + 
+                        (r.CacheCreation?.Ephemeral1hInputTokens ?? 0) + (r.CacheCreation?.Ephemeral5mInputTokens ?? 0));
+                    var modelOutputTokens = modelUsageResults.Sum(r => r.OutputTokens);
+                    var modelCost = modelCostResults.Sum(r => r.Amount);
+                    var modelRequests = modelUsageResults.Count;
+                    
+                    modelBreakdown.Add(new ModelUsageInfo
+                    {
+                        ModelName = modelName,
+                        Requests = modelRequests,
+                        InputTokens = modelInputTokens,
+                        OutputTokens = modelOutputTokens,
+                        Cost = modelCost
+                    });
+                }
                 
                 return new ProviderApiUsageInfo
                 {
@@ -188,16 +227,17 @@ public class AnthropicProviderApiService : IProviderApiService
                     EndDate = endDate,
                     TotalCost = totalCost,
                     Currency = "USD",
-                    TotalRequests = totalRequests,
-                    TotalTokens = totalTokens,
-                    ModelBreakdown = usageData?.ModelBreakdown?.Select(m => new ModelUsageInfo
+                    TotalRequests = allUsageResults.Count(),
+                    TotalTokens = totalInputTokens + totalOutputTokens,
+                    ModelBreakdown = modelBreakdown,
+                    AdditionalInfo = new()
                     {
-                        ModelName = m.ModelName ?? "claude-3-sonnet",
-                        Requests = m.Requests,
-                        InputTokens = m.InputTokens,
-                        OutputTokens = m.OutputTokens,
-                        Cost = m.Cost
-                    }).ToList() ?? new List<ModelUsageInfo>()
+                        ["total_input_tokens"] = totalInputTokens,
+                        ["total_output_tokens"] = totalOutputTokens,
+                        ["web_search_requests"] = totalWebSearchRequests,
+                        ["unique_models"] = modelGroups.Count(),
+                        ["cost_breakdown_available"] = allCostResults.Any()
+                    }
                 };
             }
             else
@@ -251,22 +291,66 @@ public class AnthropicProviderApiService : IProviderApiService
 // Anthropic API Response Models
 internal record AnthropicUsageResponse
 {
-    public int TotalRequests { get; init; }
-    public int TotalInputTokens { get; init; }
-    public int TotalOutputTokens { get; init; }
-    public List<AnthropicModelUsage> ModelBreakdown { get; init; } = new();
+    public List<AnthropicUsageData> Data { get; init; } = new();
+    public bool HasMore { get; init; }
+    public string? NextPage { get; init; }
+}
+
+internal record AnthropicUsageData
+{
+    public DateTime StartingAt { get; init; }
+    public DateTime EndingAt { get; init; }
+    public List<AnthropicUsageResult> Results { get; init; } = new();
+}
+
+internal record AnthropicUsageResult
+{
+    public int UncachedInputTokens { get; init; }
+    public AnthropicCacheCreation? CacheCreation { get; init; }
+    public int CacheReadInputTokens { get; init; }
+    public int OutputTokens { get; init; }
+    public AnthropicServerToolUse? ServerToolUse { get; init; }
+    public string? ApiKeyId { get; init; }
+    public string? WorkspaceId { get; init; }
+    public string? Model { get; init; }
+    public string? ServiceTier { get; init; }
+    public string? ContextWindow { get; init; }
+}
+
+internal record AnthropicCacheCreation
+{
+    public int Ephemeral1hInputTokens { get; init; }
+    public int Ephemeral5mInputTokens { get; init; }
+}
+
+internal record AnthropicServerToolUse
+{
+    public int WebSearchRequests { get; init; }
 }
 
 internal record AnthropicCostResponse
 {
-    public decimal TotalCost { get; init; }
+    public List<AnthropicCostData> Data { get; init; } = new();
+    public bool HasMore { get; init; }
+    public string? NextPage { get; init; }
 }
 
-internal record AnthropicModelUsage
+internal record AnthropicCostData
 {
-    public string? ModelName { get; init; }
-    public int Requests { get; init; }
-    public int InputTokens { get; init; }
-    public int OutputTokens { get; init; }
-    public decimal Cost { get; init; }
+    public DateTime StartingAt { get; init; }
+    public DateTime EndingAt { get; init; }
+    public List<AnthropicCostResult> Results { get; init; } = new();
+}
+
+internal record AnthropicCostResult
+{
+    public string Currency { get; init; } = "USD";
+    public decimal Amount { get; init; }
+    public string? WorkspaceId { get; init; }
+    public string? Description { get; init; }
+    public string? CostType { get; init; }
+    public string? ContextWindow { get; init; }
+    public string? Model { get; init; }
+    public string? ServiceTier { get; init; }
+    public string? TokenType { get; init; }
 }
