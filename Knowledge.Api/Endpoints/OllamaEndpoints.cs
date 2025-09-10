@@ -89,20 +89,23 @@ public static class OllamaEndpoints
                                     ct
                                 );
 
-                                if (modelDetails != null)
+                                // Use the size from the tags response (more reliable) if available
+                                var modelSize = missingModel.Size > 0 ? missingModel.Size : (modelDetails?.Size ?? 0);
+
+                                if (modelDetails != null || missingModel.Size > 0)
                                 {
                                     // Create a model record for the pre-existing model
                                     var modelRecord = new OllamaModelRecord
                                     {
-                                        Name = modelDetails.Name,
-                                        Size = modelDetails.Size,
-                                        Family = modelDetails.Details?.Family,
-                                        ParameterSize = modelDetails.Details?.ParameterSize,
-                                        QuantizationLevel = modelDetails.Details?.QuantizationLevel,
-                                        Format = modelDetails.Details?.Format,
-                                        Template = modelDetails.Template,
-                                        Parameters = modelDetails.Parameters,
-                                        ModifiedAt = modelDetails.ModifiedAt,
+                                        Name = missingModel.Name,
+                                        Size = modelSize, // Use the more reliable size from tags
+                                        Family = modelDetails?.Details?.Family ?? missingModel.Details?.Family,
+                                        ParameterSize = modelDetails?.Details?.ParameterSize ?? missingModel.Details?.ParameterSize,
+                                        QuantizationLevel = modelDetails?.Details?.QuantizationLevel ?? missingModel.Details?.QuantizationLevel,
+                                        Format = modelDetails?.Details?.Format ?? missingModel.Details?.Format,
+                                        Template = modelDetails?.Template,
+                                        Parameters = modelDetails?.Parameters,
+                                        ModifiedAt = missingModel.ModifiedAt,
                                         InstalledAt = DateTime.UtcNow,
                                         IsAvailable = true,
                                         Status = "Installed",
@@ -128,14 +131,67 @@ public static class OllamaEndpoints
                             }
                         }
 
-                        // Step 4: Return the updated model list from SQLite
+                        // Step 4: Update existing models that have zero sizes with correct sizes
+                        var existingModelsWithZeroSize = sqliteModels
+                            .Where(sm => sm.Size == 0)
+                            .ToList();
+
+                        foreach (var existingModel in existingModelsWithZeroSize)
+                        {
+                            try
+                            {
+                                var ollamaModel = ollamaModels.FirstOrDefault(om => om.Name == existingModel.Name);
+                                if (ollamaModel != null && ollamaModel.Size > 0)
+                                {
+                                    // Update the existing model with correct size and metadata
+                                    var updatedRecord = new OllamaModelRecord
+                                    {
+                                        Name = existingModel.Name,
+                                        DisplayName = existingModel.DisplayName,
+                                        Size = ollamaModel.Size, // Update with correct size
+                                        Family = ollamaModel.Details?.Family ?? existingModel.Family,
+                                        ParameterSize = ollamaModel.Details?.ParameterSize ?? existingModel.ParameterSize,
+                                        QuantizationLevel = ollamaModel.Details?.QuantizationLevel ?? existingModel.QuantizationLevel,
+                                        Format = ollamaModel.Details?.Format ?? existingModel.Format,
+                                        Template = existingModel.Template,
+                                        Parameters = existingModel.Parameters,
+                                        ModifiedAt = ollamaModel.ModifiedAt,
+                                        InstalledAt = existingModel.InstalledAt,
+                                        IsAvailable = existingModel.IsAvailable,
+                                        Status = existingModel.Status,
+                                        SupportsTools = existingModel.SupportsTools,
+                                        LastUsedAt = existingModel.LastUsedAt
+                                    };
+
+                                    await repository.UpsertModelAsync(updatedRecord, ct);
+
+                                    LoggerProvider.Logger.Information(
+                                        "Updated existing model size: {ModelName} - {Size} bytes",
+                                        existingModel.Name,
+                                        ollamaModel.Size
+                                    );
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                LoggerProvider.Logger.Warning(
+                                    ex,
+                                    "Failed to update model size for {ModelName} - skipping",
+                                    existingModel.Name
+                                );
+                            }
+                        }
+
+                        // Step 5: Return the updated model list from SQLite
                         var updatedModels = await repository.GetInstalledModelsAsync(ct);
 
-                        if (missingModels.Any())
+                        var totalUpdated = missingModels.Count + existingModelsWithZeroSize.Count;
+                        if (totalUpdated > 0)
                         {
                             LoggerProvider.Logger.Information(
-                                "Synced {Count} pre-existing models to database",
-                                missingModels.Count
+                                "Synced {NewCount} new models and updated {ExistingCount} existing models in database",
+                                missingModels.Count,
+                                existingModelsWithZeroSize.Count
                             );
                         }
 

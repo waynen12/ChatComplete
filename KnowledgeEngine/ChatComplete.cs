@@ -480,7 +480,7 @@ namespace KnowledgeEngine
                 {
                     try
                     {
-                        var modelName = provider == AiProvider.Ollama ? ollamaModel : provider.ToString();
+                        var modelName = GetModelNameForTracking(provider, ollamaModel);
                         
                         var usageMetric = new UsageMetric
                         {
@@ -800,7 +800,7 @@ namespace KnowledgeEngine
                 {
                     try
                     {
-                        var modelName = provider == AiProvider.Ollama ? ollamaModel : provider.ToString();
+                        var modelName = GetModelNameForTracking(provider, ollamaModel);
                         
                         var usageMetric = new UsageMetric
                         {
@@ -890,6 +890,29 @@ namespace KnowledgeEngine
             }
         }
 
+        private string GetModelNameForTracking(AiProvider provider, string? ollamaModel)
+        {
+            if (provider == AiProvider.Ollama)
+            {
+                if (!string.IsNullOrEmpty(ollamaModel))
+                {
+                    return ollamaModel;
+                }
+                
+                // Try to get the default Ollama model from settings
+                try
+                {
+                    return _settings.OllamaModel ?? "llama3.2:3b";
+                }
+                catch
+                {
+                    return "llama3.2:3b"; // Fallback to common model
+                }
+            }
+            
+            return provider.ToString();
+        }
+        
         private void RegisterAgentPlugins(Kernel kernel)
         {
             try

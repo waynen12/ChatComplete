@@ -41,7 +41,7 @@ public class OllamaAnalyticsService : IOllamaAnalyticsService
             var allUsage = await usageTask;
             
             // Filter usage to only Ollama provider
-            var usage = allUsage.Where(u => u.Provider == "Ollama").ToList();
+            var usage = allUsage.Where(u => u.Provider == AiProvider.Ollama.ToString()).ToList();
 
             // Calculate aggregate metrics
             var totalRequests = usage.Count();
