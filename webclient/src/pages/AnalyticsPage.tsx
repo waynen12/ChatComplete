@@ -181,6 +181,16 @@ export default function AnalyticsPage() {
   const activeProviders = [...new Set(modelStats.map(model => model.provider))].length;
   const totalKnowledgeBases = knowledgeStats.length;
 
+  // Find most popular model (highest conversation count)
+  const mostPopularModel = modelStats.reduce((prev, current) => 
+    (current.conversationCount > prev.conversationCount) ? current : prev
+  , { modelName: 'None', conversationCount: 0, provider: '' });
+
+  // Find most popular knowledge base (highest conversation count)
+  const mostPopularKnowledgeBase = knowledgeStats.reduce((prev, current) => 
+    (current.conversationCount > prev.conversationCount) ? current : prev
+  , { knowledgeName: 'None', knowledgeId: 'none', conversationCount: 0 });
+
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
@@ -232,7 +242,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Conversations</CardTitle>
@@ -281,6 +291,36 @@ export default function AnalyticsPage() {
             <div className="text-2xl font-bold">{totalKnowledgeBases}</div>
             <p className="text-xs text-muted-foreground">
               Active knowledge bases
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Most Popular Model</CardTitle>
+            <span className="text-2xl">⭐</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm font-bold truncate" title={mostPopularModel.modelName}>
+              {mostPopularModel.modelName}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {mostPopularModel.conversationCount} conversations
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Most Popular KB</CardTitle>
+            <span className="text-2xl">📖</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm font-bold truncate" title={mostPopularKnowledgeBase.knowledgeName || mostPopularKnowledgeBase.knowledgeId}>
+              {mostPopularKnowledgeBase.knowledgeName || mostPopularKnowledgeBase.knowledgeId}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {mostPopularKnowledgeBase.conversationCount} conversations
             </p>
           </CardContent>
         </Card>
