@@ -3,12 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UsageTrendsChart } from "@/components/analytics/UsageTrendsChart";
-import { CostBreakdownChart } from "@/components/analytics/CostBreakdownChart";
 import { ProviderStatusCards } from "@/components/analytics/ProviderStatusCards";
 import { PerformanceMetrics } from "@/components/analytics/PerformanceMetrics";
-import { OpenAIBalanceWidget } from "@/components/analytics/OpenAIBalanceWidget";
-import { AnthropicBalanceWidget } from "@/components/analytics/AnthropicBalanceWidget";
-import { GoogleAIBalanceWidget } from "@/components/analytics/GoogleAIBalanceWidget";
 import { OllamaUsageWidget } from "@/components/analytics/OllamaUsageWidget";
 
 interface ModelUsageStats {
@@ -160,7 +156,7 @@ export default function AnalyticsPage() {
     
     const interval = setInterval(() => {
       fetchAnalytics();
-    }, 30000);
+    }, 600000);
 
     return () => clearInterval(interval);
   }, [fetchAnalytics, autoRefresh]);
@@ -301,13 +297,10 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <AnthropicBalanceWidget />
-              <OpenAIBalanceWidget />
-              <GoogleAIBalanceWidget />
               <OllamaUsageWidget />
             </div>
             <p className="text-sm text-muted-foreground mt-4">
-              Cloud provider widgets update automatically via WebSocket connections. Configure API keys in settings to enable provider data. Ollama shows local model usage and requires no configuration.
+              Ollama shows local model usage and requires no configuration. Cloud provider widgets can be added by configuring API keys in settings.
             </p>
           </CardContent>
         </Card>
@@ -322,9 +315,8 @@ export default function AnalyticsPage() {
       />
 
       {/* Charts Section */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6">
         <UsageTrendsChart data={usageTrends} loading={loading} />
-        <CostBreakdownChart data={costBreakdown} loading={loading} />
       </div>
 
       {/* Performance Metrics */}
