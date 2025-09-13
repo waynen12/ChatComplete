@@ -45,7 +45,7 @@ public interface IVectorStoreStrategy
         string query,
         Embedding<float> embedding,
         int limit = 10,
-        double minRelevanceScore = 0.6,
+        double? minRelevanceScore = null, // Use provider-specific default if null
         CancellationToken cancellationToken = default);
 
     /// <summary>

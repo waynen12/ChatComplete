@@ -10,7 +10,7 @@ namespace ChatCompletion.Config
         public string CollectionName { get; set; } = "Tracker";
         public string SearchIndexName { get; set; } = "default";
         public string VectorField { get; set; } = "embedding";
-        public int NumDimensions { get; set; } = 1536;
+        public int NumDimensions { get; set; } = 768;
         public string SimilarityFunction { get; set; } = "cosine";
     }
 }

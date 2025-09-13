@@ -57,7 +57,7 @@ public class Program
             var db = new MongoDB.Driver.MongoClient(mongoConn).GetDatabase(SettingsProvider.Settings.Atlas.ClusterName);
             
             // Create MongoDB vector store strategy
-            var vectorStoreStrategy = new MongoVectorStoreStrategy(db, SettingsProvider.Settings.Atlas);
+            var vectorStoreStrategy = new MongoVectorStoreStrategy(db, SettingsProvider.Settings.Atlas, SettingsProvider.Settings);
             
             // Create MongoDB knowledge repository
             var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<MongoKnowledgeRepository>.Instance;

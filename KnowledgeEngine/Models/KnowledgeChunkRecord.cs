@@ -14,7 +14,7 @@ public record KnowledgeChunkRecord
     public string Id { get; init; } = string.Empty;
     
     /// <summary>
-    /// Vector embedding of the text content (1536 dimensions for text-embedding-ada-002)
+    /// Vector embedding of the text content (768 dimensions for text-embedding-ada-002)
     /// </summary>
     public ReadOnlyMemory<float> Vector { get; init; }
     

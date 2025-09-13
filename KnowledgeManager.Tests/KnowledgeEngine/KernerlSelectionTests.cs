@@ -18,7 +18,11 @@ public class KernelSelectionTests
         GoogleModel      = "gemini-pro",
         AnthropicModel       = "claude-3-opus-20240229",
         OllamaModel          = "gemma3:12b",
-        TextEmbeddingModelName = "text-embedding-ada-002",
+        EmbeddingProviders = new() 
+        { 
+            ActiveProvider = "OpenAI",
+            OpenAI = new() { ModelName = "text-embedding-ada-002" }
+        },
         Temperature          = 0.7,
         Atlas = new() { ClusterName = "dummy", SearchIndexName = "dummy" }
     };

@@ -30,7 +30,7 @@ public class QdrantIndexManager : IIndexManager
     }
 
     /// <summary>
-    /// Creates a Qdrant collection with correct 1536 dimensions using direct REST API
+    /// Creates a Qdrant collection with correct 768 dimensions using direct REST API
     /// </summary>
     public async Task CreateIndexAsync(string collectionName, CancellationToken cancellationToken = default)
     {
@@ -45,7 +45,7 @@ public class QdrantIndexManager : IIndexManager
                 return;
             }
 
-            // Create collection manually via REST API with correct 1536 dimensions
+            // Create collection manually via REST API with correct 768 dimensions
             // Note: REST API uses port 6333, while gRPC (for data operations) uses port 6334
             var restApiUrl = $"http://{_settings.Host}:6333/collections/{collectionName}";
             
@@ -53,7 +53,7 @@ public class QdrantIndexManager : IIndexManager
             {
                 vectors = new
                 {
-                    size = _settings.VectorSize, // This should be 1536 from config
+                    size = _settings.VectorSize, // This should be 768 from config
                     distance = _settings.DistanceMetric // This should be "Cosine"
                 }
             };
@@ -157,7 +157,7 @@ public record QdrantRecord
     [VectorStoreData]
     public string Text { get; init; } = string.Empty;
     
-    [VectorStoreVector(1536)]  // 1536-dimensional vectors from OpenAI text-embedding-ada-002
+    [VectorStoreVector(768)]  // 768-dimensional vectors from OpenAI text-embedding-ada-002
     public ReadOnlyMemory<float> Vector { get; init; }
     
     [VectorStoreData]

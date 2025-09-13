@@ -52,8 +52,15 @@ public static class ServiceCollectionExtensions
             // Register Qdrant Index Manager
             services.AddScoped<IIndexManager, QdrantIndexManager>();
             
-            // Register Qdrant Vector Store Strategy
-            services.AddScoped<IVectorStoreStrategy, QdrantVectorStoreStrategy>();
+            // Register Qdrant Vector Store Strategy with ChatCompleteSettings
+            services.AddScoped<IVectorStoreStrategy, QdrantVectorStoreStrategy>(provider =>
+            {
+                var vectorStore = provider.GetRequiredService<QdrantVectorStore>();
+                var qdrantSettings = provider.GetRequiredService<QdrantSettings>();
+                var indexManager = provider.GetRequiredService<IIndexManager>();
+                var chatSettings = provider.GetRequiredService<ChatCompleteSettings>();
+                return new QdrantVectorStoreStrategy(vectorStore, qdrantSettings, indexManager, chatSettings);
+            });
         }
         else
         {
@@ -84,8 +91,14 @@ public static class ServiceCollectionExtensions
             // Register MongoDB Index Manager (cast from singleton AtlasIndexManager)
             services.AddScoped<IIndexManager>(provider => provider.GetRequiredService<AtlasIndexManager>());
             
-            // Register MongoDB Vector Store Strategy
-            services.AddScoped<IVectorStoreStrategy, MongoVectorStoreStrategy>();
+            // Register MongoDB Vector Store Strategy with ChatCompleteSettings
+            services.AddScoped<IVectorStoreStrategy, MongoVectorStoreStrategy>(provider =>
+            {
+                var mongoDatabase = provider.GetRequiredService<IMongoDatabase>();
+                var atlasSettings = provider.GetRequiredService<MongoAtlasSettings>();
+                var chatSettings = provider.GetRequiredService<ChatCompleteSettings>();
+                return new MongoVectorStoreStrategy(mongoDatabase, atlasSettings, chatSettings);
+            });
         }
 
         // Register OpenAI Embedding Service

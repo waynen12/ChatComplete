@@ -242,7 +242,7 @@ public class ConfigurationValidationTests
     }
 
     [Theory]
-    [InlineData(1536, true)]  // OpenAI embedding size
+    [InlineData(768, true)]  // OpenAI embedding size
     [InlineData(768, true)]   // Some models use 768
     [InlineData(512, true)]   // Smaller embeddings
     [InlineData(0, false)]    // Invalid

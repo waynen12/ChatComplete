@@ -81,7 +81,7 @@ curl http://localhost:6333/collections
 # Create a test collection
 curl -X PUT http://localhost:6333/collections/test \
   -H "Content-Type: application/json" \
-  -d '{"vectors": {"size": 1536, "distance": "Cosine"}}'
+  -d '{"vectors": {"size": 768, "distance": "Cosine"}}'
 ```
 
 ### Test Ollama Directly  

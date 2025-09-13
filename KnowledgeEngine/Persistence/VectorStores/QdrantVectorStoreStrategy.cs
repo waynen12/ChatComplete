@@ -24,16 +24,19 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
     private readonly QdrantVectorStore _vectorStore;
     private readonly QdrantSettings _settings;
     private readonly IIndexManager _indexManager;
+    private readonly ChatCompleteSettings _chatSettings;
 
     public QdrantVectorStoreStrategy(
         QdrantVectorStore vectorStore,
         QdrantSettings settings,
-        IIndexManager indexManager
+        IIndexManager indexManager,
+        ChatCompleteSettings chatSettings
     )
     {
         _vectorStore = vectorStore ?? throw new ArgumentNullException(nameof(vectorStore));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _indexManager = indexManager ?? throw new ArgumentNullException(nameof(indexManager));
+        _chatSettings = chatSettings ?? throw new ArgumentNullException(nameof(chatSettings));
     }
 
     /// <summary>
@@ -49,12 +52,25 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
     {
         try
         {
+            // Validate embedding dimensions against current provider
+            var activeProvider = _chatSettings.EmbeddingProviders.GetActiveProvider();
+            if (embedding.Vector.Length != activeProvider.Dimensions)
+            {
+                throw new InvalidOperationException(
+                    $"Embedding dimension mismatch for collection '{collectionName}': " +
+                    $"Received {embedding.Vector.Length} dimensions, but active provider '{_chatSettings.EmbeddingProviders.ActiveProvider}' " +
+                    $"expects {activeProvider.Dimensions} dimensions."
+                );
+            }
+
             // Ensure collection exists before upserting
             if (!await _indexManager.IndexExistsAsync(collectionName, cancellationToken))
             {
                 LoggerProvider.Logger.Information(
-                    "Creating Qdrant collection {Collection} as it does not exist",
-                    collectionName
+                    "Creating Qdrant collection {Collection} with {Dimensions} dimensions for provider {Provider}",
+                    collectionName,
+                    activeProvider.Dimensions,
+                    _chatSettings.EmbeddingProviders.ActiveProvider
                 );
                 await _indexManager.CreateIndexAsync(collectionName, cancellationToken);
             }
@@ -119,21 +135,59 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
         string query,
         Embedding<float> embedding,
         int limit = 10,
-        double minRelevanceScore = 0.6,
+        double? minRelevanceScore = null, // Use provider-specific default if null
         CancellationToken cancellationToken = default
     )
     {
         try
         {
+            // Get active provider configuration and use its relevance threshold
+            var activeProvider = _chatSettings.EmbeddingProviders.GetActiveProvider();
+            var effectiveMinScore = minRelevanceScore ?? activeProvider.MinRelevanceScore;
+
+            // Validate embedding dimensions against current provider
+            if (embedding.Vector.Length != activeProvider.Dimensions)
+            {
+                throw new InvalidOperationException(
+                    $"Embedding dimension mismatch for search in collection '{collectionName}': " +
+                    $"Received {embedding.Vector.Length} dimensions, but active provider '{_chatSettings.EmbeddingProviders.ActiveProvider}' " +
+                    $"expects {activeProvider.Dimensions} dimensions."
+                );
+            }
+            LoggerProvider.Logger.Information(
+                "🔍 QdrantVectorStoreStrategy.SearchAsync - Collection: '{Collection}', Query: '{Query}'",
+                collectionName,
+                query.Length > 30 ? query.Substring(0, 30) + "..." : query
+            );
+
+            // List all available collections for debugging
+            try
+            {
+                var availableCollections = await ListCollectionsAsync(cancellationToken);
+                LoggerProvider.Logger.Information(
+                    "📋 Available Qdrant collections: [{Collections}] (Total: {Count})",
+                    string.Join(", ", availableCollections.Select(c => $"'{c}'")),
+                    availableCollections.Count
+                );
+            }
+            catch (Exception ex)
+            {
+                LoggerProvider.Logger.Warning(ex, "Failed to list available collections for debugging");
+            }
+
             // Check if collection exists before searching
+            LoggerProvider.Logger.Information("🔍 Checking if collection '{Collection}' exists...", collectionName);
+            
             if (!await _indexManager.IndexExistsAsync(collectionName, cancellationToken))
             {
                 LoggerProvider.Logger.Warning(
-                    "Cannot search in Qdrant collection {Collection} - collection does not exist",
+                    "❌ Cannot search in Qdrant collection '{Collection}' - collection does not exist",
                     collectionName
                 );
                 return new List<KnowledgeSearchResult>();
             }
+            
+            LoggerProvider.Logger.Information("✅ Collection '{Collection}' exists, proceeding with search", collectionName);
 
             // Get collection reference from vector store (using Guid keys)
             var collection = _vectorStore.GetCollection<Guid, QdrantRecord>(collectionName);
@@ -155,31 +209,52 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
             var results = new List<KnowledgeSearchResult>();
 
             // Convert search results and apply minimum relevance score filter
+            var allResults = new List<(double score, KnowledgeSearchResult result)>();
+            
             await foreach (var result in searchResults.WithCancellation(cancellationToken))
             {
-                if ((result.Score ?? 0.0) >= minRelevanceScore && result.Record != null)
+                if (result.Record != null)
                 {
-                    results.Add(
-                        new KnowledgeSearchResult
-                        {
-                            Text = result.Record.Text,
-                            Source = result.Record.Source,
-                            ChunkOrder = result.Record.ChunkOrder,
-                            Tags = result.Record.Tags,
-                            Score = result.Score ?? 0.0,
-                        }
-                    );
+                    var score = result.Score ?? 0.0;
+                    var searchResult = new KnowledgeSearchResult
+                    {
+                        Text = result.Record.Text,
+                        Source = result.Record.Source,
+                        ChunkOrder = result.Record.ChunkOrder,
+                        Tags = result.Record.Tags,
+                        Score = score,
+                    };
+                    
+                    allResults.Add((score, searchResult));
+                    
+                    // Only add to final results if above threshold
+                    if (score >= effectiveMinScore)
+                    {
+                        results.Add(searchResult);
+                    }
                 }
             }
+            
+            // Enhanced logging to debug search issues
+            LoggerProvider.Logger.Information(
+                "Qdrant search debug - Collection: {Collection}, Provider: {Provider}, Total results: {Total}, Above threshold ({Threshold}): {Filtered}, Top scores: [{TopScores}]",
+                collectionName,
+                _chatSettings.EmbeddingProviders.ActiveProvider,
+                allResults.Count,
+                effectiveMinScore,
+                results.Count,
+                string.Join(", ", allResults.Take(5).Select(r => r.score.ToString("F3")))
+            );
 
             // Sort by score descending (highest relevance first)
             var sortedResults = results.OrderByDescending(r => r.Score).ToList();
 
             LoggerProvider.Logger.Information(
-                "Qdrant vector search for query '{Query}' returned {Count} results above score {MinScore}",
+                "Qdrant vector search for query '{Query}' returned {Count} results above score {MinScore} (provider: {Provider})",
                 query,
                 sortedResults.Count,
-                minRelevanceScore
+                effectiveMinScore,
+                _chatSettings.EmbeddingProviders.ActiveProvider
             );
 
             return sortedResults;

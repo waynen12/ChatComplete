@@ -186,20 +186,37 @@ public class KnowledgeManager
         string collectionName,
         string query,
         int limit = 10,
-        double minRelevanceScore = 0.6,
+        double minRelevanceScore = 0.3, // Lowered from 0.6 for Ollama embeddings
         CancellationToken cancellationToken = default
     )
     {
         try
         {
+            LoggerProvider.Logger.Information(
+                "🔍 KnowledgeManager.SearchAsync started - Collection: '{Collection}', Query: '{Query}', Limit: {Limit}, MinScore: {MinScore}",
+                collectionName,
+                query.Length > 50 ? query.Substring(0, 50) + "..." : query,
+                limit,
+                minRelevanceScore
+            );
+
             // Generate embedding for the query
+            LoggerProvider.Logger.Information("📊 Generating embedding for search query using {EmbeddingService}", _embeddingService.GetType().Name);
+            
             var embeddingResult = await _embeddingService.GenerateAsync(
                 new[] { query },
                 cancellationToken: cancellationToken
             );
             var queryEmbedding = embeddingResult.First();
+            
+            LoggerProvider.Logger.Information(
+                "✅ Embedding generated successfully - Vector size: {VectorSize} dimensions",
+                queryEmbedding.Vector.Length
+            );
 
             // Use the vector store strategy for search
+            LoggerProvider.Logger.Information("🔍 Calling vector store search with strategy: {StrategyType}", _vectorStoreStrategy.GetType().Name);
+            
             var searchResults = await _vectorStoreStrategy.SearchAsync(
                 collectionName,
                 query,
@@ -210,11 +227,18 @@ public class KnowledgeManager
             );
 
             LoggerProvider.Logger.Information(
-                "Vector search for query '{Query}' returned {Count} results above score {MinScore}",
-                query,
+                "📋 Vector search for query '{Query}' returned {Count} results above score {MinScore}",
+                query.Length > 30 ? query.Substring(0, 30) + "..." : query,
                 searchResults.Count,
                 minRelevanceScore
             );
+
+            if (searchResults.Count == 0)
+            {
+                LoggerProvider.Logger.Warning(
+                    "⚠️ No search results returned - this could indicate: 1) Collection doesn't exist, 2) No documents match threshold, 3) Embedding dimension mismatch"
+                );
+            }
 
             return searchResults;
         }
@@ -222,8 +246,9 @@ public class KnowledgeManager
         {
             LoggerProvider.Logger.Error(
                 ex,
-                "Failed to perform vector search for query: {Query}",
-                query
+                "❌ Failed to perform vector search for query: '{Query}' in collection: '{Collection}'",
+                query,
+                collectionName
             );
             return new List<KnowledgeSearchResult>();
         }

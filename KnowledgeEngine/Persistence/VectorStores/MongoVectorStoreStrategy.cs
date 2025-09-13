@@ -20,11 +20,13 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
 {
     private readonly IMongoDatabase _mongoDatabase;
     private readonly MongoAtlasSettings _atlasSettings;
+    private readonly ChatCompleteSettings _chatSettings;
 
-    public MongoVectorStoreStrategy(IMongoDatabase mongoDatabase, MongoAtlasSettings atlasSettings)
+    public MongoVectorStoreStrategy(IMongoDatabase mongoDatabase, MongoAtlasSettings atlasSettings, ChatCompleteSettings chatSettings)
     {
         _mongoDatabase = mongoDatabase ?? throw new ArgumentNullException(nameof(mongoDatabase));
         _atlasSettings = atlasSettings ?? throw new ArgumentNullException(nameof(atlasSettings));
+        _chatSettings = chatSettings ?? throw new ArgumentNullException(nameof(chatSettings));
     }
 
     /// <summary>
@@ -40,6 +42,16 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
     {
         try
         {
+            // Validate embedding dimensions against current provider
+            var activeProvider = _chatSettings.EmbeddingProviders.GetActiveProvider();
+            if (embedding.Vector.Length != activeProvider.Dimensions)
+            {
+                throw new InvalidOperationException(
+                    $"Embedding dimension mismatch for collection '{collectionName}': " +
+                    $"Received {embedding.Vector.Length} dimensions, but active provider '{_chatSettings.EmbeddingProviders.ActiveProvider}' " +
+                    $"expects {activeProvider.Dimensions} dimensions."
+                );
+            }
             // Parse chunk order from key (format: "fileId-p0001")
             var chunkOrder = 0;
             var source = key;
@@ -95,11 +107,24 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
         string query,
         Embedding<float> embedding,
         int limit = 10,
-        double minRelevanceScore = 0.6,
+        double? minRelevanceScore = null, // Use provider-specific default if null
         CancellationToken cancellationToken = default)
     {
         try
         {
+            // Get active provider configuration and use its relevance threshold
+            var activeProvider = _chatSettings.EmbeddingProviders.GetActiveProvider();
+            var effectiveMinScore = minRelevanceScore ?? activeProvider.MinRelevanceScore;
+
+            // Validate embedding dimensions against current provider
+            if (embedding.Vector.Length != activeProvider.Dimensions)
+            {
+                throw new InvalidOperationException(
+                    $"Embedding dimension mismatch for search in collection '{collectionName}': " +
+                    $"Received {embedding.Vector.Length} dimensions, but active provider '{_chatSettings.EmbeddingProviders.ActiveProvider}' " +
+                    $"expects {activeProvider.Dimensions} dimensions."
+                );
+            }
             // Get MongoDB collection directly for vector search
             var mongoCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
             
@@ -137,7 +162,7 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
                     var score = doc.Contains("score") ? doc["score"].AsDouble : 0.0;
                     
                     // Apply minimum relevance score filter
-                    if (score >= minRelevanceScore)
+                    if (score >= effectiveMinScore)
                     {
                         searchResults.Add(new KnowledgeSearchResult
                         {
@@ -152,8 +177,8 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
             }
 
             LoggerProvider.Logger.Information(
-                "MongoDB vector search for query '{Query}' returned {Count} results above score {MinScore}",
-                query, searchResults.Count, minRelevanceScore);
+                "MongoDB vector search for query '{Query}' returned {Count} results above score {MinScore} (provider: {Provider})",
+                query, searchResults.Count, effectiveMinScore, _chatSettings.EmbeddingProviders.ActiveProvider);
 
             return searchResults.OrderByDescending(r => r.Score).ToList();
         }

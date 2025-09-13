@@ -243,7 +243,7 @@ public class KnowledgeManagerStrategyTests
     public void KnowledgeChunkRecord_ShouldSupportVectorOperations()
     {
         // Test the KnowledgeChunkRecord used for vector storage
-        var embedding = new float[1536]; // OpenAI embedding size
+        var embedding = new float[768]; // OpenAI embedding size
         for (int i = 0; i < embedding.Length; i++)
         {
             embedding[i] = (float)(Math.Sin(i * 0.01)); // Generate test embedding
@@ -260,7 +260,7 @@ public class KnowledgeManagerStrategyTests
         };
 
         Assert.Equal("test-chunk-1", chunkRecord.Id);
-        Assert.Equal(1536, chunkRecord.Vector.Length);
+        Assert.Equal(768, chunkRecord.Vector.Length);
         Assert.Equal(1, chunkRecord.ChunkOrder);
         Assert.Contains("test", chunkRecord.Tags);
 
@@ -321,7 +321,7 @@ public class KnowledgeManagerStrategyTests
     public void KnowledgeManager_VectorDimensions_ShouldBeConsistent()
     {
         // Test that vector dimensions are consistent across the system
-        const int expectedDimensions = 1536; // OpenAI text-embedding-ada-002
+        const int expectedDimensions = 768; // OpenAI text-embedding-ada-002
 
         var testEmbedding = new float[expectedDimensions];
         var readOnlyEmbedding = new ReadOnlyMemory<float>(testEmbedding);

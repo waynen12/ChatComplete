@@ -161,7 +161,7 @@ public class SqliteAppSettingsRepository
             
             // Embedding Configuration  
             ("Embedding.Model", "text-embedding-ada-002", false, "Text embedding model", "Embedding"),
-            ("Embedding.VectorSize", "1536", false, "Vector embedding dimensions", "Embedding"),
+            ("Embedding.VectorSize", "768", false, "Vector embedding dimensions", "Embedding"),
             
             // Chat Configuration
             ("Chat.DefaultTemperature", "0.7", false, "Default temperature for chat responses", "Chat"),

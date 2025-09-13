@@ -87,3 +87,7 @@ SQLITE_DATABASE_MILESTONE.md
 documentation/SQLITE_DATABASE_MILESTONE.md
 Knowledge.Api/api.log
 api.log
+debug-search.sql
+fix-metadata.sql
+clear-database.sql
+.gitignore

@@ -381,7 +381,7 @@ namespace KnowledgeEngine
                         knowledgeId,
                         userMessage,
                         limit: 10,
-                        minRelevanceScore: 0.6,
+                        minRelevanceScore: 0.3, // Lowered for Ollama embeddings
                         cancellationToken: ct
                     );
                 }
@@ -566,7 +566,7 @@ namespace KnowledgeEngine
                         knowledgeId,
                         userMessage,
                         limit: 10,
-                        minRelevanceScore: 0.6,
+                        minRelevanceScore: 0.3, // Lowered for Ollama embeddings
                         cancellationToken: ct
                     );
                     response.TraditionalSearchResults = searchResults;

@@ -33,7 +33,7 @@ public class SqliteAppSettingsService
             OllamaBaseUrl = _defaultSettings.CurrentValue.OllamaBaseUrl,
             OllamaModel = _defaultSettings.CurrentValue.OllamaModel,
             AnthropicModel = _defaultSettings.CurrentValue.AnthropicModel,
-            TextEmbeddingModelName = _defaultSettings.CurrentValue.TextEmbeddingModelName,
+            EmbeddingProviders = _defaultSettings.CurrentValue.EmbeddingProviders,
             ChunkCharacterLimit = _defaultSettings.CurrentValue.ChunkCharacterLimit,
             ChunkLineTokens = _defaultSettings.CurrentValue.ChunkLineTokens,
             ChunkParagraphTokens = _defaultSettings.CurrentValue.ChunkParagraphTokens,
@@ -81,7 +81,11 @@ public class SqliteAppSettingsService
 
         // Apply embedding settings
         if (embeddingSettings.TryGetValue("Embedding.Model", out var embeddingModel) && !string.IsNullOrEmpty(embeddingModel))
-            settings.TextEmbeddingModelName = embeddingModel;
+        {
+            // Update the active provider's model name
+            var activeProvider = settings.EmbeddingProviders.GetActiveProvider();
+            activeProvider.ModelName = embeddingModel;
+        }
 
         // Apply document settings
         if (documentSettings.TryGetValue("Documents.ChunkSize", out var chunkSizeStr) && int.TryParse(chunkSizeStr, out var chunkSize))

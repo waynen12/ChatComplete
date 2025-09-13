@@ -239,8 +239,8 @@ public class VectorStoreStrategyTests
     [Fact] 
     public void VectorStoreStrategy_ShouldSupportVectorDimensions()
     {
-        // Test that we handle the correct vector dimensions (1536 for OpenAI embeddings)
-        const int expectedDimensions = 1536;
+        // Test that we handle the correct vector dimensions (768 for OpenAI embeddings)
+        const int expectedDimensions = 768;
         var embedding = new float[expectedDimensions];
         
         // Fill with sample values

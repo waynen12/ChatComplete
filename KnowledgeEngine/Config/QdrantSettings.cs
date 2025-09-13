@@ -6,7 +6,7 @@ namespace ChatCompletion.Config
         public int Port { get; set; } = 6333; // REST API port (6334 for gRPC, but REST may be more stable)
         public bool UseHttps { get; set; } = false;
         public string? ApiKey { get; set; } = null; // For production deployments
-        public int VectorSize { get; set; } = 1536; // Match OpenAI embeddings
+        public int VectorSize { get; set; } = 768; // Match Ollama embeddings
         public string DistanceMetric { get; set; } = "Cosine"; // Cosine, Dot, Euclidean
         
         /// <summary>

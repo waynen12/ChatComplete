@@ -3,6 +3,7 @@
 using System.Text.Json.Serialization;
 using ChatCompletion;
 using ChatCompletion.Config;
+using Microsoft.Extensions.AI;
 using Knowledge.Analytics.Extensions;
 using Knowledge.Api.Constants;
 using Knowledge.Api.Endpoints;
@@ -62,10 +63,40 @@ if (settings == null)
 }
 SettingsProvider.Initialize(settings);
 
-var openAiKey = Environment.GetEnvironmentVariable(ApiConstants.EnvironmentVariables.OpenAiApiKey)!;
+// Register settings as singleton for dependency injection
+builder.Services.AddSingleton(settings);
 
-// Add modern Microsoft.Extensions.AI embedding service directly
-builder.Services.AddOpenAIEmbeddingGenerator(settings.TextEmbeddingModelName, openAiKey);
+var openAiKey = Environment.GetEnvironmentVariable(ApiConstants.EnvironmentVariables.OpenAiApiKey);
+
+// Configure embedding service based on enhanced provider selection
+var activeProvider = settings.EmbeddingProviders.ActiveProvider.ToLower();
+if (activeProvider == "ollama")
+{
+    // Add Ollama embedding service with configuration
+    builder.Services.AddHttpClient<OllamaEmbeddingService>();
+    builder.Services.AddScoped<IEmbeddingGenerator<string, Embedding<float>>>(serviceProvider =>
+    {
+        var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+        var httpClient = httpClientFactory.CreateClient(nameof(OllamaEmbeddingService));
+        var ollamaConfig = settings.EmbeddingProviders.Ollama;
+        return new OllamaEmbeddingService(httpClient, settings.OllamaBaseUrl, ollamaConfig.ModelName);
+    });
+}
+else if (activeProvider == "openai")
+{
+    // OpenAI embedding service
+    if (string.IsNullOrEmpty(openAiKey))
+    {
+        throw new InvalidOperationException(
+            "OpenAI API key is required when using OpenAI embedding provider. Set OPENAI_API_KEY environment variable.");
+    }
+    var openAiConfig = settings.EmbeddingProviders.OpenAI;
+    builder.Services.AddOpenAIEmbeddingGenerator(openAiConfig.ModelName, openAiKey);
+}
+else
+{
+    throw new InvalidOperationException($"Unsupported embedding provider: {activeProvider}");
+}
 
 // Add modern KernelFactory
 builder.Services.AddSingleton<KernelFactory>();
