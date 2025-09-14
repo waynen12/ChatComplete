@@ -20,6 +20,9 @@ COPY *.sln ./
 COPY Knowledge.Api/*.csproj ./Knowledge.Api/
 COPY KnowledgeEngine/*.csproj ./KnowledgeEngine/
 COPY Knowledge.Contracts/*.csproj ./Knowledge.Contracts/
+COPY Knowledge.Analytics/*.csproj ./Knowledge.Analytics/
+COPY Knowledge.Data/*.csproj ./Knowledge.Data/
+COPY Knowledge.Entities/*.csproj ./Knowledge.Entities/
 
 # Restore dependencies for production projects only
 RUN dotnet restore Knowledge.Api/Knowledge.Api.csproj
