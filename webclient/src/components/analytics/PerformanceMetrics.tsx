@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PerformanceIcon } from "@/components/icons";
 
 interface ModelMetrics {
   modelName: string;
@@ -163,7 +164,7 @@ export function PerformanceMetrics({ data, loading }: PerformanceMetricsProps) {
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center">
-                <div className="text-6xl mb-2">📊</div>
+                <PerformanceIcon className="h-16 w-16 mb-2 mx-auto text-muted-foreground" />
                 <p>No performance data available</p>
                 <p className="text-sm">Start conversations to see model performance metrics</p>
               </div>

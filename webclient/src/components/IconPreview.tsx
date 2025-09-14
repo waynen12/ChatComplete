@@ -1,4 +1,3 @@
-import React from 'react';
 import AnthropicIcon from './icons/AnthropicIcon';
 import GoogleAIIcon from './icons/GoogleAIIcon';
 import OpenAIIcon from './icons/OpenAIIcon';

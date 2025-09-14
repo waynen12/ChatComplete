@@ -6,6 +6,17 @@ import { UsageTrendsChart } from "@/components/analytics/UsageTrendsChart";
 import { ProviderStatusCards } from "@/components/analytics/ProviderStatusCards";
 import { PerformanceMetrics } from "@/components/analytics/PerformanceMetrics";
 import { OllamaUsageWidget } from "@/components/analytics/OllamaUsageWidget";
+import {
+  ConversationIcon,
+  ProviderIcon,
+  TokenIcon,
+  KnowledgeIcon,
+  StarIcon,
+  OpenAIIcon,
+  AnthropicIcon,
+  GoogleAIIcon,
+  OllamaIcon
+} from "@/components/icons";
 
 interface ModelUsageStats {
   modelName: string;
@@ -208,14 +219,21 @@ export default function AnalyticsPage() {
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
-  const getProviderColor = (provider: string): string => {
-    const colors: Record<string, string> = {
-      'OpenAi': 'bg-green-500',
-      'Anthropic': 'bg-orange-500', 
-      'Google': 'bg-blue-500',
-      'Ollama': 'bg-purple-500'
-    };
-    return colors[provider] || 'bg-gray-500';
+
+  const getProviderIcon = (provider: string) => {
+    const iconClass = "h-4 w-4";
+    switch (provider) {
+      case 'OpenAi':
+        return <OpenAIIcon className={iconClass} />;
+      case 'Anthropic':
+        return <AnthropicIcon className={iconClass} />;
+      case 'Google':
+        return <GoogleAIIcon className={iconClass} />;
+      case 'Ollama':
+        return <OllamaIcon className={iconClass} />;
+      default:
+        return <ProviderIcon className={iconClass} />;
+    }
   };
 
   return (
@@ -233,10 +251,10 @@ export default function AnalyticsPage() {
             size="sm"
             onClick={() => setAutoRefresh(!autoRefresh)}
           >
-            {autoRefresh ? '⏸️' : '▶️'} Auto-refresh
+            {autoRefresh ? 'Pause' : 'Start'} Auto-refresh
           </Button>
           <Button variant="outline" size="sm" onClick={fetchAnalytics}>
-            🔄 Refresh
+            Refresh
           </Button>
         </div>
       </div>
@@ -246,7 +264,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Conversations</CardTitle>
-            <span className="text-2xl">💬</span>
+            <ConversationIcon className="h-6 w-6 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totalConversations)}</div>
@@ -259,7 +277,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Providers</CardTitle>
-            <span className="text-2xl">🤖</span>
+            <ProviderIcon className="h-6 w-6 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeProviders}</div>
@@ -272,7 +290,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Tokens</CardTitle>
-            <span className="text-2xl">🔢</span>
+            <TokenIcon className="h-6 w-6 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(totalTokens)}</div>
@@ -285,7 +303,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Knowledge Bases</CardTitle>
-            <span className="text-2xl">📚</span>
+            <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalKnowledgeBases}</div>
@@ -298,7 +316,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Most Popular Model</CardTitle>
-            <span className="text-2xl">⭐</span>
+            <StarIcon className="h-6 w-6 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-sm font-bold truncate" title={mostPopularModel.modelName}>
@@ -313,7 +331,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Most Popular KB</CardTitle>
-            <span className="text-2xl">📖</span>
+            <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-sm font-bold truncate" title={mostPopularKnowledgeBase.knowledgeName || mostPopularKnowledgeBase.knowledgeId}>
@@ -381,7 +399,7 @@ export default function AnalyticsPage() {
                 {modelStats.map((model, index) => (
                   <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
-                      <div className={`w-3 h-3 rounded-full ${getProviderColor(model.provider)}`}></div>
+                      {getProviderIcon(model.provider)}
                       <div>
                         <div className="flex items-center space-x-2">
                           <span className="font-medium">{model.modelName}</span>
@@ -428,7 +446,7 @@ export default function AnalyticsPage() {
                 {knowledgeStats.map((kb, index) => (
                   <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
-                      <span className="text-2xl">📖</span>
+                      <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
                       <div>
                         <div className="flex items-center space-x-2">
                           <span className="font-medium">{kb.knowledgeName || kb.knowledgeId}</span>

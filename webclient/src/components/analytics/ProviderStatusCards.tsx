@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { OpenAIIcon, AnthropicIcon, GoogleAIIcon, OllamaIcon, ProviderIcon } from "@/components/icons";
 
 interface ProviderAccount {
   provider: string;
@@ -52,14 +53,20 @@ export function ProviderStatusCards({ accounts, usage, loading, onRefresh }: Pro
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  const getProviderIcon = (provider: string): string => {
-    const icons: Record<string, string> = {
-      'OpenAi': '🤖',
-      'Anthropic': '🧠', 
-      'Google': '🔍',
-      'Ollama': '🦙'
-    };
-    return icons[provider] || '⚡';
+  const getProviderIcon = (provider: string) => {
+    const iconClass = "h-4 w-4";
+    switch (provider) {
+      case 'OpenAi':
+        return <OpenAIIcon className={iconClass} />;
+      case 'Anthropic':
+        return <AnthropicIcon className={iconClass} />;
+      case 'Google':
+        return <GoogleAIIcon className={iconClass} />;
+      case 'Ollama':
+        return <OllamaIcon className={iconClass} />;
+      default:
+        return <ProviderIcon className={iconClass} />;
+    }
   };
 
 
@@ -104,7 +111,7 @@ export function ProviderStatusCards({ accounts, usage, loading, onRefresh }: Pro
               disabled={refreshing}
               className="ml-2 h-6 px-2 text-xs"
             >
-              {refreshing ? '🔄' : '↻'} Refresh
+              {refreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
           </p>
         </div>
@@ -127,8 +134,9 @@ export function ProviderStatusCards({ accounts, usage, loading, onRefresh }: Pro
                       isConnected ? 'bg-green-500' : 
                       'bg-gray-400'
                     }`}></div>
-                    <CardTitle className="text-base">
-                      {getProviderIcon(provider)} {provider}
+                    <CardTitle className="text-base flex items-center space-x-2">
+                      {getProviderIcon(provider)}
+                      <span>{provider}</span>
                     </CardTitle>
                   </div>
                   <Badge variant={isConnected ? "default" : "secondary"}>

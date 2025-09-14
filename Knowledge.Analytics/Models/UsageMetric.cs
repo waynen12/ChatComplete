@@ -34,7 +34,7 @@ public record ModelUsageStats
     public bool? SupportsTools { get; init; }
     public int SuccessfulRequests { get; init; }
     public int FailedRequests { get; init; }
-    public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests : 0;
+    public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests * 100 : 0;
     public int TotalRequests => SuccessfulRequests + FailedRequests;
 }
 
@@ -157,7 +157,7 @@ public record OllamaDownloadStats
     public int TotalDownloads { get; init; }
     public int CompletedDownloads { get; init; }
     public int FailedDownloads { get; init; }
-    public double SuccessRate => TotalDownloads > 0 ? (double)CompletedDownloads / TotalDownloads : 0;
+    public double SuccessRate => TotalDownloads > 0 ? (double)CompletedDownloads / TotalDownloads * 100 : 0;
     public long TotalBytesDownloaded { get; init; }
     public double AverageDownloadTimeMinutes { get; init; }
     public IEnumerable<OllamaDownloadInfo> RecentDownloads { get; init; } = [];
