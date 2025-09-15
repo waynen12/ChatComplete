@@ -36,6 +36,7 @@ export default function ChatPage() {
   const [availableOllamaModels, setAvailableOllamaModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [sidePanelOpen, setSidePanelOpen] = useState<boolean>(false);
+  const [useAgent, setUseAgent] = useState<boolean>(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -104,8 +105,8 @@ export default function ChatPage() {
 
   async function sendMessage() {
     if (!input.trim()) return;
-    if (collectionId === GLOBAL_KNOWLEDGE_ID) {
-      notify.error("Please select a knowledge base to start chatting");
+    if (collectionId === GLOBAL_KNOWLEDGE_ID && !useAgent) {
+      notify.error("Please select a knowledge base or enable Agent Mode to start chatting");
       return;
     }
 
@@ -122,7 +123,7 @@ export default function ChatPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          knowledgeId: collectionId === GLOBAL_KNOWLEDGE_ID ? null : collectionId,
+          knowledgeId: (collectionId === GLOBAL_KNOWLEDGE_ID && useAgent) ? null : collectionId,
           message: userMsg.content,
           temperature: 0.8,
           stripMarkdown: stripMarkdown,
@@ -130,7 +131,7 @@ export default function ChatPage() {
           provider,
           conversationId,
           ollamaModel: provider === AI_PROVIDERS.OLLAMA ? ollamaModel : undefined,
-          useAgent: false
+          useAgent: collectionId === GLOBAL_KNOWLEDGE_ID ? useAgent : true
         }),
       });
 
@@ -173,6 +174,10 @@ export default function ChatPage() {
     sessionStorage.removeItem("chat.cid");
     // Clear messages for new conversation
     setMessages([]);
+    // Disable agent mode when selecting a knowledge base
+    if (newCollectionId !== GLOBAL_KNOWLEDGE_ID) {
+      setUseAgent(false);
+    }
   };
 
   const handleProviderChange = (newProvider: Provider) => {
@@ -185,6 +190,16 @@ export default function ChatPage() {
 
   const handleStripMarkdownChange = (strip: boolean) => {
     setStripMarkdown(strip);
+  };
+
+  const handleAgentModeChange = (agent: boolean) => {
+    setUseAgent(agent);
+    // Reset conversation when toggling agent mode
+    if (collectionId === GLOBAL_KNOWLEDGE_ID) {
+      setConversationId(null);
+      sessionStorage.removeItem("chat.cid");
+      setMessages([]);
+    }
   };
 
   return (
@@ -206,6 +221,8 @@ export default function ChatPage() {
             loadingModels={loadingModels}
             stripMarkdown={stripMarkdown}
             onStripMarkdownChange={handleStripMarkdownChange}
+            useAgent={useAgent}
+            onAgentModeChange={handleAgentModeChange}
           />
         </AnimatePresence>
 
@@ -221,9 +238,14 @@ export default function ChatPage() {
                 className="flex items-center gap-2"
               >
                 ⚙️ Settings
-                {!sidePanelOpen && collectionId !== GLOBAL_KNOWLEDGE_ID && (
+                {!sidePanelOpen && (
                   <span className="text-xs text-muted-foreground">
-                    • {collections.find((c) => c.id === collectionId)?.name}
+                    {collectionId === GLOBAL_KNOWLEDGE_ID 
+                      ? useAgent 
+                        ? "• 🤖 Agent Mode"
+                        : "• No knowledge base"
+                      : `• ${collections.find((c) => c.id === collectionId)?.name}`
+                    }
                   </span>
                 )}
               </Button>
@@ -269,11 +291,15 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Type your question…"
+              placeholder={
+                collectionId === GLOBAL_KNOWLEDGE_ID && useAgent
+                  ? "Ask about model recommendations, performance analysis, or comparisons..."
+                  : "Type your question…"
+              }
             />
             <Button
               onClick={sendMessage}
-              disabled={input.trim() === "" || collectionId === GLOBAL_KNOWLEDGE_ID}
+              disabled={input.trim() === "" || (collectionId === GLOBAL_KNOWLEDGE_ID && !useAgent)}
             >
               Send
             </Button>

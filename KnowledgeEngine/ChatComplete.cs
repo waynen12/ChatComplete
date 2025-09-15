@@ -558,10 +558,11 @@ namespace KnowledgeEngine
                 string systemMessage = await GetSystemPromptAsync(useExtendedInstructions, true);
                 chatHistory.AddSystemMessage(systemMessage);
 
-                // Traditional knowledge search as fallback
+                // Traditional knowledge search as fallback (only if specific knowledge base is requested)
                 var searchResults = new List<KnowledgeSearchResult>();
                 if (!string.IsNullOrEmpty(knowledgeId))
                 {
+                    Console.WriteLine($"🔍 Performing traditional knowledge search for knowledgeId: {knowledgeId}");
                     searchResults = await _knowledgeManager.SearchAsync(
                         knowledgeId,
                         userMessage,
@@ -570,6 +571,10 @@ namespace KnowledgeEngine
                         cancellationToken: ct
                     );
                     response.TraditionalSearchResults = searchResults;
+                }
+                else
+                {
+                    Console.WriteLine("🤖 Agent mode: No specific knowledge base selected, relying on agent tools for information");
                 }
 
                 // Build context for traditional search
@@ -661,13 +666,70 @@ namespace KnowledgeEngine
                 ChatMessageContent? chatResult;
                 try
                 {
-                    // Use non-streaming for better tool call visibility
-                    chatResult = await chatService.GetChatMessageContentAsync(
-                        chatHistory,
-                        execSettings,
-                        kernel,
-                        ct
-                    );
+                    // For Ollama with tools, use a shorter timeout to detect failures quickly
+                    if (provider == AiProvider.Ollama && shouldUseTools)
+                    {
+                        Console.WriteLine("⏱️ Using reduced timeout for Ollama tool calling...");
+                        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30)); // 30 second timeout for Ollama tools
+                        
+                        try
+                        {
+                            chatResult = await chatService.GetChatMessageContentAsync(
+                                chatHistory,
+                                execSettings,
+                                kernel,
+                                timeoutCts.Token
+                            );
+                        }
+                        catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested && !ct.IsCancellationRequested)
+                        {
+                            Console.WriteLine("⚠️ Ollama tool calling timed out - marking model as tool-incompatible and falling back");
+                            
+                            // Mark model as tool-incompatible in database
+                            try
+                            {
+                                await UpdateModelToolSupportAsync(provider, ollamaModel, false, ct);
+                            }
+                            catch (Exception dbEx)
+                            {
+                                Console.WriteLine($"⚠️ Failed to update model tool support in database: {dbEx.Message}");
+                            }
+                            
+                            // Fall back to non-tool mode
+                            shouldUseTools = false;
+                            response.ToolExecutions.Add(new AgentToolExecution
+                            {
+                                ToolName = "ToolSupport",
+                                Summary = $"Model {ollamaModel} marked as tool-incompatible due to timeout",
+                                Success = false
+                            });
+                            
+                            // Recreate settings without tools
+                            execSettings = new OllamaPromptExecutionSettings
+                            {
+                                Temperature = (float)(apiTemperature < 0 ? _settings.Temperature : apiTemperature),
+                                FunctionChoiceBehavior = null,
+                            };
+                            
+                            chatResult = await chatService.GetChatMessageContentAsync(
+                                chatHistory,
+                                execSettings,
+                                kernel,
+                                ct
+                            );
+                        }
+                    }
+                    else
+                    {
+                        // Use non-streaming for better tool call visibility
+                        chatResult = await chatService.GetChatMessageContentAsync(
+                            chatHistory,
+                            execSettings,
+                            kernel,
+                            ct
+                        );
+                    }
                 }
                 catch (Exception ex) when (ex.Message.Contains("ModelDoesNotSupportToolsException") || 
                                           ex.Message.Contains("does not support tools") ||
@@ -735,10 +797,28 @@ namespace KnowledgeEngine
                     }
                 }
 
-                // Update model tool support status to true if tools were used successfully
-                if (shouldUseTools && hasToolCalls)
+                // Update model tool support status based on actual usage
+                if (provider == AiProvider.Ollama && !string.IsNullOrEmpty(ollamaModel))
                 {
-                    await UpdateModelToolSupportAsync(provider, ollamaModel, true, ct);
+                    try
+                    {
+                        if (shouldUseTools && hasToolCalls)
+                        {
+                            // Successfully used tools - mark as supported
+                            await UpdateModelToolSupportAsync(provider, ollamaModel, true, ct);
+                            Console.WriteLine($"✅ Model {ollamaModel} successfully used tools - marked as tool-capable");
+                        }
+                        else if (shouldUseTools && !hasToolCalls)
+                        {
+                            // Attempted tools but no tools were called - might not support them
+                            // Don't mark as false here as it might be a prompt issue, not tool support
+                            Console.WriteLine($"🤔 Model {ollamaModel} attempted tools but none were called - keeping status unknown");
+                        }
+                    }
+                    catch (Exception dbEx)
+                    {
+                        Console.WriteLine($"⚠️ Failed to update model tool support status: {dbEx.Message}");
+                    }
                 }
 
                 var assistant = new System.Text.StringBuilder();
@@ -851,7 +931,7 @@ namespace KnowledgeEngine
                     }
                     else
                     {
-                        // Unknown support, we'll try tools and detect support
+                        // Unknown support - try tools and detect support
                         Console.WriteLine($"🔍 Ollama model {ollamaModel} has unknown tool support, will attempt and detect");
                         return enableAgentTools;
                     }
@@ -862,8 +942,9 @@ namespace KnowledgeEngine
                 }
             }
 
-            // Default: use the provided enableAgentTools parameter
-            return enableAgentTools;
+            // Default for Ollama: tools not supported unless explicitly enabled
+            Console.WriteLine("⚠️ Ollama model tool support unknown - defaulting to disabled");
+            return false;
         }
 
         private async Task UpdateModelToolSupportAsync(AiProvider provider, string? ollamaModel, bool supportsTools, CancellationToken ct)
@@ -920,8 +1001,11 @@ namespace KnowledgeEngine
                 var crossKnowledgePlugin = _serviceProvider.GetRequiredService<CrossKnowledgeSearchPlugin>();
                 kernel.Plugins.AddFromObject(crossKnowledgePlugin, "CrossKnowledgeSearch");
                 
+                var modelRecommendationAgent = _serviceProvider.GetRequiredService<ModelRecommendationAgent>();
+                kernel.Plugins.AddFromObject(modelRecommendationAgent, "ModelRecommendation");
+                
                 // Debug: Log plugin registration
-                Console.WriteLine($"✅ Registered CrossKnowledgeSearchPlugin. Total plugins: {kernel.Plugins.Count}");
+                Console.WriteLine($"✅ Registered {kernel.Plugins.Count} agent plugins: CrossKnowledgeSearchPlugin, ModelRecommendationAgent");
                 foreach (var plugin in kernel.Plugins)
                 {
                     Console.WriteLine($"  Plugin: {plugin.Name} with {plugin.Count()} functions");

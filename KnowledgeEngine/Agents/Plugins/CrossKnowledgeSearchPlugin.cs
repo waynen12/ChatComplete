@@ -16,7 +16,7 @@ public sealed class CrossKnowledgeSearchPlugin
 
     [KernelFunction]
     [Description(
-        "Search across ALL knowledge bases to find comprehensive information. Use this when the user asks about topics that might span multiple documents, requests comparison between different systems, or when you need to gather information from the entire knowledge repository."
+        "Search across ALL knowledge bases to find information from uploaded documents and files. Use this ONLY when the user asks about specific technical content, documentation, or information that would be stored in uploaded documents. DO NOT use for system metrics, model recommendations, or usage statistics."
     )]
     public async Task<string> SearchAllKnowledgeBasesAsync(
         [Description("The search query or question")] string query,
