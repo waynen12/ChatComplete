@@ -528,6 +528,63 @@ public static class OllamaEndpoints
             .Produces<List<OllamaDownloadRecord>>()
             .WithTags("Ollama");
 
+        // PUT /api/ollama/models/{modelName}/reset-tools - Reset tool support to unknown
+        group
+            .MapPut(
+                "/models/{modelName}/reset-tools",
+                async (
+                    string modelName,
+                    [FromServices] IOllamaRepository repository,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (string.IsNullOrWhiteSpace(modelName))
+                    {
+                        return Results.BadRequest("Model name is required");
+                    }
+
+                    try
+                    {
+                        // Check if model exists
+                        var model = await repository.GetModelAsync(modelName, ct);
+                        if (model == null)
+                        {
+                            return Results.NotFound($"Model '{modelName}' not found");
+                        }
+
+                        // Reset tool support to unknown (null)
+                        await repository.ResetSupportsToolsAsync(modelName, ct);
+                        
+                        LoggerProvider.Logger.Information(
+                            "Reset tool support to unknown for model: {ModelName}",
+                            modelName
+                        );
+
+                        return Results.Ok(new { message = $"Tool support reset to unknown for model '{modelName}'" });
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggerProvider.Logger.Error(
+                            ex,
+                            "Failed to reset tool support for model: {ModelName}",
+                            modelName
+                        );
+                        return Results.Problem($"Failed to reset tool support for model '{modelName}'", statusCode: 500);
+                    }
+                }
+            )
+            .WithOpenApi(op =>
+            {
+                op.Summary = "Reset model tool support status";
+                op.Description = "Resets the tool support status to unknown (null) for the specified model, allowing retry of tool detection";
+                op.Tags = [new OpenApiTag { Name = "Ollama" }];
+                return op;
+            })
+            .Produces<object>()
+            .Produces(404)
+            .Produces(400)
+            .WithTags("Ollama");
+
         return group;
     }
 }
