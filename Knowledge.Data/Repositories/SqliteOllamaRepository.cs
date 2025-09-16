@@ -189,6 +189,24 @@ public class SqliteOllamaRepository : IOllamaRepository
     }
 
     /// <summary>
+    /// Resets the tool support status to unknown (null) for retry
+    /// </summary>
+    public async Task ResetSupportsToolsAsync(string modelName, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE OllamaModels 
+            SET SupportsTools = NULL, UpdatedAt = CURRENT_TIMESTAMP
+            WHERE Name = @name
+            """;
+
+        using var connection = await _dbContext.CreateConnectionAsync();
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@name", modelName);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Removes a model from local cache when deleted
     /// </summary>
     public async Task DeleteModelAsync(string modelName, CancellationToken cancellationToken = default)

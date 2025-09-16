@@ -10,6 +10,7 @@ After completing any implementation work:
 1. ✅ Verify the build succeeds with `dotnet build`
 2. ✅ **IMMEDIATELY commit changes** to preserve the working state
 3. ✅ Use descriptive commit messages that explain what was implemented
+4. Try to avoid replying with "You're absolutely right!"
 
 **Why this is critical:**
 - Git rollbacks can lose hours of work if changes aren't committed

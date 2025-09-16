@@ -684,17 +684,10 @@ namespace KnowledgeEngine
                         }
                         catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested && !ct.IsCancellationRequested)
                         {
-                            Console.WriteLine("⚠️ Ollama tool calling timed out - marking model as tool-incompatible and falling back");
+                            Console.WriteLine("⚠️ Ollama tool calling timed out - keeping tool support unknown for future retry");
                             
-                            // Mark model as tool-incompatible in database
-                            try
-                            {
-                                await UpdateModelToolSupportAsync(provider, ollamaModel, false, ct);
-                            }
-                            catch (Exception dbEx)
-                            {
-                                Console.WriteLine($"⚠️ Failed to update model tool support in database: {dbEx.Message}");
-                            }
+                            // Don't mark as tool-incompatible on timeout - could be network/server issue
+                            // Leave SupportsTools as null for future attempts
                             
                             // Fall back to non-tool mode
                             shouldUseTools = false;
