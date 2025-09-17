@@ -9,7 +9,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddKnowledgeData(this IServiceCollection services, string databasePath)
     {
         // Register DbContext with database path
-        services.AddSingleton(provider => new SqliteDbContext(databasePath));
+        services.AddSingleton<SqliteDbContext>(provider => new SqliteDbContext(databasePath));
+        services.AddSingleton<ISqliteDbContext>(provider => provider.GetRequiredService<SqliteDbContext>());
         
         // Register repositories
         services.AddScoped<IOllamaRepository, SqliteOllamaRepository>();

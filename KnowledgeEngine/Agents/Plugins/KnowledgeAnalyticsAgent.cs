@@ -16,12 +16,12 @@ public sealed class KnowledgeAnalyticsAgent
 {
     private readonly IKnowledgeRepository _knowledgeRepository;
     private readonly IUsageTrackingService _usageTrackingService;
-    private readonly SqliteDbContext _dbContext;
+    private readonly ISqliteDbContext _dbContext;
 
     public KnowledgeAnalyticsAgent(
         IKnowledgeRepository knowledgeRepository,
         IUsageTrackingService usageTrackingService,
-        SqliteDbContext dbContext)
+        ISqliteDbContext dbContext)
     {
         _knowledgeRepository = knowledgeRepository;
         _usageTrackingService = usageTrackingService;
