@@ -4,10 +4,10 @@ using ChatCompletion.Config;
 using Knowledge.Analytics.Models;
 using Knowledge.Analytics.Services;
 using Knowledge.Contracts.Types;
+using Knowledge.Data.Interfaces;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Agents.Plugins;
 using KnowledgeEngine.Models;
-using Knowledge.Data.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
@@ -30,7 +30,6 @@ namespace KnowledgeEngine
         private readonly ConcurrentDictionary<string, Kernel> _kernels = new();
         private readonly IOllamaRepository? _ollamaRepository;
         private readonly IUsageTrackingService? _usageTrackingService;
-        
 
         public ChatComplete(
             KnowledgeManager knowledgeManager,
@@ -42,53 +41,65 @@ namespace KnowledgeEngine
             _serviceProvider = serviceProvider;
             _settings = settings;
             _options = Options.Create(settings);
-            
+
             // Try to get the Ollama repository for tool support detection
             _ollamaRepository = serviceProvider.GetService<IOllamaRepository>();
-            
+
             // Try to get the usage tracking service for analytics
             _usageTrackingService = serviceProvider.GetService<IUsageTrackingService>();
-            
+
             // Load file-based prompt plugins
             LoadPromptPlugins();
         }
-        
+
         private static void LoadPromptPlugins()
         {
             try
             {
                 var promptsDirectory = Path.Combine(AppContext.BaseDirectory, "Prompts");
-                
+
                 // Verify prompt directories exist
-                if (Directory.Exists(Path.Combine(promptsDirectory, "ChatAssistant")) &&
-                    Directory.Exists(Path.Combine(promptsDirectory, "ContextualChat")))
+                if (
+                    Directory.Exists(Path.Combine(promptsDirectory, "ChatAssistant"))
+                    && Directory.Exists(Path.Combine(promptsDirectory, "ContextualChat"))
+                )
                 {
                     Console.WriteLine("✅ Prompt directories found successfully");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ Failed to load prompt plugins: {ex.Message}. Using fallback prompts.");
+                Console.WriteLine(
+                    $"⚠️ Failed to load prompt plugins: {ex.Message}. Using fallback prompts."
+                );
             }
         }
-        
-        private async Task<string> GetSystemPromptAsync(bool useExtendedInstructions, bool enableAgentTools)
+
+        private async Task<string> GetSystemPromptAsync(
+            bool useExtendedInstructions,
+            bool enableAgentTools
+        )
         {
             // Try to use file-based prompts first, fallback to appsettings.json
             try
             {
                 var (_, functionName) = (useExtendedInstructions, enableAgentTools) switch
                 {
-                    (true, true) => ("ChatAssistant", "AgentCodingChat"),   // Graham with tools
-                    (true, false) => ("ChatAssistant", "CodingAssistant"),  // Graham without tools
-                    (false, true) => ("ChatAssistant", "AgentChat"),        // Standard with tools
-                    (false, false) => ("ChatAssistant", "StandardChat")     // Standard without tools
+                    (true, true) => ("ChatAssistant", "AgentCodingChat"), // Graham with tools
+                    (true, false) => ("ChatAssistant", "CodingAssistant"), // Graham without tools
+                    (false, true) => ("ChatAssistant", "AgentChat"), // Standard with tools
+                    (false, false) => ("ChatAssistant", "StandardChat"), // Standard without tools
                 };
-                
+
                 // Try to read the prompt file directly
                 var promptsDirectory = Path.Combine(AppContext.BaseDirectory, "Prompts");
-                var promptFilePath = Path.Combine(promptsDirectory, "ChatAssistant", functionName, "skprompt.txt");
-                
+                var promptFilePath = Path.Combine(
+                    promptsDirectory,
+                    "ChatAssistant",
+                    functionName,
+                    "skprompt.txt"
+                );
+
                 if (File.Exists(promptFilePath))
                 {
                     var promptContent = await File.ReadAllTextAsync(promptFilePath);
@@ -100,36 +111,44 @@ namespace KnowledgeEngine
             {
                 Console.WriteLine($"⚠️ Failed to get file-based prompt: {ex.Message}");
             }
-            
+
             // Fallback to hardcoded prompts
             return useExtendedInstructions
                 ? _settings.SystemPromptWithCoding
                 : _settings.SystemPrompt;
         }
 
-        private async Task<string> GetUserPromptFromTemplateAsync(string userMessage, string? context = null)
+        private async Task<string> GetUserPromptFromTemplateAsync(
+            string userMessage,
+            string? context = null
+        )
         {
             // Try to use file-based contextual prompts first
             try
             {
                 var hasContext = !string.IsNullOrEmpty(context);
                 var functionName = hasContext ? "WithContext" : "WithoutContext";
-                
+
                 // Try to read and process the contextual template directly
                 var promptsDirectory = Path.Combine(AppContext.BaseDirectory, "Prompts");
-                var promptFilePath = Path.Combine(promptsDirectory, "ContextualChat", functionName, "skprompt.txt");
-                
+                var promptFilePath = Path.Combine(
+                    promptsDirectory,
+                    "ContextualChat",
+                    functionName,
+                    "skprompt.txt"
+                );
+
                 if (File.Exists(promptFilePath))
                 {
                     var templateContent = await File.ReadAllTextAsync(promptFilePath);
-                    
+
                     // Perform manual template variable substitution
                     var processedContent = templateContent.Replace("{{$userMessage}}", userMessage);
                     if (hasContext)
                     {
                         processedContent = processedContent.Replace("{{$context}}", context);
                     }
-                    
+
                     Console.WriteLine($"📝 Using contextual template: {functionName}");
                     return processedContent;
                 }
@@ -138,15 +157,27 @@ namespace KnowledgeEngine
             {
                 Console.WriteLine($"⚠️ Failed to get contextual template: {ex.Message}");
             }
-            
+
             // Fallback: Read template content directly from files
             try
             {
                 var hasContext = !string.IsNullOrEmpty(context);
-                var templatePath = hasContext 
-                    ? Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat", "WithContext", "skprompt.txt")
-                    : Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat", "WithoutContext", "skprompt.txt");
-                
+                var templatePath = hasContext
+                    ? Path.Combine(
+                        AppContext.BaseDirectory,
+                        "Prompts",
+                        "ContextualChat",
+                        "WithContext",
+                        "skprompt.txt"
+                    )
+                    : Path.Combine(
+                        AppContext.BaseDirectory,
+                        "Prompts",
+                        "ContextualChat",
+                        "WithoutContext",
+                        "skprompt.txt"
+                    );
+
                 if (File.Exists(templatePath))
                 {
                     var template = await File.ReadAllTextAsync(templatePath);
@@ -155,7 +186,9 @@ namespace KnowledgeEngine
                     {
                         result = result.Replace("{{$context}}", context);
                     }
-                    Console.WriteLine($"📝 Using fallback template file: {Path.GetFileName(Path.GetDirectoryName(templatePath))}");
+                    Console.WriteLine(
+                        $"📝 Using fallback template file: {Path.GetFileName(Path.GetDirectoryName(templatePath))}"
+                    );
                     return result;
                 }
             }
@@ -163,20 +196,25 @@ namespace KnowledgeEngine
             {
                 Console.WriteLine($"⚠️ Failed to read fallback template files: {ex.Message}");
             }
-            
+
             // Final fallback: construct basic user message without file dependencies
-            return !string.IsNullOrEmpty(context)
-                ? $"{userMessage}\n\n{context}"
-                : userMessage;
+            return !string.IsNullOrEmpty(context) ? $"{userMessage}\n\n{context}" : userMessage;
         }
 
-        private async Task<(string withContextInstruction, string withoutContextInstruction)> GetContextInstructionsAsync()
+        private async Task<(
+            string withContextInstruction,
+            string withoutContextInstruction
+        )> GetContextInstructionsAsync()
         {
             // Try to extract instruction strings from prompt templates
             try
             {
-                var promptsDirectory = Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat");
-                
+                var promptsDirectory = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "Prompts",
+                    "ContextualChat"
+                );
+
                 // Get WithContext template
                 string withContextInstruction = "";
                 var withContextPath = Path.Combine(promptsDirectory, "WithContext", "skprompt.txt");
@@ -184,24 +222,37 @@ namespace KnowledgeEngine
                 {
                     var template = await File.ReadAllTextAsync(withContextPath);
                     // Process template with empty values to get instruction text
-                    var processedTemplate = template.Replace("{{$userMessage}}", "").Replace("{{$context}}", "");
+                    var processedTemplate = template
+                        .Replace("{{$userMessage}}", "")
+                        .Replace("{{$context}}", "");
                     var lines = processedTemplate.Split('\n');
-                    withContextInstruction = lines.LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim() ?? "";
+                    withContextInstruction =
+                        lines.LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim()
+                        ?? "";
                 }
-                
+
                 // Get WithoutContext template
                 string withoutContextInstruction = "";
-                var withoutContextPath = Path.Combine(promptsDirectory, "WithoutContext", "skprompt.txt");
+                var withoutContextPath = Path.Combine(
+                    promptsDirectory,
+                    "WithoutContext",
+                    "skprompt.txt"
+                );
                 if (File.Exists(withoutContextPath))
                 {
                     var template = await File.ReadAllTextAsync(withoutContextPath);
                     // Process template with empty values to get instruction text
                     var processedTemplate = template.Replace("{{$userMessage}}", "");
                     var lines = processedTemplate.Split('\n');
-                    withoutContextInstruction = lines.LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim() ?? "";
+                    withoutContextInstruction =
+                        lines.LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim()
+                        ?? "";
                 }
-                    
-                if (!string.IsNullOrEmpty(withContextInstruction) && !string.IsNullOrEmpty(withoutContextInstruction))
+
+                if (
+                    !string.IsNullOrEmpty(withContextInstruction)
+                    && !string.IsNullOrEmpty(withoutContextInstruction)
+                )
                 {
                     Console.WriteLine("📝 Using context instructions from prompt files");
                     return (withContextInstruction, withoutContextInstruction);
@@ -211,22 +262,42 @@ namespace KnowledgeEngine
             {
                 Console.WriteLine($"⚠️ Failed to extract context instructions: {ex.Message}");
             }
-            
+
             // Fallback: Read directly from template files
             try
             {
-                var withContextPath = Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat", "WithContext", "skprompt.txt");
-                var withoutContextPath = Path.Combine(AppContext.BaseDirectory, "Prompts", "ContextualChat", "WithoutContext", "skprompt.txt");
-                
+                var withContextPath = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "Prompts",
+                    "ContextualChat",
+                    "WithContext",
+                    "skprompt.txt"
+                );
+                var withoutContextPath = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "Prompts",
+                    "ContextualChat",
+                    "WithoutContext",
+                    "skprompt.txt"
+                );
+
                 if (File.Exists(withContextPath) && File.Exists(withoutContextPath))
                 {
                     var withContextTemplate = await File.ReadAllTextAsync(withContextPath);
                     var withoutContextTemplate = await File.ReadAllTextAsync(withoutContextPath);
-                    
+
                     // Extract instruction lines
-                    var withContextInstruction = withContextTemplate.Split('\n').LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim() ?? "";
-                    var withoutContextInstruction = withoutContextTemplate.Split('\n').LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim() ?? "";
-                    
+                    var withContextInstruction =
+                        withContextTemplate
+                            .Split('\n')
+                            .LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))
+                            ?.Trim() ?? "";
+                    var withoutContextInstruction =
+                        withoutContextTemplate
+                            .Split('\n')
+                            .LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))
+                            ?.Trim() ?? "";
+
                     Console.WriteLine("📝 Using fallback instructions from template files");
                     return (withContextInstruction, withoutContextInstruction);
                 }
@@ -235,7 +306,7 @@ namespace KnowledgeEngine
             {
                 Console.WriteLine($"⚠️ Failed to read instruction fallback files: {ex.Message}");
             }
-            
+
             // Final resort: return empty strings to avoid hardcoded prompts
             Console.WriteLine("⚠️ Unable to extract context instructions from any source");
             return ("", "");
@@ -249,11 +320,11 @@ namespace KnowledgeEngine
             // Remove <think>...</think> sections (case insensitive, multiline)
             var pattern = @"<think>.*?</think>";
             var result = System.Text.RegularExpressions.Regex.Replace(
-                response, 
-                pattern, 
-                string.Empty, 
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase | 
-                System.Text.RegularExpressions.RegexOptions.Singleline
+                response,
+                pattern,
+                string.Empty,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                    | System.Text.RegularExpressions.RegexOptions.Singleline
             );
 
             // Clean up extra whitespace that may be left behind
@@ -270,7 +341,7 @@ namespace KnowledgeEngine
                 if (systemMessage?.Content != null)
                 {
                     var match = System.Text.RegularExpressions.Regex.Match(
-                        systemMessage.Content, 
+                        systemMessage.Content,
                         @"ConversationId:\s*([a-fA-F0-9-]+)"
                     );
                     if (match.Success)
@@ -283,7 +354,7 @@ namespace KnowledgeEngine
             {
                 Console.WriteLine($"⚠️ Failed to extract conversation ID: {ex.Message}");
             }
-            
+
             return null;
         }
 
@@ -306,7 +377,7 @@ namespace KnowledgeEngine
         {
             var kernel = GetOrCreateKernel(AiProvider.OpenAi);
             var chatService = kernel.GetRequiredService<IChatCompletionService>();
-            
+
             ChatHistory history = new ChatHistory();
             var systemPrompt = await GetSystemPromptAsync(false, false);
             history.AddSystemMessage(systemPrompt);
@@ -361,7 +432,7 @@ namespace KnowledgeEngine
             bool wasSuccessful = false;
             string? conversationId = null;
             int totalTokens = 0;
-            
+
             try
             {
                 var kernel = GetOrCreateKernel(provider, ollamaModel);
@@ -398,7 +469,10 @@ namespace KnowledgeEngine
                     : "No relevant documentation was found for this query.";
 
                 // 3. Build prompt & call GPT using template
-                var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, enumerable.Any() ? contextBlock : null);
+                var userPrompt = await GetUserPromptFromTemplateAsync(
+                    userMessage,
+                    enumerable.Any() ? contextBlock : null
+                );
                 chatHistory.AddUserMessage(userPrompt);
 
                 double resolvedTemperature =
@@ -445,7 +519,7 @@ namespace KnowledgeEngine
                 await foreach (var chunk in responseStream.WithCancellation(ct))
                 {
                     assistant.Append(chunk.Content);
-                    
+
                     // Estimate token usage from content length (rough approximation: 1 token ≈ 4 characters)
                     if (!string.IsNullOrEmpty(chunk.Content))
                     {
@@ -453,16 +527,20 @@ namespace KnowledgeEngine
                     }
                 }
 
-                var response = assistant.Length > 0
-                    ? assistant.ToString().Trim()
-                    : "There was no response from the AI.";
-                
-                wasSuccessful = !string.IsNullOrEmpty(response) && !response.Contains("There was no response from the AI.");
-                
+                var response =
+                    assistant.Length > 0
+                        ? assistant.ToString().Trim()
+                        : "There was no response from the AI.";
+
+                wasSuccessful =
+                    !string.IsNullOrEmpty(response)
+                    && !response.Contains("There was no response from the AI.");
+
                 // Include input tokens in estimate (user message + system prompt + context)
-                var inputContent = userMessage + systemMessage + (enumerable.Any() ? contextBlock : "");
+                var inputContent =
+                    userMessage + systemMessage + (enumerable.Any() ? contextBlock : "");
                 totalTokens += inputContent.Length / 4;
-                
+
                 return StripThinkingSections(response);
             }
             catch (Exception ex)
@@ -474,14 +552,14 @@ namespace KnowledgeEngine
             finally
             {
                 stopwatch.Stop();
-                
+
                 // Track usage metrics if service is available
                 if (_usageTrackingService != null)
                 {
                     try
                     {
                         var modelName = GetModelNameForTracking(provider, ollamaModel);
-                        
+
                         var usageMetric = new UsageMetric
                         {
                             ConversationId = conversationId ?? Guid.NewGuid().ToString(),
@@ -493,13 +571,16 @@ namespace KnowledgeEngine
                             InputTokens = totalTokens / 2, // Rough split between input and output
                             OutputTokens = totalTokens - (totalTokens / 2),
                             WasSuccessful = wasSuccessful,
-                            Temperature = apiTemperature < 0 ? _settings.Temperature : apiTemperature,
+                            Temperature =
+                                apiTemperature < 0 ? _settings.Temperature : apiTemperature,
                             UsedAgentCapabilities = false, // Standard chat doesn't use agent capabilities
-                            ToolExecutions = 0
+                            ToolExecutions = 0,
                         };
-                        
+
                         await _usageTrackingService.TrackUsageAsync(usageMetric, ct);
-                        Console.WriteLine($"📊 Usage tracked: {provider}/{modelName} - {totalTokens} tokens - {stopwatch.ElapsedMilliseconds}ms - Success: {wasSuccessful}");
+                        Console.WriteLine(
+                            $"📊 Usage tracked: {provider}/{modelName} - {totalTokens} tokens - {stopwatch.ElapsedMilliseconds}ms - Success: {wasSuccessful}"
+                        );
                     }
                     catch (Exception ex)
                     {
@@ -531,15 +612,22 @@ namespace KnowledgeEngine
 
             try
             {
-                Console.WriteLine($"🤖 AskWithAgentAsync called - Provider: {provider}, Model: {ollamaModel}, EnableTools: {enableAgentTools}");
-                
+                Console.WriteLine(
+                    $"🤖 AskWithAgentAsync called - Provider: {provider}, Model: {ollamaModel}, EnableTools: {enableAgentTools}"
+                );
+
                 // Extract conversation ID from chat history if available
                 conversationId = ExtractConversationId(chatHistory) ?? Guid.NewGuid().ToString();
-                
+
                 var kernel = GetOrCreateKernel(provider, ollamaModel);
 
                 // Determine if we should use tools based on model capabilities
-                var shouldUseTools = await ShouldEnableToolsAsync(provider, ollamaModel, enableAgentTools, ct);
+                var shouldUseTools = await ShouldEnableToolsAsync(
+                    provider,
+                    ollamaModel,
+                    enableAgentTools,
+                    ct
+                );
                 Console.WriteLine($"🔧 Dynamic tool decision: shouldUseTools = {shouldUseTools}");
 
                 // Register agent plugins if enabled
@@ -562,7 +650,9 @@ namespace KnowledgeEngine
                 var searchResults = new List<KnowledgeSearchResult>();
                 if (!string.IsNullOrEmpty(knowledgeId))
                 {
-                    Console.WriteLine($"🔍 Performing traditional knowledge search for knowledgeId: {knowledgeId}");
+                    Console.WriteLine(
+                        $"🔍 Performing traditional knowledge search for knowledgeId: {knowledgeId}"
+                    );
                     searchResults = await _knowledgeManager.SearchAsync(
                         knowledgeId,
                         userMessage,
@@ -574,7 +664,9 @@ namespace KnowledgeEngine
                 }
                 else
                 {
-                    Console.WriteLine("🤖 Agent mode: No specific knowledge base selected, relying on agent tools for information");
+                    Console.WriteLine(
+                        "🤖 Agent mode: No specific knowledge base selected, relying on agent tools for information"
+                    );
                 }
 
                 // Build context for traditional search
@@ -589,13 +681,18 @@ namespace KnowledgeEngine
                     : "No relevant documentation was found for this query.";
 
                 // Add user message with explicit tool usage instruction
-                var userPrompt = await GetUserPromptFromTemplateAsync(userMessage, enumerable.Any() ? contextBlock : null);
+                var userPrompt = await GetUserPromptFromTemplateAsync(
+                    userMessage,
+                    enumerable.Any() ? contextBlock : null
+                );
                 chatHistory.AddUserMessage(userPrompt);
 
                 // Configure execution settings with tool calling
                 double resolvedTemperature =
                     apiTemperature < 0 ? _settings.Temperature : apiTemperature;
-                Console.WriteLine($"🔧 Configuring execution settings for provider: {provider}, shouldUseTools: {shouldUseTools}");
+                Console.WriteLine(
+                    $"🔧 Configuring execution settings for provider: {provider}, shouldUseTools: {shouldUseTools}"
+                );
                 PromptExecutionSettings execSettings = provider switch
                 {
                     AiProvider.OpenAi => new OpenAIPromptExecutionSettings
@@ -645,9 +742,11 @@ namespace KnowledgeEngine
                     OpenAIPromptExecutionSettings openAi => openAi.ToolCallBehavior != null,
                     GeminiPromptExecutionSettings gemini => gemini.ToolCallBehavior != null,
                     OllamaPromptExecutionSettings ollama => ollama.FunctionChoiceBehavior != null,
-                    _ => false
+                    _ => false,
                 };
-                Console.WriteLine($"🔧 Execution settings configured - HasToolCalling: {hasToolCalling}");
+                Console.WriteLine(
+                    $"🔧 Execution settings configured - HasToolCalling: {hasToolCalling}"
+                );
 
                 // Log kernel plugins for debugging
                 Console.WriteLine($"🔧 Kernel has {kernel.Plugins.Count} plugins registered:");
@@ -656,13 +755,15 @@ namespace KnowledgeEngine
                     Console.WriteLine($"  📦 Plugin: {plugin.Name}");
                     foreach (var function in plugin)
                     {
-                        Console.WriteLine($"    🔧 Function: {function.Name} - {function.Description}");
+                        Console.WriteLine(
+                            $"    🔧 Function: {function.Name} - {function.Description}"
+                        );
                     }
                 }
 
                 // Execute with tool calling enabled
                 Console.WriteLine("🚀 Starting chat completion with agent capabilities...");
-                
+
                 ChatMessageContent? chatResult;
                 try
                 {
@@ -672,7 +773,7 @@ namespace KnowledgeEngine
                         Console.WriteLine("⏱️ Using reduced timeout for Ollama tool calling...");
                         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         timeoutCts.CancelAfter(TimeSpan.FromSeconds(30)); // 30 second timeout for Ollama tools
-                        
+
                         try
                         {
                             chatResult = await chatService.GetChatMessageContentAsync(
@@ -682,29 +783,39 @@ namespace KnowledgeEngine
                                 timeoutCts.Token
                             );
                         }
-                        catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested && !ct.IsCancellationRequested)
+                        catch (OperationCanceledException)
+                            when (timeoutCts.Token.IsCancellationRequested
+                                && !ct.IsCancellationRequested
+                            )
                         {
-                            Console.WriteLine("⚠️ Ollama tool calling timed out - keeping tool support unknown for future retry");
-                            
+                            Console.WriteLine(
+                                "⚠️ Ollama tool calling timed out - keeping tool support unknown for future retry"
+                            );
+
                             // Don't mark as tool-incompatible on timeout - could be network/server issue
                             // Leave SupportsTools as null for future attempts
-                            
+
                             // Fall back to non-tool mode
                             shouldUseTools = false;
-                            response.ToolExecutions.Add(new AgentToolExecution
-                            {
-                                ToolName = "ToolSupport",
-                                Summary = $"Model {ollamaModel} marked as tool-incompatible due to timeout",
-                                Success = false
-                            });
-                            
+                            response.ToolExecutions.Add(
+                                new AgentToolExecution
+                                {
+                                    ToolName = "ToolSupport",
+                                    Summary =
+                                        $"Model {ollamaModel} marked as tool-incompatible due to timeout",
+                                    Success = false,
+                                }
+                            );
+
                             // Recreate settings without tools
                             execSettings = new OllamaPromptExecutionSettings
                             {
-                                Temperature = (float)(apiTemperature < 0 ? _settings.Temperature : apiTemperature),
+                                Temperature = (float)(
+                                    apiTemperature < 0 ? _settings.Temperature : apiTemperature
+                                ),
                                 FunctionChoiceBehavior = null,
                             };
-                            
+
                             chatResult = await chatService.GetChatMessageContentAsync(
                                 chatHistory,
                                 execSettings,
@@ -724,47 +835,67 @@ namespace KnowledgeEngine
                         );
                     }
                 }
-                catch (Exception ex) when (ex.Message.Contains("ModelDoesNotSupportToolsException") || 
-                                          ex.Message.Contains("does not support tools") ||
-                                          ex.GetType().Name.Contains("ModelDoesNotSupportToolsException"))
+                catch (Exception ex)
+                    when (ex.Message.Contains("ModelDoesNotSupportToolsException")
+                        || ex.Message.Contains("does not support tools")
+                        || ex.GetType().Name.Contains("ModelDoesNotSupportToolsException")
+                    )
                 {
-                    Console.WriteLine($"⚠️ Model doesn't support tools, falling back to regular chat: {ex.Message}");
-                    
+                    Console.WriteLine(
+                        $"⚠️ Model doesn't support tools, falling back to regular chat: {ex.Message}"
+                    );
+
                     // Update model tool support status to false
                     await UpdateModelToolSupportAsync(provider, ollamaModel, false, ct);
-                    
+
                     // Remove the explicit tool usage instruction from user message to prevent loops
                     var lastUserMessage = chatHistory.LastOrDefault(m => m.Role == AuthorRole.User);
                     if (lastUserMessage != null)
                     {
                         // Get instructions from prompt files for cleaning
-                        var (withContextInstruction, withoutContextInstruction) = await GetContextInstructionsAsync();
-                        
+                        var (withContextInstruction, withoutContextInstruction) =
+                            await GetContextInstructionsAsync();
+
                         // Clean up the message to remove tool-specific instructions
-                        var cleanMessage = lastUserMessage.Content?
-                            .Replace(withoutContextInstruction, "")
+                        var cleanMessage = lastUserMessage
+                            .Content?.Replace(withoutContextInstruction, "")
                             .Replace(withContextInstruction, "")
                             .Trim();
-                        
+
                         chatHistory.RemoveAt(chatHistory.Count - 1);
                         chatHistory.AddUserMessage(cleanMessage ?? userMessage);
                     }
-                    
+
                     // Fallback to regular AskAsync without agent capabilities
-                    var fallbackResult = await AskAsync(userMessage, knowledgeId, new ChatHistory(), apiTemperature, provider, useExtendedInstructions, ollamaModel, ct);
+                    var fallbackResult = await AskAsync(
+                        userMessage,
+                        knowledgeId,
+                        new ChatHistory(),
+                        apiTemperature,
+                        provider,
+                        useExtendedInstructions,
+                        ollamaModel,
+                        ct
+                    );
                     return new AgentChatResponse
                     {
                         Response = fallbackResult,
                         UsedAgentCapabilities = false,
                         TraditionalSearchResults = new(),
-                        ToolExecutions = new()
+                        ToolExecutions = new(),
                     };
                 }
 
-                Console.WriteLine($"🔍 Chat result received. Content length: {chatResult.Content?.Length ?? 0}");
-                Console.WriteLine($"🔍 Function call results count: {chatResult?.Items.OfType<FunctionCallContent>().Count() ?? 0}");
-                Console.WriteLine($"🔍 Function result items count: {chatResult?.Items.OfType<FunctionResultContent>().Count() ?? 0}");
-                
+                Console.WriteLine(
+                    $"🔍 Chat result received. Content length: {chatResult.Content?.Length ?? 0}"
+                );
+                Console.WriteLine(
+                    $"🔍 Function call results count: {chatResult?.Items.OfType<FunctionCallContent>().Count() ?? 0}"
+                );
+                Console.WriteLine(
+                    $"🔍 Function result items count: {chatResult?.Items.OfType<FunctionResultContent>().Count() ?? 0}"
+                );
+
                 // Log any function calls/results
                 var hasToolCalls = false;
                 if (chatResult?.Items != null)
@@ -776,12 +907,14 @@ namespace KnowledgeEngine
                         {
                             Console.WriteLine($"  🛠️ Function called: {funcCall.FunctionName}");
                             hasToolCalls = true;
-                            response.ToolExecutions.Add(new AgentToolExecution
-                            {
-                                ToolName = funcCall.FunctionName,
-                                Summary = $"Called with args: {funcCall.Arguments}",
-                                Success = true
-                            });
+                            response.ToolExecutions.Add(
+                                new AgentToolExecution
+                                {
+                                    ToolName = funcCall.FunctionName,
+                                    Summary = $"Called with args: {funcCall.Arguments}",
+                                    Success = true,
+                                }
+                            );
                         }
                         if (item is FunctionResultContent funcResult)
                         {
@@ -799,41 +932,50 @@ namespace KnowledgeEngine
                         {
                             // Successfully used tools - mark as supported
                             await UpdateModelToolSupportAsync(provider, ollamaModel, true, ct);
-                            Console.WriteLine($"✅ Model {ollamaModel} successfully used tools - marked as tool-capable");
+                            Console.WriteLine(
+                                $"✅ Model {ollamaModel} successfully used tools - marked as tool-capable"
+                            );
                         }
                         else if (shouldUseTools && !hasToolCalls)
                         {
                             // Attempted tools but no tools were called - might not support them
                             // Don't mark as false here as it might be a prompt issue, not tool support
-                            Console.WriteLine($"🤔 Model {ollamaModel} attempted tools but none were called - keeping status unknown");
+                            Console.WriteLine(
+                                $"🤔 Model {ollamaModel} attempted tools but none were called - keeping status unknown"
+                            );
                         }
                     }
                     catch (Exception dbEx)
                     {
-                        Console.WriteLine($"⚠️ Failed to update model tool support status: {dbEx.Message}");
+                        Console.WriteLine(
+                            $"⚠️ Failed to update model tool support status: {dbEx.Message}"
+                        );
                     }
                 }
 
                 var assistant = new System.Text.StringBuilder();
                 assistant.Append(chatResult?.Content ?? "");
 
-                var rawResponse = assistant.Length > 0
-                    ? assistant.ToString().Trim()
-                    : "There was no response from the AI.";
-                
+                var rawResponse =
+                    assistant.Length > 0
+                        ? assistant.ToString().Trim()
+                        : "There was no response from the AI.";
+
                 // Estimate token usage from response content
                 if (!string.IsNullOrEmpty(rawResponse))
                 {
                     totalTokens += rawResponse.Length / 4;
                 }
-                
+
                 // Include input tokens in estimate (user message + system prompt)
                 var systemPrompt = await GetSystemPromptAsync(useExtendedInstructions, true);
                 var inputContent = userMessage + systemPrompt;
                 totalTokens += inputContent.Length / 4;
-                
-                wasSuccessful = !string.IsNullOrEmpty(rawResponse) && !rawResponse.Contains("There was no response from the AI.");
-                
+
+                wasSuccessful =
+                    !string.IsNullOrEmpty(rawResponse)
+                    && !rawResponse.Contains("There was no response from the AI.");
+
                 response.Response = StripThinkingSections(rawResponse);
                 return response;
             }
@@ -841,7 +983,7 @@ namespace KnowledgeEngine
             {
                 Console.WriteLine($"⚠️ Error in AskWithAgentAsync: {ex.Message}");
                 wasSuccessful = false;
-                
+
                 // Graceful degradation - fall back to traditional chat
                 response.Response = await AskAsync(
                     userMessage,
@@ -867,14 +1009,14 @@ namespace KnowledgeEngine
             finally
             {
                 stopwatch.Stop();
-                
+
                 // Track usage metrics if service is available
                 if (_usageTrackingService != null)
                 {
                     try
                     {
                         var modelName = GetModelNameForTracking(provider, ollamaModel);
-                        
+
                         var usageMetric = new UsageMetric
                         {
                             ConversationId = conversationId ?? Guid.NewGuid().ToString(),
@@ -886,13 +1028,16 @@ namespace KnowledgeEngine
                             InputTokens = totalTokens / 2, // Rough split between input and output
                             OutputTokens = totalTokens - (totalTokens / 2),
                             WasSuccessful = wasSuccessful,
-                            Temperature = apiTemperature < 0 ? _settings.Temperature : apiTemperature,
+                            Temperature =
+                                apiTemperature < 0 ? _settings.Temperature : apiTemperature,
                             UsedAgentCapabilities = response.UsedAgentCapabilities,
-                            ToolExecutions = response.ToolExecutions?.Count ?? 0
+                            ToolExecutions = response.ToolExecutions?.Count ?? 0,
                         };
-                        
+
                         await _usageTrackingService.TrackUsageAsync(usageMetric, ct);
-                        Console.WriteLine($"📊 Agent usage tracked: {provider}/{modelName} - {totalTokens} tokens - {stopwatch.ElapsedMilliseconds}ms - Success: {wasSuccessful} - Agent: {response.UsedAgentCapabilities}");
+                        Console.WriteLine(
+                            $"📊 Agent usage tracked: {provider}/{modelName} - {totalTokens} tokens - {stopwatch.ElapsedMilliseconds}ms - Success: {wasSuccessful} - Agent: {response.UsedAgentCapabilities}"
+                        );
                     }
                     catch (Exception ex)
                     {
@@ -902,7 +1047,12 @@ namespace KnowledgeEngine
             }
         }
 
-        private async Task<bool> ShouldEnableToolsAsync(AiProvider provider, string? ollamaModel, bool enableAgentTools, CancellationToken ct)
+        private async Task<bool> ShouldEnableToolsAsync(
+            AiProvider provider,
+            string? ollamaModel,
+            bool enableAgentTools,
+            CancellationToken ct
+        )
         {
             // For non-Ollama providers, always try tools if requested
             if (provider != AiProvider.Ollama)
@@ -919,19 +1069,25 @@ namespace KnowledgeEngine
                     if (modelRecord?.SupportsTools.HasValue == true)
                     {
                         // We know definitively whether this model supports tools
-                        Console.WriteLine($"🔍 Ollama model {ollamaModel} SupportsTools = {modelRecord.SupportsTools.Value}");
+                        Console.WriteLine(
+                            $"🔍 Ollama model {ollamaModel} SupportsTools = {modelRecord.SupportsTools.Value}"
+                        );
                         return enableAgentTools && modelRecord.SupportsTools.Value;
                     }
                     else
                     {
                         // Unknown support - try tools and detect support
-                        Console.WriteLine($"🔍 Ollama model {ollamaModel} has unknown tool support, will attempt and detect");
+                        Console.WriteLine(
+                            $"🔍 Ollama model {ollamaModel} has unknown tool support, will attempt and detect"
+                        );
                         return enableAgentTools;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"⚠️ Failed to check Ollama model tool support: {ex.Message}");
+                    Console.WriteLine(
+                        $"⚠️ Failed to check Ollama model tool support: {ex.Message}"
+                    );
                 }
             }
 
@@ -940,9 +1096,18 @@ namespace KnowledgeEngine
             return false;
         }
 
-        private async Task UpdateModelToolSupportAsync(AiProvider provider, string? ollamaModel, bool supportsTools, CancellationToken ct)
+        private async Task UpdateModelToolSupportAsync(
+            AiProvider provider,
+            string? ollamaModel,
+            bool supportsTools,
+            CancellationToken ct
+        )
         {
-            if (provider == AiProvider.Ollama && _ollamaRepository != null && !string.IsNullOrEmpty(ollamaModel))
+            if (
+                provider == AiProvider.Ollama
+                && _ollamaRepository != null
+                && !string.IsNullOrEmpty(ollamaModel)
+            )
             {
                 try
                 {
@@ -950,16 +1115,27 @@ namespace KnowledgeEngine
                     if (modelRecord != null)
                     {
                         // Only update if the current value is null (unknown) or different
-                        if (!modelRecord.SupportsTools.HasValue || modelRecord.SupportsTools.Value != supportsTools)
+                        if (
+                            !modelRecord.SupportsTools.HasValue
+                            || modelRecord.SupportsTools.Value != supportsTools
+                        )
                         {
-                            await _ollamaRepository.UpdateSupportsToolsAsync(ollamaModel, supportsTools, ct);
-                            Console.WriteLine($"✅ Updated Ollama model {ollamaModel} SupportsTools = {supportsTools}");
+                            await _ollamaRepository.UpdateSupportsToolsAsync(
+                                ollamaModel,
+                                supportsTools,
+                                ct
+                            );
+                            Console.WriteLine(
+                                $"✅ Updated Ollama model {ollamaModel} SupportsTools = {supportsTools}"
+                            );
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"⚠️ Failed to update Ollama model tool support: {ex.Message}");
+                    Console.WriteLine(
+                        $"⚠️ Failed to update Ollama model tool support: {ex.Message}"
+                    );
                 }
             }
         }
@@ -972,7 +1148,7 @@ namespace KnowledgeEngine
                 {
                     return ollamaModel;
                 }
-                
+
                 // Try to get the default Ollama model from settings
                 try
                 {
@@ -983,28 +1159,38 @@ namespace KnowledgeEngine
                     return "llama3.2:3b"; // Fallback to common model
                 }
             }
-            
+
             return provider.ToString();
         }
-        
+
         private void RegisterAgentPlugins(Kernel kernel)
         {
             try
             {
-                var crossKnowledgePlugin = _serviceProvider.GetRequiredService<CrossKnowledgeSearchPlugin>();
+                var crossKnowledgePlugin =
+                    _serviceProvider.GetRequiredService<CrossKnowledgeSearchPlugin>();
                 kernel.Plugins.AddFromObject(crossKnowledgePlugin, "CrossKnowledgeSearch");
-                
-                var modelRecommendationAgent = _serviceProvider.GetRequiredService<ModelRecommendationAgent>();
+
+                var modelRecommendationAgent =
+                    _serviceProvider.GetRequiredService<ModelRecommendationAgent>();
                 kernel.Plugins.AddFromObject(modelRecommendationAgent, "ModelRecommendation");
-                
+
+                var knowledgeAnalyticsAgent =
+                    _serviceProvider.GetRequiredService<KnowledgeAnalyticsAgent>();
+                kernel.Plugins.AddFromObject(knowledgeAnalyticsAgent, "KnowledgeAnalytics");
+
                 // Debug: Log plugin registration
-                Console.WriteLine($"✅ Registered {kernel.Plugins.Count} agent plugins: CrossKnowledgeSearchPlugin, ModelRecommendationAgent");
+                Console.WriteLine(
+                    $"✅ Registered {kernel.Plugins.Count} agent plugins: CrossKnowledgeSearchPlugin, ModelRecommendationAgent, KnowledgeAnalyticsAgent"
+                );
                 foreach (var plugin in kernel.Plugins)
                 {
                     Console.WriteLine($"  Plugin: {plugin.Name} with {plugin.Count()} functions");
                     foreach (var function in plugin)
                     {
-                        Console.WriteLine($"    Function: {function.Name} - {function.Description}");
+                        Console.WriteLine(
+                            $"    Function: {function.Name} - {function.Description}"
+                        );
                     }
                 }
             }
@@ -1056,7 +1242,10 @@ namespace KnowledgeEngine
                     : "No relevant documentation was found for this query.";
 
                 // Step 2: Add user question and context using template
-                var userPrompt = await GetUserPromptFromTemplateAsync(userInput, enumerable.Any() ? context : null);
+                var userPrompt = await GetUserPromptFromTemplateAsync(
+                    userInput,
+                    enumerable.Any() ? context : null
+                );
                 history.AddUserMessage(userPrompt);
 
                 // Step 3: Stream GPT response and add to history

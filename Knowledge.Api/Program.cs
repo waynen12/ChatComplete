@@ -139,6 +139,7 @@ builder.Services.AddScoped<ChatComplete>(sp =>
 // Register agent plugins for cross-knowledge search capabilities
 builder.Services.AddScoped<CrossKnowledgeSearchPlugin>();
 builder.Services.AddScoped<ModelRecommendationAgent>();
+builder.Services.AddScoped<KnowledgeAnalyticsAgent>();
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 builder.Services.AddCors(options =>
