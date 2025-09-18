@@ -125,8 +125,8 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
         // Arrange
         var knowledgeBases = new List<KnowledgeSummaryDto>
         {
-            new() { Id = "kb1", Name = "Low Activity KB", DocumentCount = 10 },
-            new() { Id = "kb2", Name = "High Activity KB", DocumentCount = 20 }
+            new() { Id = "kb1", Name = "React Docs", DocumentCount = 45 },
+            new() { Id = "kb2", Name = "API Reference", DocumentCount = 28 }
         };
 
         _mockKnowledgeRepository
@@ -137,7 +137,7 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
 
         var usageStats = new List<KnowledgeUsageStats>
         {
-            new() { KnowledgeId = "kb1", QueryCount = 5 },   // Low activity
+            new() { KnowledgeId = "kb1", QueryCount = 5 },   // Low activity  
             new() { KnowledgeId = "kb2", QueryCount = 100 }  // High activity
         };
 
@@ -150,10 +150,10 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
 
         // Assert
         var lines = result.Split('\n');
-        var highActivityIndex = Array.FindIndex(lines, line => line.Contains("High Activity KB"));
-        var lowActivityIndex = Array.FindIndex(lines, line => line.Contains("Low Activity KB"));
+        var apiRefIndex = Array.FindIndex(lines, line => line.Contains("API Reference"));
+        var reactDocsIndex = Array.FindIndex(lines, line => line.Contains("React Docs"));
         
-        Assert.True(highActivityIndex < lowActivityIndex, "High activity KB should appear before low activity KB");
+        Assert.True(apiRefIndex < reactDocsIndex, "API Reference (high activity) should appear before React Docs (low activity)");
     }
 
     [Fact]
@@ -194,8 +194,8 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
         // Arrange
         var knowledgeBases = new List<KnowledgeSummaryDto>
         {
-            new() { Id = "kb1", Name = "Zebra Docs", DocumentCount = 10 },
-            new() { Id = "kb2", Name = "Alpha Docs", DocumentCount = 20 }
+            new() { Id = "kb1", Name = "React Docs", DocumentCount = 45 },
+            new() { Id = "kb2", Name = "API Reference", DocumentCount = 28 }
         };
 
         _mockKnowledgeRepository
@@ -213,10 +213,10 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
 
         // Assert
         var lines = result.Split('\n');
-        var alphaIndex = Array.FindIndex(lines, line => line.Contains("Alpha Docs"));
-        var zebraIndex = Array.FindIndex(lines, line => line.Contains("Zebra Docs"));
+        var apiRefIndex = Array.FindIndex(lines, line => line.Contains("API Reference"));
+        var reactDocsIndex = Array.FindIndex(lines, line => line.Contains("React Docs"));
         
-        Assert.True(alphaIndex < zebraIndex, "Alpha Docs should appear before Zebra Docs when sorted alphabetically");
+        Assert.True(apiRefIndex < reactDocsIndex, "API Reference should appear before React Docs when sorted alphabetically");
     }
 
     [Theory]
@@ -260,7 +260,7 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
         // Arrange
         var knowledgeBases = new List<KnowledgeSummaryDto>
         {
-            new() { Id = "kb1", Name = "Test KB", DocumentCount = 10 }
+            new() { Id = "kb1", Name = "React Docs", DocumentCount = 45 }
         };
 
         _mockKnowledgeRepository
@@ -277,7 +277,7 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
         var result = await _agent.GetKnowledgeBaseSummaryAsync(false, "activity");
 
         // Assert
-        Assert.Contains("Test KB", result);
+        Assert.Contains("React Docs", result);
         Assert.DoesNotContain("Documents:", result);
         Assert.DoesNotContain("Chunks:", result);
         Assert.DoesNotContain("System Totals:", result);
@@ -341,8 +341,8 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
         // Arrange
         var knowledgeBases = new List<KnowledgeSummaryDto>
         {
-            new() { Id = "kb1", Name = "KB 1", DocumentCount = 10 },
-            new() { Id = "kb2", Name = "KB 2", DocumentCount = 20 }
+            new() { Id = "kb1", Name = "React Docs", DocumentCount = 45 },
+            new() { Id = "kb2", Name = "API Reference", DocumentCount = 28 }
         };
 
         _mockKnowledgeRepository
@@ -367,10 +367,10 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
         // Assert
         Assert.Contains("Sorted by Activity", result);
         var lines = result.Split('\n');
-        var kb1Index = Array.FindIndex(lines, line => line.Contains("KB 1"));
-        var kb2Index = Array.FindIndex(lines, line => line.Contains("KB 2"));
+        var reactDocsIndex = Array.FindIndex(lines, line => line.Contains("React Docs"));
+        var apiRefIndex = Array.FindIndex(lines, line => line.Contains("API Reference"));
         
-        Assert.True(kb1Index < kb2Index, "KB 1 (high activity) should appear before KB 2 (low activity)");
+        Assert.True(reactDocsIndex < apiRefIndex, "React Docs (high activity) should appear before API Reference (low activity)");
     }
 
     /// <summary>
