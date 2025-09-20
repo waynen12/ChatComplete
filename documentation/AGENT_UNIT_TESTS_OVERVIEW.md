@@ -398,3 +398,373 @@ KnowledgeAnalyticsAgent Test Suite Overview
 
   The test suite ensures every step works correctly and provides a production-ready agent that delivers reliable, accurate knowledge base
   analytics to end users.
+
+---
+
+# SystemHealthAgent Test Suite Overview
+
+The SystemHealthAgent test suite contains 98 comprehensive tests across 6 test classes that validate the complete health monitoring infrastructure. This comprehensive test coverage ensures reliable system health monitoring across all components.
+
+## Test Architecture Overview
+
+### 1. **ComponentHealthTests** (5 tests)
+Tests the core health component data model that represents individual component health status.
+
+**Purpose**: Validates the foundational health status representation and formatting logic.
+
+```csharp
+[Fact]
+public void ComponentHealth_DefaultValues_ShouldBeSet()
+{
+    // Tests default initialization values
+    var health = new ComponentHealth();
+    
+    Assert.Equal("Unknown", health.Status);
+    Assert.False(health.IsConnected);
+    Assert.Equal(0, health.ErrorCount);
+    Assert.Equal(TimeSpan.Zero, health.ResponseTime);
+}
+```
+
+**Key Test Coverage**:
+- **Default Value Initialization**: Ensures safe defaults for all properties
+- **Status Evaluation Properties**: Tests `IsHealthy`, `HasWarnings`, `IsCritical` logic
+- **Time Formatting**: Validates `FormattedResponseTime` and `TimeSinceLastSuccess` display
+- **Response Time Classification**: Tests millisecond vs second formatting thresholds
+
+**Real-World Value**: Ensures health status display is consistent and user-friendly across all components.
+
+### 2. **SystemMetricsTests** (30 tests)
+Tests the system-wide performance and resource metrics aggregation and formatting.
+
+**Purpose**: Validates comprehensive system metrics calculation, formatting, and health evaluation logic.
+
+```csharp
+[Theory]
+[InlineData(1000, "1.0K tokens")]
+[InlineData(1500000, "1.5M tokens")]
+[InlineData(500, "500 tokens")]
+public void FormattedTokenUsage_ShouldFormatCorrectly(long tokens, string expected)
+{
+    // Tests intelligent token usage formatting
+    var metrics = new SystemMetrics { TotalTokensUsed = tokens };
+    Assert.Equal(expected, metrics.FormattedTokenUsage);
+}
+```
+
+**Key Test Coverage**:
+- **Intelligent Formatting**: Bytes, tokens, costs, success rates, response times, uptime
+- **Performance Health Evaluation**: Multi-factor analysis (success rate ≥95%, response time ≤2s, errors ≤10)
+- **Resource Concern Detection**: Database size, error rates, performance degradation
+- **Business Logic**: Cost calculations, usage tracking, system health scoring
+
+**Real-World Value**: Provides human-readable metrics and intelligent health assessment for system administrators.
+
+### 3. **SystemHealthStatusTests** (18 tests)
+Tests the aggregated system health status calculation and component management.
+
+**Purpose**: Validates complex health aggregation logic and weighted health percentage calculation.
+
+```csharp
+[Fact]
+public void SystemHealthPercentage_WithMixedComponents_ShouldCalculateCorrectly()
+{
+    // Tests weighted health scoring algorithm
+    var status = new SystemHealthStatus();
+    status.Components.AddRange(new[]
+    {
+        new ComponentHealth { Status = "Healthy", IsConnected = true },   // 100 points
+        new ComponentHealth { Status = "Warning", IsConnected = true },   // 60 points  
+        new ComponentHealth { Status = "Critical", IsConnected = true },  // 20 points
+        new ComponentHealth { Status = "Healthy", IsConnected = false }   // 0 points (offline)
+    });
+
+    // Expected: (100 + 60 + 20 + 0) / (4 * 100) * 100 = 45%
+    Assert.Equal(45.0, status.SystemHealthPercentage);
+}
+```
+
+**Key Test Coverage**:
+- **Weighted Health Calculation**: Per-component scoring with connection status consideration
+- **Component Counting**: Healthy, warning, critical, offline component categorization
+- **Overall Status Logic**: Critical > Warning > Healthy status determination
+- **Alert Management**: Adding alerts and recommendations with deduplication
+- **Health Summary Generation**: Human-readable system health overview
+
+**Real-World Value**: Provides accurate system health assessment that reflects real operational impact.
+
+### 4. **SqliteHealthCheckerTests** (10 tests)
+Tests database health monitoring with in-memory SQLite database integration.
+
+**Purpose**: Validates database connectivity, performance monitoring, and metrics collection.
+
+```csharp
+[Fact]
+public async Task CheckHealthAsync_WithWorkingDatabase_ShouldReturnHealthy()
+{
+    // Tests full database health check with real SQLite operations
+    var result = await _healthChecker.CheckHealthAsync();
+    
+    Assert.Equal("SQLite", result.ComponentName);
+    Assert.Equal("Healthy", result.Status);
+    Assert.True(result.IsConnected);
+    Assert.Contains("Database operational", result.StatusMessage);
+    Assert.NotEmpty(result.Metrics);
+}
+```
+
+**Test Infrastructure**:
+- **In-Memory SQLite**: Real database operations with test schema
+- **Test Data Setup**: Realistic knowledge collections with document/chunk counts
+- **Performance Testing**: Response time measurement and threshold validation
+- **Error Simulation**: Database connection failures, slow responses, locked databases
+
+**Key Test Coverage**:
+- **Database Connectivity**: Connection establishment and validation
+- **Performance Thresholds**: Response time monitoring (Warning >1s, Critical on failure)
+- **Metrics Collection**: Database size, table count, collection statistics
+- **Error Handling**: Graceful handling of connection failures and timeouts
+
+**Real-World Value**: Ensures database health monitoring catches performance issues before they impact users.
+
+### 5. **QdrantHealthCheckerTests** (17 tests)
+Tests vector store health monitoring with comprehensive mock scenarios.
+
+**Purpose**: Validates vector database connectivity, collection management, and performance monitoring.
+
+```csharp
+[Fact]
+public async Task CheckHealthAsync_WithSlowResponse_ShouldReturnCritical()
+{
+    // Tests response time threshold classification
+    _mockVectorStore.Setup(x => x.ListCollectionsAsync(It.IsAny<CancellationToken>()))
+        .Returns(async (CancellationToken ct) =>
+        {
+            await Task.Delay(2500, ct); // Simulates slow response
+            return new List<string> { "collection1" };
+        });
+
+    var result = await _healthChecker.CheckHealthAsync();
+    
+    Assert.Equal("Critical", result.Status);
+    Assert.Contains("Very slow response time", result.StatusMessage);
+}
+```
+
+**Test Infrastructure**:
+- **Advanced Mocking**: Moq framework for IVectorStoreStrategy simulation
+- **Response Time Simulation**: Configurable delays for performance testing
+- **Error Scenario Testing**: Connection failures, timeouts, service unavailability
+
+**Key Test Coverage**:
+- **Vector Store Connectivity**: Collection listing and response validation
+- **Performance Classification**: Warning >2s, Critical >5s response times
+- **Collection Management**: Detection and counting of vector collections
+- **Resilience Testing**: Timeout handling, connection recovery, error classification
+
+**Real-World Value**: Ensures vector search infrastructure monitoring for AI-powered features.
+
+### 6. **OllamaHealthCheckerTests** (18 tests)
+Tests local AI service health monitoring with HTTP client mocking.
+
+**Purpose**: Validates local AI service monitoring, model detection, and performance assessment.
+
+```csharp
+[Fact]
+public async Task CheckHealthAsync_WithWorkingService_ShouldReturnHealthy()
+{
+    // Tests complete Ollama service health assessment
+    var modelsResponse = CreateOllamaModelsResponse(3);
+    SetupHttpResponse(HttpStatusCode.OK, modelsResponse);
+
+    var result = await _healthChecker.CheckHealthAsync();
+    
+    Assert.Equal("Ollama", result.ComponentName);
+    Assert.Equal("Healthy", result.Status);
+    Assert.Contains("Ollama service operational with 3 models available", result.StatusMessage);
+    Assert.NotEmpty(result.Metrics);
+}
+```
+
+**Test Infrastructure**:
+- **HTTP Client Mocking**: Mock HttpMessageHandler for realistic HTTP testing
+- **Response Simulation**: JSON response creation for Ollama API endpoints
+- **Timeout Testing**: Configurable delays and cancellation token handling
+- **Error Condition Testing**: HTTP errors, connection refused, service timeouts
+
+**Key Test Coverage**:
+- **Service Availability**: HTTP endpoint accessibility and response validation
+- **Model Detection**: Installed model enumeration and metadata parsing
+- **Performance Monitoring**: Warning >5s, Critical >10s response times
+- **Service Classification**: Running, warning, critical, offline status determination
+- **Metrics Collection**: Model count, sizes, installation dates, service status
+
+**Real-World Value**: Ensures local AI service monitoring for self-hosted AI capabilities.
+
+---
+
+## Advanced Testing Techniques
+
+### 1. **Sophisticated Mocking Patterns**
+
+```csharp
+// HTTP Client Mocking with Custom Delays
+private void SetupHttpResponseWithDelay(HttpStatusCode statusCode, string content, TimeSpan delay)
+{
+    _mockHttpHandler.Protected()
+        .Setup<Task<HttpResponseMessage>>("SendAsync",
+            ItExpr.IsAny<HttpRequestMessage>(),
+            ItExpr.IsAny<CancellationToken>())
+        .Returns(async (HttpRequestMessage request, CancellationToken ct) =>
+        {
+            await Task.Delay(delay, ct);
+            return new HttpResponseMessage(statusCode)
+            {
+                Content = new StringContent(content, Encoding.UTF8, "application/json")
+            };
+        });
+}
+```
+
+### 2. **In-Memory Database Testing**
+
+```csharp
+// Real SQLite Database with Test Schema
+private void SetupTestDatabase()
+{
+    var createTableSql = """
+        CREATE TABLE IF NOT EXISTS KnowledgeCollections (
+            CollectionId TEXT PRIMARY KEY,
+            Name TEXT NOT NULL,
+            DocumentCount INTEGER DEFAULT 0,
+            ChunkCount INTEGER DEFAULT 0,
+            CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        """;
+        
+    using var command = new SqliteCommand(createTableSql, _connection);
+    command.ExecuteNonQuery();
+}
+```
+
+### 3. **Parameterized Testing for Edge Cases**
+
+```csharp
+[Theory]
+[InlineData(96.0, 1500, 5, true)]  // Good performance
+[InlineData(94.0, 1500, 5, false)] // Low success rate
+[InlineData(96.0, 2500, 5, false)] // Slow response time
+[InlineData(96.0, 1500, 15, false)] // Too many errors
+public void IsPerformanceHealthy_ShouldEvaluateCorrectly(
+    double successRate, double responseTime, int errors, bool expected)
+{
+    // Tests multi-factor performance evaluation
+    var metrics = new SystemMetrics
+    {
+        SuccessRate = successRate,
+        AverageResponseTime = responseTime,
+        ErrorsLast24Hours = errors
+    };
+    
+    Assert.Equal(expected, metrics.IsPerformanceHealthy);
+}
+```
+
+---
+
+## Test Coverage Summary
+
+### **98 Total Tests Across 6 Test Classes:**
+
+| Test Class | Test Count | Focus Area |
+|------------|------------|------------|
+| ComponentHealthTests | 5 | Core health status model |
+| SystemMetricsTests | 30 | System-wide metrics and formatting |
+| SystemHealthStatusTests | 18 | Health aggregation and scoring |
+| SqliteHealthCheckerTests | 10 | Database health monitoring |
+| QdrantHealthCheckerTests | 17 | Vector store health monitoring |
+| OllamaHealthCheckerTests | 18 | Local AI service monitoring |
+
+### **Test Categories:**
+
+- **✅ Happy Path Testing**: Normal operation scenarios with multiple components
+- **✅ Edge Case Testing**: Empty systems, single components, boundary conditions
+- **✅ Error Handling**: Network failures, timeouts, service unavailability
+- **✅ Performance Testing**: Response time thresholds, slow service detection
+- **✅ Integration Testing**: Real database operations, HTTP client interactions
+- **✅ Configuration Testing**: Parameter validation, feature toggles
+- **✅ Formatting Testing**: Human-readable output, unit conversions
+- **✅ Business Logic Testing**: Health scoring algorithms, status classification
+
+---
+
+## Production Readiness Benefits
+
+### 1. **Comprehensive Health Monitoring**
+The test suite validates complete system health assessment covering:
+- Database connectivity and performance
+- Vector store operations and responsiveness  
+- Local AI service availability and model detection
+- System-wide metrics aggregation and health scoring
+
+### 2. **Robust Error Handling**
+All health checkers include comprehensive error handling testing:
+- Network connectivity failures
+- Service timeouts and performance degradation
+- Invalid responses and data corruption
+- Graceful degradation with meaningful error messages
+
+### 3. **Performance Awareness**
+Response time thresholds ensure performance monitoring:
+- Warning levels for degraded but functional services
+- Critical levels for severely impacted services
+- Intelligent status classification based on service criticality
+
+### 4. **Real-World Simulation**
+Test infrastructure mirrors production scenarios:
+- Actual SQLite database operations with realistic schemas
+- HTTP client interactions with configurable response patterns
+- Vector store operations with collection management
+- Multi-component health aggregation with weighted scoring
+
+### 5. **Maintainable Test Architecture**
+Clean, focused test design ensures long-term maintainability:
+- Single-responsibility tests with clear assertions
+- Reusable mock setup and test data creation
+- Comprehensive coverage without test interdependencies
+- Performance-conscious test execution (under 50 seconds total)
+
+---
+
+## Real-World Usage Example
+
+When a system administrator asks: **"What's the current system health status?"**
+
+The SystemHealthAgent will:
+
+1. **✅ Check Database Health** (tested by SqliteHealthCheckerTests)
+   - Database connectivity and response time
+   - Collection counts and storage metrics
+   - Performance threshold evaluation
+
+2. **✅ Monitor Vector Store** (tested by QdrantHealthCheckerTests)  
+   - Vector database availability and collection status
+   - Search infrastructure performance assessment
+   - AI feature dependency health
+
+3. **✅ Validate AI Services** (tested by OllamaHealthCheckerTests)
+   - Local AI service availability and model detection
+   - Performance monitoring for AI-powered features
+   - Service capacity and resource utilization
+
+4. **✅ Aggregate Health Status** (tested by SystemHealthStatusTests)
+   - Weighted health percentage calculation
+   - Overall system status determination
+   - Component health prioritization and alerting
+
+5. **✅ Format Health Report** (tested by SystemMetricsTests)
+   - Human-readable metrics display
+   - Performance trend analysis
+   - Actionable health recommendations
+
+The comprehensive test suite ensures every aspect of system health monitoring works reliably, providing administrators with accurate, actionable health information to maintain optimal system performance.
