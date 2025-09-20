@@ -109,11 +109,12 @@ public class SqliteKnowledgeRepository : IKnowledgeRepository
         CancellationToken cancellationToken = default)
     {
         const string sql = """
-            INSERT INTO KnowledgeCollections (CollectionId, Name, Description, CreatedAt, UpdatedAt)
-            VALUES (@collectionId, @name, @description, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO KnowledgeCollections (CollectionId, Name, Description, Status, CreatedAt, UpdatedAt)
+            VALUES (@collectionId, @name, @description, 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT(CollectionId) DO UPDATE SET
                 Name = @name,
                 Description = COALESCE(@description, Description),
+                Status = 'Active',
                 UpdatedAt = CURRENT_TIMESTAMP
             """;
 

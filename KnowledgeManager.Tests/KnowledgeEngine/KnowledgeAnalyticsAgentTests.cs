@@ -6,6 +6,7 @@ using Knowledge.Data;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Agents.Plugins;
 using KnowledgeEngine.Persistence;
+using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.SemanticKernel;
 using Moq;
 
@@ -15,6 +16,7 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
 {
     private readonly Mock<IKnowledgeRepository> _mockKnowledgeRepository;
     private readonly Mock<IUsageTrackingService> _mockUsageService;
+    private readonly Mock<IVectorStoreStrategy> _mockVectorStore;
     private readonly ISqliteDbContext _dbContext;
     private readonly KnowledgeAnalyticsAgent _agent;
 
@@ -22,6 +24,7 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
     {
         _mockKnowledgeRepository = new Mock<IKnowledgeRepository>();
         _mockUsageService = new Mock<IUsageTrackingService>();
+        _mockVectorStore = new Mock<IVectorStoreStrategy>();
         
         // Use in-memory SQLite database for testing
         _dbContext = new SqliteDbContext(":memory:");
@@ -29,8 +32,20 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
         _agent = new KnowledgeAnalyticsAgent(
             _mockKnowledgeRepository.Object,
             _mockUsageService.Object,
-            _dbContext
+            _dbContext,
+            _mockVectorStore.Object
         );
+        
+        // Setup default vector store behavior (can be overridden in specific tests)
+        SetupDefaultVectorStoreMock();
+    }
+    
+    private void SetupDefaultVectorStoreMock()
+    {
+        // By default, return matching collections for active knowledge bases
+        _mockVectorStore
+            .Setup(x => x.ListCollectionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<string> { "kb1", "kb2" });
     }
 
     [Fact]
@@ -72,6 +87,11 @@ public class KnowledgeAnalyticsAgentTests : IDisposable
         _mockKnowledgeRepository
             .Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<KnowledgeSummaryDto>());
+        
+        // Override default mock for this test
+        _mockVectorStore
+            .Setup(x => x.ListCollectionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<string>());
 
         // Act
         var result = await _agent.GetKnowledgeBaseSummaryAsync(true, "activity");

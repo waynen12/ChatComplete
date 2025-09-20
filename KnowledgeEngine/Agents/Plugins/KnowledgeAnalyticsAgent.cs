@@ -4,6 +4,7 @@ using Knowledge.Analytics.Services;
 using Knowledge.Data;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Persistence;
+using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Data.Sqlite;
 using Microsoft.SemanticKernel;
 
@@ -17,15 +18,18 @@ public sealed class KnowledgeAnalyticsAgent
     private readonly IKnowledgeRepository _knowledgeRepository;
     private readonly IUsageTrackingService _usageTrackingService;
     private readonly ISqliteDbContext _dbContext;
+    private readonly IVectorStoreStrategy _vectorStore;
 
     public KnowledgeAnalyticsAgent(
         IKnowledgeRepository knowledgeRepository,
         IUsageTrackingService usageTrackingService,
-        ISqliteDbContext dbContext)
+        ISqliteDbContext dbContext,
+        IVectorStoreStrategy vectorStore)
     {
         _knowledgeRepository = knowledgeRepository;
         _usageTrackingService = usageTrackingService;
         _dbContext = dbContext;
+        _vectorStore = vectorStore;
     }
 
     [KernelFunction]
@@ -43,11 +47,30 @@ public sealed class KnowledgeAnalyticsAgent
 
         try
         {
-            // Get basic knowledge base data
+            // Get basic knowledge base data from SQLite (active only)
             var knowledgeBases = await _knowledgeRepository.GetAllAsync();
             
+            // Also check for collections that exist in the vector store but not in SQLite
+            var vectorCollections = await _vectorStore.ListCollectionsAsync();
+            var sqliteCollectionIds = knowledgeBases.Select(kb => kb.Id).ToHashSet();
+            
+            // Find orphaned collections in vector store
+            var orphanedCollections = vectorCollections
+                .Where(collection => !sqliteCollectionIds.Contains(collection))
+                .ToList();
+            
+            if (orphanedCollections.Any())
+            {
+                Console.WriteLine($"⚠️ Found {orphanedCollections.Count} orphaned collections in vector store: {string.Join(", ", orphanedCollections)}");
+            }
+            
+            // If no active knowledge bases found, check if there are any in vector store
             if (!knowledgeBases.Any())
             {
+                if (vectorCollections.Any())
+                {
+                    return $"📚 Found {vectorCollections.Count} collections in vector store but none are active in the database. Check for synchronization issues.";
+                }
                 return "📚 No knowledge bases found. Upload some documents to create your first knowledge base.";
             }
 
@@ -63,8 +86,15 @@ public sealed class KnowledgeAnalyticsAgent
             // Sort based on requested criteria
             summaries = SortKnowledgeBaseSummaries(summaries, sortBy);
 
-            // Format response
-            return FormatKnowledgeBaseSummaryResponse(summaries, includeMetrics, sortBy);
+            // Format response with orphaned collection warning if needed
+            var response = FormatKnowledgeBaseSummaryResponse(summaries, includeMetrics, sortBy);
+            
+            if (orphanedCollections.Any())
+            {
+                response += $"\n\n⚠️ **System Warning**: Found {orphanedCollections.Count} orphaned collections in vector store that aren't tracked in the database: {string.Join(", ", orphanedCollections)}";
+            }
+            
+            return response;
         }
         catch (Exception ex)
         {
