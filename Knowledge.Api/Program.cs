@@ -194,7 +194,7 @@ else
 // Register Ollama API service
 builder.Services.AddHttpClient<IOllamaApiService, OllamaApiService>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(30);
+    client.Timeout = TimeSpan.FromSeconds(180); // Increased for tool calling
     client.DefaultRequestHeaders.Add("User-Agent", "AIKnowledgeManager/1.0");
 });
 

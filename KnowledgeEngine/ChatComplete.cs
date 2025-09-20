@@ -767,12 +767,12 @@ namespace KnowledgeEngine
                 ChatMessageContent? chatResult;
                 try
                 {
-                    // For Ollama with tools, use a shorter timeout to detect failures quickly
+                    // For Ollama with tools, use an extended timeout to allow for slower tool calling
                     if (provider == AiProvider.Ollama && shouldUseTools)
                     {
-                        Console.WriteLine("⏱️ Using reduced timeout for Ollama tool calling...");
+                        Console.WriteLine("⏱️ Using extended timeout for Ollama tool calling...");
                         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30)); // 30 second timeout for Ollama tools
+                        timeoutCts.CancelAfter(TimeSpan.FromSeconds(180)); // 3 minute timeout for Ollama tools
 
                         try
                         {
