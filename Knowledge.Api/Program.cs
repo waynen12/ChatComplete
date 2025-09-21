@@ -145,14 +145,16 @@ builder.Services.AddScoped<KnowledgeAnalyticsAgent>();
 builder.Services.AddScoped<ISystemHealthService, SystemHealthService>();
 builder.Services.AddScoped<SystemHealthAgent>();
   // All health checkers for SystemHealthService to discover
-  builder.Services.AddScoped<SqliteHealthChecker>();
-  builder.Services.AddScoped<QdrantHealthChecker>();
-  builder.Services.AddScoped<OpenAIHealthChecker>();
-  builder.Services.AddScoped<AnthropicHealthChecker>();
-  builder.Services.AddScoped<GoogleAIHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, GoogleAIHealthChecker>();
   
-  // OllamaHealthChecker needs HttpClient
+  // OllamaHealthChecker needs HttpClient and interface registration
   builder.Services.AddHttpClient<OllamaHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker>(provider => 
+      provider.GetRequiredService<OllamaHealthChecker>());
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 builder.Services.AddCors(options =>
