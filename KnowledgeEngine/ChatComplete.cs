@@ -1178,6 +1178,9 @@ namespace KnowledgeEngine
                 var knowledgeAnalyticsAgent =
                     _serviceProvider.GetRequiredService<KnowledgeAnalyticsAgent>();
                 kernel.Plugins.AddFromObject(knowledgeAnalyticsAgent, "KnowledgeAnalytics");
+                
+                var systemHealthAgent = _serviceProvider.GetRequiredService<SystemHealthAgent>();
+                kernel.Plugins.AddFromObject(systemHealthAgent, "SystemHealth");
 
                 // Debug: Log plugin registration
                 Console.WriteLine(

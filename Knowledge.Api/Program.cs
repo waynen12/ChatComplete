@@ -22,12 +22,14 @@ using KnowledgeEngine.Persistence.IndexManagers;
 using KnowledgeEngine.Persistence.Sqlite;
 using KnowledgeEngine.Persistence.Sqlite.Repositories;
 using KnowledgeEngine.Persistence.VectorStores;
+using KnowledgeEngine.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
+using KnowledgeEngine.Services.HealthCheckers;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
@@ -140,6 +142,17 @@ builder.Services.AddScoped<ChatComplete>(sp =>
 builder.Services.AddScoped<CrossKnowledgeSearchPlugin>();
 builder.Services.AddScoped<ModelRecommendationAgent>();
 builder.Services.AddScoped<KnowledgeAnalyticsAgent>();
+builder.Services.AddScoped<ISystemHealthService, SystemHealthService>();
+builder.Services.AddScoped<SystemHealthAgent>();
+  // All health checkers for SystemHealthService to discover
+  builder.Services.AddScoped<SqliteHealthChecker>();
+  builder.Services.AddScoped<QdrantHealthChecker>();
+  builder.Services.AddScoped<OpenAIHealthChecker>();
+  builder.Services.AddScoped<AnthropicHealthChecker>();
+  builder.Services.AddScoped<GoogleAIHealthChecker>();
+  
+  // OllamaHealthChecker needs HttpClient
+  builder.Services.AddHttpClient<OllamaHealthChecker>();
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 builder.Services.AddCors(options =>
