@@ -51,7 +51,7 @@ public class ModelRecommendationAgentTests
         Assert.NotNull(descriptionAttr);
         
         var description = ((DescriptionAttribute)descriptionAttr).Description;
-        Assert.Contains("most popular model", description);
+        Assert.Contains("most popular AI models", description);
         Assert.Contains("usage statistics", description);
     }
 
