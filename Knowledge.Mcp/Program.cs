@@ -80,9 +80,9 @@ class Program
 
                     // Register component health checkers (testing one by one)
                     services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
-                    services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>(); // Test Ollama first (requires HttpClient)
+                    services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>();
+                    services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>(); // Test Qdrant (vector store related)
                     // Still disabled for testing:
-                    // services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, GoogleAIHealthChecker>();
