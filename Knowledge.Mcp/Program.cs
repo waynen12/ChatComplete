@@ -71,20 +71,21 @@ class Program
                     // Configure database services (required for health checks)
                     services.AddKnowledgeData(databasePath);
 
-                    // Register knowledge services (includes vector store strategy)
-                    services.AddKnowledgeServices(chatCompleteSettings);
+                    // Temporarily disabled to isolate database error:
+                    // services.AddKnowledgeServices(chatCompleteSettings);
 
                     // Register system health services and their dependencies
                     services.AddScoped<ISystemHealthService, SystemHealthService>();
                     services.AddScoped<IUsageTrackingService, SqliteUsageTrackingService>();
 
-                    // Register all component health checkers
+                    // Register component health checkers (temporarily limited for debugging)
                     services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
-                    services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
-                    services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
-                    services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
-                    services.AddScoped<IComponentHealthChecker, GoogleAIHealthChecker>();
-                    services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>();
+                    // Temporarily disabled to isolate database error:
+                    // services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
+                    // services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
+                    // services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
+                    // services.AddScoped<IComponentHealthChecker, GoogleAIHealthChecker>();
+                    // services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>();
 
                     // Configure MCP server with STDIO transport
                     services.AddMcpServer().WithStdioServerTransport().WithToolsFromAssembly();
