@@ -78,14 +78,14 @@ class Program
                     services.AddScoped<ISystemHealthService, SystemHealthService>();
                     services.AddScoped<IUsageTrackingService, SqliteUsageTrackingService>();
 
-                    // Register component health checkers (temporarily limited for debugging)
+                    // Register component health checkers (testing one by one)
                     services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
-                    // Temporarily disabled to isolate database error:
+                    services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>(); // Test Ollama first (requires HttpClient)
+                    // Still disabled for testing:
                     // services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, GoogleAIHealthChecker>();
-                    // services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>();
 
                     // Configure MCP server with STDIO transport
                     services.AddMcpServer().WithStdioServerTransport().WithToolsFromAssembly();
