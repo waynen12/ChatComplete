@@ -49,13 +49,6 @@ class Program
                     // Create ChatCompleteSettings from configuration
                     var chatCompleteSettings = new ChatCompleteSettings();
                     configuration.GetSection("ChatCompleteSettings").Bind(chatCompleteSettings);
-                    
-                    // Ensure VectorStore configuration exists
-                    if (chatCompleteSettings.VectorStore == null)
-                    {
-                        chatCompleteSettings.VectorStore = new VectorStoreSettings();
-                        configuration.GetSection("VectorStore").Bind(chatCompleteSettings.VectorStore);
-                    }
 
                     // Register settings as singleton
                     services.AddSingleton(chatCompleteSettings);
