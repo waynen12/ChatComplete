@@ -49,6 +49,10 @@ class Program
                     // Create ChatCompleteSettings from configuration
                     var chatCompleteSettings = new ChatCompleteSettings();
                     configuration.GetSection("ChatCompleteSettings").Bind(chatCompleteSettings);
+                    
+                    // Debug: Check vector store configuration
+                    Console.WriteLine($"Debug - VectorStore Provider: {chatCompleteSettings.VectorStore?.Provider}");
+                    Console.WriteLine($"Debug - VectorStore is null: {chatCompleteSettings.VectorStore == null}");
 
                     // Register settings as singleton
                     services.AddSingleton(chatCompleteSettings);
@@ -73,15 +77,30 @@ class Program
 
                     // Re-enable knowledge services to test vector store configuration
                     services.AddKnowledgeServices(chatCompleteSettings);
+                    
+                    // Debug: Test what IVectorStoreStrategy is being resolved
+                    services.AddScoped<object>(provider =>
+                    {
+                        try 
+                        {
+                            var vectorStore = provider.GetService<KnowledgeEngine.Persistence.VectorStores.IVectorStoreStrategy>();
+                            Console.WriteLine($"Debug - Resolved IVectorStoreStrategy: {vectorStore?.GetType().Name ?? "null"}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Debug - Failed to resolve IVectorStoreStrategy: {ex.Message}");
+                        }
+                        return new object();
+                    });
 
                     // Register system health services and their dependencies
                     services.AddScoped<ISystemHealthService, SystemHealthService>();
                     services.AddScoped<IUsageTrackingService, SqliteUsageTrackingService>();
 
-                    // Register component health checkers (testing one by one)
+                    // Register component health checkers (temporarily removing Qdrant for debugging)
                     services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
                     services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>();
-                    services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>(); // Test Qdrant (vector store related)
+                    // Temporarily removed: services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
                     // Still disabled for testing:
                     // services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
