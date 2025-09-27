@@ -1,4 +1,5 @@
-﻿Microsoft Visual Studio Solution File, Format Version 12.00
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -16,7 +17,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Knowledge.Data", "Knowledge
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Knowledge.Entities", "Knowledge.Entities\Knowledge.Entities.csproj", "{03AA1884-77C3-425F-B49E-15DDAC50FB6B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatComplete.Mcp", "ChatComplete.Mcp\ChatComplete.Mcp.csproj", "{2B05D4D2-3AC8-4601-9261-F4E06C5D2DAE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Knowledge.Mcp", "Knowledge.Mcp\Knowledge.Mcp.csproj", "{92D28D27-D64A-4883-A9AB-EDE10978F87B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -52,10 +53,10 @@ Global
 		{03AA1884-77C3-425F-B49E-15DDAC50FB6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{03AA1884-77C3-425F-B49E-15DDAC50FB6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{03AA1884-77C3-425F-B49E-15DDAC50FB6B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2B05D4D2-3AC8-4601-9261-F4E06C5D2DAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2B05D4D2-3AC8-4601-9261-F4E06C5D2DAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2B05D4D2-3AC8-4601-9261-F4E06C5D2DAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2B05D4D2-3AC8-4601-9261-F4E06C5D2DAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{92D28D27-D64A-4883-A9AB-EDE10978F87B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92D28D27-D64A-4883-A9AB-EDE10978F87B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92D28D27-D64A-4883-A9AB-EDE10978F87B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92D28D27-D64A-4883-A9AB-EDE10978F87B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

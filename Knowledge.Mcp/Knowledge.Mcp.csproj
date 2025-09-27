@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>543bf678-8dbb-4865-bacb-86889fbfa6ac</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.9" />
+    <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.4" />
+    <PackageReference Include="OpenTelemetry" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference existing projects for agent functionality -->
+    <ProjectReference Include="../KnowledgeEngine/KnowledgeEngine.csproj" />
+    <ProjectReference Include="../Knowledge.Analytics/Knowledge.Analytics.csproj" />
+    <ProjectReference Include="../Knowledge.Data/Knowledge.Data.csproj" />
+    <ProjectReference Include="../Knowledge.Contracts/Knowledge.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

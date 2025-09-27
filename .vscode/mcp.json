@@ -1,0 +1,14 @@
+{
+	"servers": {
+		"knowledge-mcp": {
+			"type": "stdio",
+			"command": "dotnet",
+			"args": [
+				"run",
+                "--project",
+                "Knowledge.Mcp/Knowledge.Mcp.csproj"
+			]
+		}
+	},
+	"inputs": []
+}
