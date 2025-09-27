@@ -71,8 +71,8 @@ class Program
                     // Configure database services (required for health checks)
                     services.AddKnowledgeData(databasePath);
 
-                    // Temporarily disabled to isolate database error:
-                    // services.AddKnowledgeServices(chatCompleteSettings);
+                    // Re-enable knowledge services to test vector store configuration
+                    services.AddKnowledgeServices(chatCompleteSettings);
 
                     // Register system health services and their dependencies
                     services.AddScoped<ISystemHealthService, SystemHealthService>();
