@@ -72,6 +72,9 @@ class Program
                                 .AddOtlpExporter();
                         });
 
+                    // Configure HTTP client services (required for health checkers)
+                    services.AddHttpClient();
+
                     // Configure database services (required for health checks)
                     services.AddKnowledgeData(databasePath);
 
