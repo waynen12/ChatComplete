@@ -49,10 +49,6 @@ class Program
                     // Create ChatCompleteSettings from configuration
                     var chatCompleteSettings = new ChatCompleteSettings();
                     configuration.GetSection("ChatCompleteSettings").Bind(chatCompleteSettings);
-                    
-                    // Debug: Check vector store configuration
-                    Console.WriteLine($"Debug - VectorStore Provider: {chatCompleteSettings.VectorStore?.Provider}");
-                    Console.WriteLine($"Debug - VectorStore is null: {chatCompleteSettings.VectorStore == null}");
 
                     // Register settings as singleton
                     services.AddSingleton(chatCompleteSettings);
@@ -75,32 +71,44 @@ class Program
                     // Configure database services (required for health checks)
                     services.AddKnowledgeData(databasePath);
 
-                    // Re-enable knowledge services to test vector store configuration
-                    services.AddKnowledgeServices(chatCompleteSettings);
+                    // Register Qdrant-only services (bypass MongoDB completely)
                     
-                    // Debug: Test what IVectorStoreStrategy is being resolved
-                    services.AddScoped<object>(provider =>
+                    // Register QdrantSettings
+                    services.AddSingleton(chatCompleteSettings.VectorStore.Qdrant);
+                    
+                    // Register Qdrant services directly
+                    services.AddSingleton<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>(provider =>
                     {
-                        try 
-                        {
-                            var vectorStore = provider.GetService<KnowledgeEngine.Persistence.VectorStores.IVectorStoreStrategy>();
-                            Console.WriteLine($"Debug - Resolved IVectorStoreStrategy: {vectorStore?.GetType().Name ?? "null"}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Debug - Failed to resolve IVectorStoreStrategy: {ex.Message}");
-                        }
-                        return new object();
+                        var qdrantSettings = chatCompleteSettings.VectorStore.Qdrant;
+                        var qdrantClient = new Qdrant.Client.QdrantClient(
+                            host: qdrantSettings.Host,
+                            port: qdrantSettings.Port,
+                            https: qdrantSettings.UseHttps,
+                            apiKey: qdrantSettings.ApiKey
+                        );
+                        return new Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore(qdrantClient, ownsClient: true);
+                    });
+                    
+                    // Register Qdrant Index Manager
+                    services.AddScoped<KnowledgeEngine.Persistence.IndexManagers.IIndexManager, KnowledgeEngine.Persistence.IndexManagers.QdrantIndexManager>();
+                    
+                    // Register Qdrant Vector Store Strategy
+                    services.AddScoped<KnowledgeEngine.Persistence.VectorStores.IVectorStoreStrategy, KnowledgeEngine.Persistence.VectorStores.QdrantVectorStoreStrategy>(provider =>
+                    {
+                        var vectorStore = provider.GetRequiredService<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>();
+                        var qdrantSettings = provider.GetRequiredService<ChatCompletion.Config.QdrantSettings>();
+                        var indexManager = provider.GetRequiredService<KnowledgeEngine.Persistence.IndexManagers.IIndexManager>();
+                        return new KnowledgeEngine.Persistence.VectorStores.QdrantVectorStoreStrategy(vectorStore, qdrantSettings, indexManager, chatCompleteSettings);
                     });
 
                     // Register system health services and their dependencies
                     services.AddScoped<ISystemHealthService, SystemHealthService>();
                     services.AddScoped<IUsageTrackingService, SqliteUsageTrackingService>();
 
-                    // Register component health checkers (temporarily removing Qdrant for debugging)
+                    // Register component health checkers (Qdrant-only, no MongoDB)
                     services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
                     services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>();
-                    // Temporarily removed: services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
+                    services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>(); // Should work now with pure Qdrant setup
                     // Still disabled for testing:
                     // services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
