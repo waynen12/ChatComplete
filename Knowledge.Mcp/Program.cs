@@ -44,7 +44,7 @@ class Program
                 {
                     // Add configuration
                     var configuration = context.Configuration;
-                    var databasePath = configuration["DatabasePath"] ?? "data/knowledge.db";
+                    var databasePath = configuration["DatabasePath"] ?? "/tmp/knowledge-mcp/knowledge.db";
 
                     // Create ChatCompleteSettings from configuration
                     var chatCompleteSettings = new ChatCompleteSettings();
