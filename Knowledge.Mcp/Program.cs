@@ -20,8 +20,14 @@ namespace Knowledge.Mcp;
 /// </summary>
 class Program
 {
-    static async Task Main(string[] args)
+    static async Task<int> Main(string[] args)
     {
+        // Check if we should run the test program instead
+        if (args.Length > 0 && args[0] == "--test-collections")
+        {
+            return await TestQdrantCollections.RunTest(args);
+        }
+
         try
         {
             // Build and run the MCP server host
@@ -29,11 +35,12 @@ class Program
 
             // Start the MCP server
             await host.RunAsync();
+            return 0;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to start Knowledge MCP Server: {ex.Message}");
-            Environment.Exit(1);
+            return 1;
         }
     }
 
