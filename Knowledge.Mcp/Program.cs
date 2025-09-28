@@ -27,6 +27,12 @@ class Program
         {
             return await TestQdrantCollections.RunTest(args);
         }
+        
+        // Check if we should run minimal MCP server
+        if (args.Length > 0 && args[0] == "--minimal")
+        {
+            return await MinimalProgram.RunMinimal(args);
+        }
 
         try
         {
@@ -53,9 +59,13 @@ class Program
                     var configuration = context.Configuration;
                     var databasePath = configuration["DatabasePath"] ?? "/tmp/knowledge-mcp/knowledge.db";
 
-                    // Create ChatCompleteSettings from configuration (same pattern as main API)
-                    var chatCompleteSettings = configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>()
-                        ?? throw new InvalidOperationException("ChatCompleteSettings configuration is missing or invalid");
+                    // Create ChatCompleteSettings from configuration
+                    var chatCompleteSettings = new ChatCompleteSettings();
+                    configuration.GetSection("ChatCompleteSettings").Bind(chatCompleteSettings);
+                    
+                    // Force correct Qdrant configuration (Bind() doesn't override defaults properly)
+                    chatCompleteSettings.VectorStore.Provider = "Qdrant";
+                    chatCompleteSettings.VectorStore.Qdrant.Port = 6334;
 
                     // Register settings as singleton
                     services.AddSingleton(chatCompleteSettings);
