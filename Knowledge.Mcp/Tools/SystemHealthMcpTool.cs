@@ -1,4 +1,5 @@
 using KnowledgeEngine.Services;
+using KnowledgeEngine.Persistence.VectorStores;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
@@ -175,6 +176,109 @@ public sealed class SystemHealthMcpTool
                     OfflineComponents = 0,
                     TotalComponents = 0
                 }
+            };
+
+            return JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+        }
+    }
+
+    /// <summary>
+    /// Debugs Qdrant configuration and connection details for troubleshooting.
+    /// Shows actual configuration values and tests direct connection.
+    /// </summary>
+    /// <param name="serviceProvider">Dependency injection service provider</param>
+    /// <returns>JSON-formatted debug information including configuration and test results</returns>
+    [McpServerTool]
+    [Description("Debug Qdrant configuration and connection. Shows actual config values and tests direct connection to help troubleshoot collection detection issues.")]
+    public static async Task<string> DebugQdrantConfigAsync(
+        [Description("Service provider for dependency injection")] IServiceProvider serviceProvider)
+    {
+        try
+        {
+            var chatSettings = serviceProvider.GetRequiredService<ChatCompletion.Config.ChatCompleteSettings>();
+            var qdrantSettings = serviceProvider.GetRequiredService<ChatCompletion.Config.QdrantSettings>();
+            var vectorStore = serviceProvider.GetRequiredService<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>();
+            var vectorStoreStrategy = serviceProvider.GetRequiredService<IVectorStoreStrategy>();
+
+            // Test direct Qdrant client connection
+            var collections = new List<string>();
+            try
+            {
+                await foreach (var name in vectorStore.ListCollectionNamesAsync())
+                {
+                    collections.Add(name);
+                }
+            }
+            catch (Exception ex)
+            {
+                collections.Add($"ERROR: {ex.Message}");
+            }
+
+            // Test strategy wrapper
+            var strategyCollections = new List<string>();
+            try
+            {
+                strategyCollections = await vectorStoreStrategy.ListCollectionsAsync();
+            }
+            catch (Exception ex)
+            {
+                strategyCollections.Add($"ERROR: {ex.Message}");
+            }
+
+            var debugInfo = new
+            {
+                Timestamp = DateTime.UtcNow,
+                ConfigurationSources = new
+                {
+                    ChatSettingsVectorStoreProvider = chatSettings.VectorStore?.Provider,
+                    QdrantSettingsFromDI = new
+                    {
+                        Host = qdrantSettings.Host,
+                        Port = qdrantSettings.Port,
+                        UseHttps = qdrantSettings.UseHttps,
+                        ApiKey = string.IsNullOrEmpty(qdrantSettings.ApiKey) ? "null" : "***SET***"
+                    }
+                },
+                ServiceRegistration = new
+                {
+                    VectorStoreType = vectorStore?.GetType().Name,
+                    VectorStoreStrategyType = vectorStoreStrategy?.GetType().Name
+                },
+                ConnectionTests = new
+                {
+                    DirectVectorStoreCollections = collections,
+                    DirectVectorStoreCount = collections.Count(c => !c.StartsWith("ERROR:")),
+                    StrategyCollections = strategyCollections,
+                    StrategyCount = strategyCollections.Count(c => !c.StartsWith("ERROR:"))
+                },
+                TroubleshootingInfo = new
+                {
+                    ExpectedPort = 6334,
+                    ActualConfiguredPort = qdrantSettings.Port,
+                    PortMatch = qdrantSettings.Port == 6334,
+                    RestApiTest = "curl http://localhost:6333/collections",
+                    GrpcPortNote = "Semantic Kernel uses gRPC (6334), REST API uses 6333"
+                }
+            };
+
+            return JsonSerializer.Serialize(debugInfo, new JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+        }
+        catch (Exception ex)
+        {
+            var errorResponse = new
+            {
+                Timestamp = DateTime.UtcNow,
+                Status = "DebugError",
+                ErrorMessage = ex.Message,
+                StackTrace = ex.StackTrace
             };
 
             return JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions 

@@ -53,9 +53,9 @@ class Program
                     var configuration = context.Configuration;
                     var databasePath = configuration["DatabasePath"] ?? "/tmp/knowledge-mcp/knowledge.db";
 
-                    // Create ChatCompleteSettings from configuration
-                    var chatCompleteSettings = new ChatCompleteSettings();
-                    configuration.GetSection("ChatCompleteSettings").Bind(chatCompleteSettings);
+                    // Create ChatCompleteSettings from configuration (same pattern as main API)
+                    var chatCompleteSettings = configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>()
+                        ?? throw new InvalidOperationException("ChatCompleteSettings configuration is missing or invalid");
 
                     // Register settings as singleton
                     services.AddSingleton(chatCompleteSettings);
