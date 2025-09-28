@@ -5,9 +5,13 @@
 			"command": "dotnet",
 			"args": [
 				"run",
-                "--project",
-                "Knowledge.Mcp/Knowledge.Mcp.csproj"
+				"--project",
+				"Knowledge.Mcp/Knowledge.Mcp.csproj"
 			]
+		},
+		"mcp-ui Docs": {
+			"type": "sse",
+			"url": "https://gitmcp.io/idosal/mcp-ui"
 		}
 	},
 	"inputs": []
