@@ -4,10 +4,9 @@
 			"type": "stdio",
 			"command": "dotnet",
 			"args": [
-				"run",
-				"--project",
-				"Knowledge.Mcp/Knowledge.Mcp.csproj"
-			]
+				"Knowledge.Mcp/bin/Debug/net8.0/Knowledge.Mcp.dll"
+			],
+			"cwd": "${workspaceFolder}"
 		},
 		"mcp-ui Docs": {
 			"type": "sse",

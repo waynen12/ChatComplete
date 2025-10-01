@@ -12,6 +12,7 @@ using Knowledge.Analytics.Services;
 using Knowledge.Data.Extensions;
 using KnowledgeEngine.Extensions;
 using ChatCompletion.Config;
+using Knowledge.Mcp.Configuration;
 
 namespace Knowledge.Mcp;
 
@@ -52,16 +53,42 @@ class Program
 
     static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
+            .ConfigureAppConfiguration((context, config) =>
+            {
+                // Set the base path to the directory where the executable is located
+                // This ensures appsettings.json is found regardless of working directory
+                var basePath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                config.SetBasePath(basePath!);
+
+                // Clear existing sources and add our configuration files
+                config.Sources.Clear();
+                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                config.AddEnvironmentVariables();
+                config.AddCommandLine(args);
+
+                Console.WriteLine($"MCP Server configuration base path: {basePath}");
+            })
             .ConfigureServices(
                 (context, services) =>
                 {
+                    
                     // Add configuration
                     var configuration = context.Configuration;
-                    var databasePath = configuration["DatabasePath"] ?? "/tmp/knowledge-mcp/knowledge.db";
-
                     // Create ChatCompleteSettings from configuration
                     var chatCompleteSettings = new ChatCompleteSettings();
                     configuration.GetSection("ChatCompleteSettings").Bind(chatCompleteSettings);
+                    var databasePath = chatCompleteSettings.DatabasePath;
+
+                    if (string.IsNullOrWhiteSpace(databasePath))
+                    {
+                        Console.WriteLine("WARNING: DatabasePath not configured in appsettings.json.");
+                        Console.WriteLine("This likely means appsettings.json was not copied to the output directory.");
+                        throw new Exception("DatabasePath not configured in appsettings.json.");
+                    }
+
+                    Console.WriteLine($"MCP Server using database path: {databasePath}");
+
+
                     
                     // Force correct Qdrant configuration (Bind() doesn't override defaults properly)
                     chatCompleteSettings.VectorStore.Provider = "Qdrant";
@@ -69,6 +96,11 @@ class Program
 
                     // Register settings as singleton
                     services.AddSingleton(chatCompleteSettings);
+
+                    // Register MCP server specific settings
+                    var mcpServerSettings = new McpServerSettings();
+                    configuration.GetSection(McpServerSettings.SectionName).Bind(mcpServerSettings);
+                    services.AddSingleton(mcpServerSettings);
 
                     // Add OpenTelemetry for observability
                     services
@@ -130,6 +162,37 @@ class Program
                     // services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
                     // services.AddScoped<IComponentHealthChecker, GoogleAIHealthChecker>();
+
+                    // Register knowledge management services (required for search and analytics MCP tools)
+                    
+                    // Register KnowledgeEngine SqliteDbContext (different from Knowledge.Data one)
+                    services.AddScoped<KnowledgeEngine.Persistence.Sqlite.SqliteDbContext>(provider =>
+                    {
+                        return new KnowledgeEngine.Persistence.Sqlite.SqliteDbContext(databasePath);
+                    });
+                    
+                    services.AddScoped<KnowledgeEngine.Persistence.IKnowledgeRepository, KnowledgeEngine.Persistence.Sqlite.Repositories.SqliteKnowledgeRepository>();
+                    
+                    // Register embedding services (required for knowledge search)
+                    // For MCP server, we'll create a placeholder embedding service
+                    // TODO: Configure proper embedding service when needed for knowledge search
+                    services.AddScoped<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(provider =>
+                    {
+                        // For now, throw a meaningful exception when embedding is needed
+                        // This can be configured later with proper embedding service
+                        throw new NotSupportedException(
+                            "Embedding service not configured for MCP server. " +
+                            "Knowledge search functionality requires embedding service configuration. " +
+                            "Configure Ollama, OpenAI, or other embedding provider in MCP server settings.");
+                    });
+                    
+                    // Register KnowledgeManager (required for CrossKnowledgeSearchMcpTool)
+                    services.AddScoped<KnowledgeEngine.KnowledgeManager>();
+                    
+                    // Register agent plugins (required for MCP tool implementations)
+                    services.AddScoped<KnowledgeEngine.Agents.Plugins.CrossKnowledgeSearchPlugin>();
+                    services.AddScoped<KnowledgeEngine.Agents.Plugins.ModelRecommendationAgent>();
+                    services.AddScoped<KnowledgeEngine.Agents.Plugins.KnowledgeAnalyticsAgent>();
 
                     // Configure MCP server with STDIO transport
                     services.AddMcpServer().WithStdioServerTransport().WithToolsFromAssembly();

@@ -19,6 +19,12 @@ After completing any implementation work:
 
 **Never assume you can recreate complex implementations from memory - commit early, commit often!**
 
+**DO NOT USE HARDCODED VALUES!!!!!**
+Hardcoded values make the code difficult to adapt to changing requirements and can lead to bugs or unexpected behavior. 
+Always follow these rules instead of using hard coded values
+1. Add a parameter to the config file (appsettings.json)
+2. If you can't add a parameter to a config, use a constants file as a last resort. 
+
 Tech stack:
 
 Layer	Tech
