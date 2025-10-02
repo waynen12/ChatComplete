@@ -64,9 +64,9 @@ Current Milestones (✅ done, 🔄 in-progress, 🛠️ todo)
 17	Qdrant Vector Store parallel implementation	✅
 18	Local Configuration Database (SQLite config, zero env vars)	✅
 19	Docker Containerization (one-command deployment)	✅
-20	Agent Implementation (Semantic Kernel plugins, cross-knowledge search)	🛠️ PLANNED
+20	Agent Implementation (Semantic Kernel plugins, cross-knowledge search)	✅ COMPLETE
 21	Ollama Model Management (UI + API + downloads)	✅ VERIFIED
-22	MCP Integration (Model Context Protocol servers and clients)	🛠️ FUTURE
+22	MCP Integration (Model Context Protocol servers and clients)	🔄 IN PROGRESS
 
 Latest Sanity Checklist (quick smoke test)
 Step	Expectation	Tip
