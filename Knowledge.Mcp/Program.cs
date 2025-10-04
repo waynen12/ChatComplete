@@ -174,17 +174,29 @@ class Program
                     services.AddScoped<KnowledgeEngine.Persistence.IKnowledgeRepository, KnowledgeEngine.Persistence.Sqlite.Repositories.SqliteKnowledgeRepository>();
                     
                     // Register embedding services (required for knowledge search)
-                    // For MCP server, we'll create a placeholder embedding service
-                    // TODO: Configure proper embedding service when needed for knowledge search
-                    services.AddScoped<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(provider =>
+                    // Use Ollama embedding service (configured in appsettings.json)
+                    var activeProvider = chatCompleteSettings.EmbeddingProviders?.ActiveProvider ?? "Ollama";
+
+                    if (activeProvider == "Ollama")
                     {
-                        // For now, throw a meaningful exception when embedding is needed
-                        // This can be configured later with proper embedding service
+                        var ollamaSettings = chatCompleteSettings.EmbeddingProviders?.Ollama;
+                        var ollamaBaseUrl = chatCompleteSettings.OllamaBaseUrl ?? "http://localhost:11434";
+                        var modelName = ollamaSettings?.ModelName ?? "nomic-embed-text";
+
+                        Console.WriteLine($"MCP Server configuring Ollama embedding: {ollamaBaseUrl} with model {modelName}");
+
+                        services.AddScoped<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(provider =>
+                        {
+                            var httpClient = provider.GetRequiredService<IHttpClientFactory>().CreateClient();
+                            return new Knowledge.Mcp.Services.OllamaEmbeddingService(httpClient, ollamaBaseUrl, modelName);
+                        });
+                    }
+                    else
+                    {
                         throw new NotSupportedException(
-                            "Embedding service not configured for MCP server. " +
-                            "Knowledge search functionality requires embedding service configuration. " +
-                            "Configure Ollama, OpenAI, or other embedding provider in MCP server settings.");
-                    });
+                            $"Embedding provider '{activeProvider}' not supported in MCP server. " +
+                            "Currently only Ollama is supported. Set ActiveProvider to 'Ollama' in appsettings.json");
+                    }
                     
                     // Register KnowledgeManager (required for CrossKnowledgeSearchMcpTool)
                     services.AddScoped<KnowledgeEngine.KnowledgeManager>();
