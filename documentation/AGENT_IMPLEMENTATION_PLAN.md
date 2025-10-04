@@ -953,17 +953,476 @@ The MCP server implementation has successfully created a **functional Model Cont
 - Database path resolution and configuration loading fixed
 - Qdrant-only deployment working without MongoDB dependencies
 
-**🔄 Next Steps (Phase 2):**
+**🔄 Next Steps:**
+
+**Phase 2: Advanced MCP Features**
+- Add MCP Resources (expose knowledge base documents)
+- Add MCP Prompts (workflow templates)
+- Add MCP Sampling (agentic behaviors)
 - Integration testing with external MCP clients
 - Documentation and client examples
 - Authentication and security framework
 - Performance optimization and caching
 
+**Phase 3: Observability Stack** (Optional - Ops/Monitoring)
+- Prometheus metrics integration
+- Grafana dashboards
+- Alerting and distributed tracing
+
 All planned MCP agent tool integrations from Phase 1 are now complete and operational.
 
 ---
 
-## 🔮 **PHASE 3: OBSERVABILITY STACK INTEGRATION** (Future)
+## 🎯 **PHASE 2: CORE MCP PRIMITIVES IMPLEMENTATION**
+
+### **MCP Feature Gap Analysis**
+
+Based on MCP 2025 specification, there are **4 core MCP primitives**:
+
+| Primitive | Status | Purpose | Our Implementation |
+|-----------|--------|---------|-------------------|
+| **Tools** | ✅ COMPLETE | Execute functions, perform actions | 11 tools operational |
+| **Resources** | ❌ NOT IMPLEMENTED | Expose data/context (like GET endpoints) | Need to add |
+| **Prompts** | ❌ NOT IMPLEMENTED | Pre-built prompt templates/workflows | Need to add |
+| **Sampling** | ❌ NOT IMPLEMENTED | Server requests LLM completions | Need to add |
+
+**Current Coverage**: 1/4 MCP primitives (25%)
+**Goal**: Implement remaining 3 primitives to reach 100% MCP spec coverage
+
+---
+
+## 📋 **PHASE 2A: TESTING & VALIDATION** (DO FIRST)
+
+### **Goal:** Validate existing MCP server works with real clients
+
+**Priority:** ⭐⭐⭐⭐⭐ **HIGHEST - Do this immediately**
+**Effort:** Low (1-2 hours)
+**Learning Value:** Maximum practical understanding of MCP protocol
+
+### **Test Scenarios**
+
+#### **1. VS Code GitHub Copilot Chat** (Recommended)
+- ✅ Full MCP support (STDIO transport)
+- ✅ Tool discovery and execution
+- ✅ Built into VS Code (most developers already have it)
+
+#### **2. Claude Desktop** (If available)
+- ✅ Full MCP support
+- ✅ Resources, prompts, and tools
+- ✅ Great for testing chat-based workflows
+
+#### **3. Continue.dev** (Alternative)
+- ✅ Open-source MCP client
+- ✅ Supports tools and resources
+- ✅ Good for debugging
+
+### **What to Test**
+
+**Tool Discovery:**
+```bash
+# MCP client should discover our 11 tools:
+- search_all_knowledge_bases
+- get_system_health
+- get_quick_health_overview
+- check_component_health
+- debug_qdrant_config
+- get_popular_models
+- get_model_performance_analysis
+- compare_models
+- get_knowledge_base_summary
+- get_knowledge_base_health
+- get_storage_optimization_recommendations
+```
+
+**Tool Execution:**
+```bash
+# Test each tool category:
+1. Search: "Search all knowledge bases for Docker deployment"
+2. Health: "Check system health"
+3. Models: "What are the most popular AI models?"
+4. Analytics: "Give me a summary of all knowledge bases"
+```
+
+**Expected Outcomes:**
+- ✅ All 11 tools appear in client UI
+- ✅ Tool descriptions are clear and helpful
+- ✅ Parameters are correctly typed and validated
+- ✅ Results are returned in useful format
+- ✅ Errors are handled gracefully
+
+### **Deliverables**
+
+- [ ] VS Code MCP extension configured
+- [ ] Successfully connected to Knowledge.Mcp server
+- [ ] Tested all 11 tools from VS Code chat
+- [ ] Documented any issues or improvements needed
+- [ ] Screenshots/examples of tool usage
+
+---
+
+## 🗂️ **PHASE 2B: MCP RESOURCES** (DO SECOND)
+
+### **Goal:** Expose knowledge base documents as MCP resources
+
+**Priority:** ⭐⭐⭐⭐⭐ **CORE MCP LEARNING**
+**Effort:** Medium (2-3 days)
+**Learning Value:** Understanding passive data vs active tools
+
+### **What Are MCP Resources?**
+
+Resources are **passive data endpoints** that expose information without executing code:
+- Similar to REST API GET endpoints
+- Provide context and background information
+- No side effects or state changes
+- Can be subscribed to for updates
+
+**Tools vs Resources:**
+| Aspect | Tools | Resources |
+|--------|-------|-----------|
+| **Purpose** | Execute actions | Provide data |
+| **Side Effects** | Yes (can modify state) | No (read-only) |
+| **Use By** | LLM calls directly | LLM reads for context |
+| **Example** | "Search knowledge base" | "Read document content" |
+
+### **Implementation Plan**
+
+#### **1. Create Resource Types**
+
+**Document Resources:**
+```
+resource://knowledge/{collectionId}/documents         → List all documents
+resource://knowledge/{collectionId}/document/{id}     → Get specific document
+resource://knowledge/{collectionId}/chunks/{docId}    → Get document chunks
+```
+
+**Collection Resources:**
+```
+resource://knowledge/collections                      → List all collections
+resource://knowledge/collection/{id}                  → Collection metadata
+resource://knowledge/collection/{id}/stats            → Collection statistics
+```
+
+**System Resources:**
+```
+resource://system/health                              → Current health status
+resource://system/config                              → System configuration
+resource://system/models                              → Available AI models
+```
+
+#### **2. Files to Create**
+
+**Knowledge.Mcp/Resources/KnowledgeResourceProvider.cs** (NEW)
+```csharp
+[McpServerResourceProvider]
+public class KnowledgeResourceProvider
+{
+    // List all available resources
+    [McpServerResource("list")]
+    public async Task<ResourceList> ListResourcesAsync();
+
+    // Get specific resource content
+    [McpServerResource("get")]
+    public async Task<ResourceContent> GetResourceAsync(string uri);
+
+    // Subscribe to resource updates
+    [McpServerResource("subscribe")]
+    public async Task SubscribeToResourceAsync(string uri);
+}
+```
+
+**Knowledge.Mcp/Resources/ResourceUriParser.cs** (NEW)
+- Parse resource URIs
+- Validate resource paths
+- Extract collection/document IDs
+
+**Knowledge.Mcp/Resources/Models/ResourceTemplates.cs** (NEW)
+- Resource metadata templates
+- URI template definitions
+- Resource capability descriptions
+
+#### **3. Files to Modify**
+
+**Knowledge.Mcp/Program.cs**
+- Register `KnowledgeResourceProvider` in DI
+- Configure resource discovery
+
+**Knowledge.Mcp/appsettings.json**
+- Add resource configuration section
+- Define resource limits and caching
+
+### **Example Use Cases**
+
+**1. Document Access:**
+```
+User in VS Code: "Show me the Docker SSL setup documentation"
+
+Client reads resource: resource://knowledge/docker-guides/document/ssl-setup
+Returns: Full markdown content of SSL setup document
+LLM uses content to answer question with exact details
+```
+
+**2. Collection Browsing:**
+```
+User: "What documentation do we have about Docker?"
+
+Client lists: resource://knowledge/collections
+Returns: List of all collections including "docker-guides"
+LLM presents available Docker documentation
+```
+
+**3. Context-Aware Responses:**
+```
+User: "How do I deploy this?"
+
+Client checks: resource://system/config → Sees we use Docker
+Client reads: resource://knowledge/docker-guides/documents
+LLM provides Docker-specific deployment instructions
+```
+
+### **Benefits**
+
+- **Better Context**: LLM has direct access to source documents
+- **Lower Latency**: No need to search, just read known resources
+- **Discoverability**: Clients can browse available knowledge
+- **Standard Pattern**: Most MCP servers expose resources
+- **Learning**: Understand core MCP primitive used by 80% of servers
+
+### **Deliverables**
+
+- [ ] `KnowledgeResourceProvider` implemented
+- [ ] All knowledge base collections exposed as resources
+- [ ] Individual documents accessible via URI
+- [ ] Resource listing and discovery working
+- [ ] Tested from VS Code MCP client
+- [ ] Documentation of resource URI schema
+
+---
+
+## 📝 **PHASE 2C: MCP PROMPTS** (DO THIRD)
+
+### **Goal:** Create reusable prompt templates for common workflows
+
+**Priority:** ⭐⭐⭐⭐ **CORE MCP PRIMITIVE**
+**Effort:** Low-Medium (1-2 days)
+**Learning Value:** Understanding structured workflows
+
+### **What Are MCP Prompts?**
+
+Prompts are **pre-built templates** that generate contextual messages:
+- Dynamic, context-aware starting points
+- Inject current state/data into templates
+- Provide complete workflows, not just static text
+- Tailored to current workspace/project
+
+**Example:**
+```
+Prompt: "analyze-system-health"
+  ↓
+Generates full prompt with:
+  - Current system health data
+  - Recent error logs
+  - Performance metrics
+  - Suggested next steps
+```
+
+### **Implementation Plan**
+
+#### **1. Prompt Templates to Create**
+
+**System Analysis Prompts:**
+```csharp
+"system-health-analysis"
+  → Analyzes all components, suggests optimizations
+
+"performance-review"
+  → Reviews model performance, recommends improvements
+
+"cost-optimization"
+  → Analyzes usage costs, suggests cheaper alternatives
+```
+
+**Knowledge Management Prompts:**
+```csharp
+"knowledge-search-strategy"
+  → Generates multi-step search plan for complex queries
+
+"document-summarization"
+  → Summarizes specific knowledge base collection
+
+"gap-analysis"
+  → Identifies missing documentation areas
+```
+
+**Troubleshooting Prompts:**
+```csharp
+"diagnose-errors"
+  → Analyzes recent errors, suggests fixes
+
+"health-check"
+  → Quick system diagnostic with actionable recommendations
+
+"model-selection"
+  → Recommends best model for specific task
+```
+
+#### **2. Files to Create**
+
+**Knowledge.Mcp/Prompts/PromptTemplateProvider.cs** (NEW)
+```csharp
+[McpServerPromptProvider]
+public class PromptTemplateProvider
+{
+    // List available prompts
+    [McpServerPrompt("list")]
+    public async Task<PromptList> ListPromptsAsync();
+
+    // Get specific prompt with arguments
+    [McpServerPrompt("get")]
+    public async Task<PromptMessage> GetPromptAsync(
+        string name,
+        Dictionary<string, string> arguments);
+}
+```
+
+**Knowledge.Mcp/Prompts/Templates/** (NEW)
+- Individual prompt template files
+- Argument injection logic
+- Dynamic data fetching
+
+#### **3. Example Prompt Implementation**
+
+```csharp
+// Prompt: "system-health-analysis"
+public async Task<PromptMessage> GetSystemHealthAnalysisPrompt(
+    Dictionary<string, string> args)
+{
+    // Fetch current system data
+    var health = await _systemHealthAgent.GetSystemHealthAsync();
+    var models = await _modelAgent.GetPopularModelsAsync(5, "daily");
+    var knowledge = await _knowledgeAgent.GetKnowledgeBaseSummaryAsync();
+
+    // Generate dynamic prompt
+    return new PromptMessage
+    {
+        Role = "user",
+        Content = $@"
+Please analyze our AI Knowledge Manager system and provide recommendations.
+
+## Current System Health
+{health}
+
+## Model Usage (Last 24h)
+{models}
+
+## Knowledge Base Status
+{knowledge}
+
+Based on this data:
+1. Identify any concerning trends or issues
+2. Suggest 3 specific optimizations
+3. Prioritize recommendations by impact
+
+Be specific and actionable in your suggestions."
+    };
+}
+```
+
+### **Benefits**
+
+- **Quick Workflows**: Common tasks become one-click operations
+- **Consistent Analysis**: Same thorough approach every time
+- **Context-Aware**: Uses live data, not static templates
+- **User-Friendly**: Reduces cognitive load on users
+- **Learning**: Understand how MCP handles templating
+
+### **Deliverables**
+
+- [ ] `PromptTemplateProvider` implemented
+- [ ] 5-10 useful prompt templates created
+- [ ] Argument injection working correctly
+- [ ] Tested from VS Code MCP client
+- [ ] Documentation of available prompts
+
+---
+
+## 🤖 **PHASE 2D: MCP SAMPLING** (OPTIONAL - ADVANCED)
+
+### **Goal:** Enable server to request LLM completions from client
+
+**Priority:** ⭐⭐⭐ **ADVANCED FEATURE**
+**Effort:** Medium-High (3-4 days)
+**Learning Value:** Agentic AI patterns
+
+### **What Is MCP Sampling?**
+
+Sampling allows the **server to request LLM completions** from the client:
+- Server can ask questions to the LLM
+- Enables recursive AI reasoning
+- Server maintains no API keys (client handles LLM access)
+- Enables autonomous, agentic behaviors
+
+**Example Flow:**
+```
+1. User asks: "Optimize my knowledge base storage"
+2. Server fetches storage data
+3. Server requests sampling: "Based on this data, what should be archived?"
+4. Client sends prompt to LLM (using user's API key/settings)
+5. LLM responds with recommendations
+6. Server uses recommendations to generate final response
+```
+
+### **Use Cases**
+
+**Intelligent Analysis:**
+```csharp
+// Server analyzes data, then asks LLM for insights
+var storageData = await GetStorageMetrics();
+var insight = await SampleLLM($"Analyze this storage data: {storageData}");
+return CombineAnalysisWithInsight(storageData, insight);
+```
+
+**Multi-Step Reasoning:**
+```csharp
+// Server orchestrates multi-step problem solving
+var problem = IdentifyProblem();
+var solution = await SampleLLM($"How would you solve: {problem}");
+var validation = await SampleLLM($"Are there issues with: {solution}");
+return RefinedSolution(solution, validation);
+```
+
+**Code Generation:**
+```csharp
+// Server requests code from LLM based on analysis
+var apiSpec = AnalyzeApiUsage();
+var code = await SampleLLM($"Generate integration code for: {apiSpec}");
+return code;
+```
+
+### **Implementation Complexity**
+
+**Why It's Advanced:**
+- Requires understanding async/recursive LLM calls
+- Need to handle sampling permissions
+- Must manage conversation context
+- Potential for infinite loops (need safeguards)
+- Token usage considerations
+
+**When to Implement:**
+- After Resources and Prompts are working
+- When you want to explore agentic patterns
+- If you need autonomous analysis capabilities
+
+### **Deliverables**
+
+- [ ] Sampling capability registered in server
+- [ ] Sample request handling implemented
+- [ ] Safeguards against infinite recursion
+- [ ] Example agentic workflow created
+- [ ] Documentation of sampling patterns
+
+---
+
+## 🔮 **PHASE 3: OBSERVABILITY STACK INTEGRATION** (Optional - Ops/Monitoring)
 
 ### **OpenTelemetry Foundation** ✅ COMPLETE
 
