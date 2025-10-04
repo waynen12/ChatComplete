@@ -815,10 +815,17 @@ Claude Desktop, cursor.ai, and other AI tools can directly access our system int
 - ✅ **KnowledgeAnalytics MCP Tools** - External knowledge base insights (summary, health, optimization)
 
 ### **Phase 2 Deliverables:**
+- [ ] **Integration Testing** - Test MCP tools with external clients (VS Code, Claude Desktop)
+- [ ] **Documentation & Examples** - MCP client integration guides and usage patterns
 - [ ] **Advanced MCP Features** - Tool discovery, capabilities, versioning
 - [ ] **Authentication & Security** - Secure external access controls
 - [ ] **Performance Optimization** - Caching and request optimization
-- [ ] **Documentation & Examples** - MCP client integration guides
+
+### **Phase 3 Deliverables - Observability Stack Integration:**
+- [ ] **Prometheus Metrics Export** - Configure OpenTelemetry → Prometheus exporter
+- [ ] **Grafana Dashboard Setup** - System health and MCP tool metrics visualization
+- [ ] **Alerting Rules** - Proactive monitoring and incident detection
+- [ ] **Distributed Tracing** - End-to-end request tracing across MCP calls
 
 ---
 
@@ -953,3 +960,377 @@ The MCP server implementation has successfully created a **functional Model Cont
 - Performance optimization and caching
 
 All planned MCP agent tool integrations from Phase 1 are now complete and operational.
+
+---
+
+## 🔮 **PHASE 3: OBSERVABILITY STACK INTEGRATION** (Future)
+
+### **OpenTelemetry Foundation** ✅ COMPLETE
+
+**Current Implementation:**
+```csharp
+// Knowledge.Mcp/Program.cs
+services.AddOpenTelemetry()
+    .WithTracing(builder =>
+    {
+        builder.AddSource("KnowledgeMcp")
+               .SetSampler(new AlwaysOnSampler())
+               .AddConsoleExporter();
+    });
+```
+
+**What's Already Working:**
+- ✅ **OpenTelemetry SDK Integrated** - Using official Microsoft OpenTelemetry packages
+- ✅ **Trace Instrumentation** - All MCP tool calls automatically traced
+- ✅ **Console Exporter** - Development-time trace visibility
+- ✅ **Always-On Sampling** - Full trace collection for analysis
+
+**Package References:**
+```xml
+<PackageReference Include="OpenTelemetry" Version="1.12.0" />
+<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+```
+
+---
+
+### **Phase 3A: Prometheus Integration** 📋 PLANNED
+
+**Goal:** Export MCP server metrics to Prometheus for time-series monitoring and alerting.
+
+**Implementation Steps:**
+
+**1. Add Prometheus Exporter Package**
+```xml
+<PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.12.0" />
+```
+
+**2. Configure Metrics Collection**
+```csharp
+// Program.cs - Add to OpenTelemetry configuration
+services.AddOpenTelemetry()
+    .WithMetrics(builder =>
+    {
+        builder.AddMeter("KnowledgeMcp")
+               .AddPrometheusExporter();
+    });
+
+// Expose /metrics endpoint
+app.MapPrometheusScrapingEndpoint();
+```
+
+**3. Define Custom Metrics**
+```csharp
+// Knowledge.Mcp/Telemetry/McpMetrics.cs
+public static class McpMetrics
+{
+    private static readonly Meter Meter = new("KnowledgeMcp", "1.0.0");
+
+    // Counter: Total MCP tool invocations
+    public static readonly Counter<long> ToolInvocations =
+        Meter.CreateCounter<long>("mcp.tool.invocations", "calls");
+
+    // Histogram: Tool execution duration
+    public static readonly Histogram<double> ToolDuration =
+        Meter.CreateHistogram<double>("mcp.tool.duration", "ms");
+
+    // Gauge: Active MCP connections
+    public static readonly ObservableGauge<int> ActiveConnections =
+        Meter.CreateObservableGauge("mcp.connections.active", () => GetActiveConnections());
+
+    // Counter: Tool execution errors
+    public static readonly Counter<long> ToolErrors =
+        Meter.CreateCounter<long>("mcp.tool.errors", "errors");
+}
+```
+
+**4. Instrument MCP Tool Calls**
+```csharp
+// Example instrumentation in tool methods
+public static async Task<string> SearchAllKnowledgeBasesAsync(...)
+{
+    var stopwatch = Stopwatch.StartNew();
+    McpMetrics.ToolInvocations.Add(1, new KeyValuePair<string, object>("tool", "search_all_knowledge_bases"));
+
+    try
+    {
+        var result = await plugin.SearchAllKnowledgeBasesAsync(...);
+        McpMetrics.ToolDuration.Record(stopwatch.ElapsedMilliseconds,
+            new KeyValuePair<string, object>("tool", "search_all_knowledge_bases"),
+            new KeyValuePair<string, object>("status", "success"));
+        return result;
+    }
+    catch (Exception ex)
+    {
+        McpMetrics.ToolErrors.Add(1, new KeyValuePair<string, object>("tool", "search_all_knowledge_bases"));
+        McpMetrics.ToolDuration.Record(stopwatch.ElapsedMilliseconds,
+            new KeyValuePair<string, object>("tool", "search_all_knowledge_bases"),
+            new KeyValuePair<string, object>("status", "error"));
+        throw;
+    }
+}
+```
+
+**5. Prometheus Scraping Configuration**
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: 'knowledge-mcp'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['localhost:5000']  # MCP server /metrics endpoint
+    metrics_path: '/metrics'
+```
+
+**Key Metrics to Export:**
+- `mcp_tool_invocations_total{tool="search_all_knowledge_bases"}` - Tool call counts
+- `mcp_tool_duration_milliseconds{tool="...", status="..."}` - Execution times
+- `mcp_connections_active` - Current active MCP client connections
+- `mcp_tool_errors_total{tool="..."}` - Error rates per tool
+- `system_health_score` - Overall system health score (0-100)
+- `knowledge_base_count` - Number of active knowledge bases
+- `vector_store_collections` - Qdrant collection count
+
+---
+
+### **Phase 3B: Grafana Dashboard Setup** 📋 PLANNED
+
+**Goal:** Create comprehensive monitoring dashboards for MCP server and ChatComplete system health.
+
+**Dashboard 1: MCP Server Overview**
+
+**Panels:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ MCP Server Health Score                          [95/100]   │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 95%      │
+├─────────────────────────────────────────────────────────────┤
+│ Tool Invocations (Last 1h)                                  │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ search_all_knowledge_bases    ████████████████   247    │ │
+│ │ get_system_health            ██████████          156    │ │
+│ │ get_popular_models           ███████             89     │ │
+│ │ get_knowledge_base_summary   ████                 45     │ │
+│ └─────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│ Tool Execution Time (p95)                                   │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ Line graph showing p50, p95, p99 latencies over time   │ │
+│ └─────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│ Error Rate                                       0.3%       │
+│ Active Connections                               12         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**PromQL Queries:**
+```promql
+# Tool invocation rate
+rate(mcp_tool_invocations_total[5m])
+
+# P95 tool execution time
+histogram_quantile(0.95, rate(mcp_tool_duration_milliseconds_bucket[5m]))
+
+# Error rate percentage
+rate(mcp_tool_errors_total[5m]) / rate(mcp_tool_invocations_total[5m]) * 100
+
+# Active connections
+mcp_connections_active
+```
+
+**Dashboard 2: System Health Monitoring**
+
+**Panels:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Component Health Status                                     │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ ✅ SQLite Database       Healthy  (Response: 2.3ms)     │ │
+│ │ ✅ Qdrant Vector Store   Healthy  (Response: 45ms)      │ │
+│ │ ✅ OpenAI API           Healthy  (Success: 98.2%)      │ │
+│ │ ✅ Anthropic API        Healthy  (Success: 97.8%)      │ │
+│ │ ⚠️  Ollama               Warning  (Model downloading)    │ │
+│ └─────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│ Knowledge Base Metrics                                      │
+│ Total Collections: 5        Documents: 4,136                │
+│ Storage Used: 2.3 GB        Active Conversations: 234       │
+├─────────────────────────────────────────────────────────────┤
+│ Model Usage Distribution (Last 24h)                         │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ Pie chart: GPT-4o (42%), Claude Sonnet (31%),          │ │
+│ │            Gemini Flash (20%), Ollama (7%)             │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Dashboard 3: Knowledge Analytics**
+
+**Panels:**
+- Knowledge base conversation counts (time series)
+- Most active knowledge bases (bar chart)
+- Storage growth trends (line graph)
+- Orphaned collections detection (table)
+
+---
+
+### **Phase 3C: Alerting Rules** 📋 PLANNED
+
+**Prometheus Alerting Rules:**
+
+```yaml
+# /etc/prometheus/rules/chatcomplete-mcp.yml
+groups:
+  - name: mcp_server_alerts
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: McpToolErrorRateHigh
+        expr: rate(mcp_tool_errors_total[5m]) / rate(mcp_tool_invocations_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MCP tool error rate above 5%"
+          description: "Tool {{ $labels.tool }} has error rate of {{ $value | humanizePercentage }}"
+
+      # Slow tool execution alert
+      - alert: McpToolExecutionSlow
+        expr: histogram_quantile(0.95, rate(mcp_tool_duration_milliseconds_bucket[5m])) > 5000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MCP tool execution time degraded"
+          description: "P95 latency for {{ $labels.tool }} is {{ $value }}ms"
+
+      # System health degraded
+      - alert: SystemHealthDegraded
+        expr: system_health_score < 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ChatComplete system health degraded"
+          description: "System health score is {{ $value }}/100"
+
+      # Component failure
+      - alert: CriticalComponentDown
+        expr: component_health_status{component=~"SQLite|Qdrant"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical component {{ $labels.component }} is down"
+          description: "Database or vector store is unhealthy"
+
+      # Vector store collection sync issue
+      - alert: VectorStoreOutOfSync
+        expr: knowledge_base_orphaned_collections > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Vector store has orphaned collections"
+          description: "{{ $value }} collections exist in Qdrant but not in SQLite"
+```
+
+**Grafana Alert Channels:**
+- **Slack/Discord** - Real-time notifications for critical alerts
+- **Email** - Daily digest of warnings
+- **PagerDuty** - Critical component failures (production)
+
+---
+
+### **Phase 3D: Distributed Tracing** 📋 PLANNED
+
+**Goal:** End-to-end request tracing across MCP calls, agent plugins, and external services.
+
+**Architecture:**
+```
+External Client (VS Code)
+  └─> MCP Server (trace: request_id=abc123)
+      └─> CrossKnowledgeSearchMcpTool
+          └─> CrossKnowledgeSearchPlugin
+              └─> KnowledgeManager.SearchAsync (parallel traces)
+                  ├─> Qdrant VectorStore.SearchAsync (collection1)
+                  ├─> Qdrant VectorStore.SearchAsync (collection2)
+                  └─> Qdrant VectorStore.SearchAsync (collection3)
+```
+
+**Jaeger Integration:**
+```csharp
+// Add Jaeger exporter
+services.AddOpenTelemetry()
+    .WithTracing(builder =>
+    {
+        builder.AddSource("KnowledgeMcp")
+               .AddJaegerExporter(options =>
+               {
+                   options.AgentHost = "localhost";
+                   options.AgentPort = 6831;
+               });
+    });
+```
+
+**Custom Span Instrumentation:**
+```csharp
+using var activity = McpTelemetry.ActivitySource.StartActivity("SearchAllKnowledgeBases");
+activity?.SetTag("query", query);
+activity?.SetTag("limit", limit);
+activity?.SetTag("minRelevance", minRelevance);
+
+try
+{
+    var results = await plugin.SearchAllKnowledgeBasesAsync(...);
+    activity?.SetTag("results.count", results.Count);
+    activity?.SetStatus(ActivityStatusCode.Ok);
+    return results;
+}
+catch (Exception ex)
+{
+    activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+    throw;
+}
+```
+
+**Benefits:**
+- **Performance Debugging** - Identify slow operations in search pipeline
+- **Dependency Mapping** - Visualize service interactions
+- **Error Attribution** - Trace errors to specific components
+- **Capacity Planning** - Understand resource utilization patterns
+
+---
+
+### **Phase 3 Implementation Timeline**
+
+**Week 1-2: Prometheus Integration**
+- Add metrics instrumentation to all MCP tools
+- Configure Prometheus scraping
+- Validate metric collection and cardinality
+
+**Week 3-4: Grafana Dashboards**
+- Create MCP Server Overview dashboard
+- Create System Health Monitoring dashboard
+- Create Knowledge Analytics dashboard
+- Set up alerting rules
+
+**Week 5-6: Distributed Tracing**
+- Integrate Jaeger exporter
+- Add custom span instrumentation
+- Test end-to-end trace collection
+- Document trace analysis workflows
+
+**Total Effort:** 6 weeks | **Value:** High for production deployments
+
+---
+
+### **Phase 3 Success Criteria**
+
+- [ ] Prometheus successfully scraping MCP server metrics at /metrics endpoint
+- [ ] Grafana dashboards displaying real-time MCP tool usage and system health
+- [ ] Alert rules triggering correctly for error rate and performance degradation
+- [ ] Distributed traces capturing complete request paths through MCP → agents → databases
+- [ ] Documentation for monitoring setup and dashboard usage
+- [ ] Runbook for responding to common alerts
+
+---
