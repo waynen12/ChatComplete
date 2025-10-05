@@ -139,15 +139,18 @@ public sealed class KnowledgeAnalyticsMcpTool
     }
 
     /// <summary>
-    /// Get knowledge base health status and synchronization analysis (Future Enhancement).
+    /// Get knowledge base health status and synchronization analysis.
     ///
-    /// This method would provide specialized health checks for knowledge base integrity:
+    /// This method provides specialized health checks for knowledge base integrity:
     /// - SQLite vs Vector Store synchronization status
     /// - Missing collections or orphaned data
-    /// - Index health and performance metrics
+    /// - Database and vector store connectivity
     /// - Storage consistency verification
     ///
-    /// Currently planned for future implementation as a specialized health check tool.
+    /// Health Status Levels:
+    /// - Healthy: All systems operational, no sync issues
+    /// - Warning: Minor issues detected (orphaned collections, etc.)
+    /// - Critical: Major issues preventing operations
     /// </summary>
     /// <param name="checkSynchronization">Verify sync between SQLite and vector store</param>
     /// <param name="includePerformanceMetrics">Include search performance and index health</param>
@@ -167,39 +170,114 @@ public sealed class KnowledgeAnalyticsMcpTool
     {
         try
         {
-            // This is a planned enhancement that would provide specialized health checking
-            // Currently, health information is included in the main GetKnowledgeBaseSummaryAsync method
+            // Resolve required services from DI container
+            var knowledgeRepository = serviceProvider.GetRequiredService<IKnowledgeRepository>();
+            var usageTrackingService = serviceProvider.GetRequiredService<IUsageTrackingService>();
+            var dbContext = serviceProvider.GetRequiredService<ISqliteDbContext>();
+            var vectorStore = serviceProvider.GetRequiredService<IVectorStoreStrategy>();
 
-            // For now, delegate to the main summary method with focus on synchronization issues
-            var summaryResult = await GetKnowledgeBaseSummaryAsync(
-                serviceProvider,
-                true,
-                "activity"
-            );
+            var healthIssues = new List<string>();
+            var healthWarnings = new List<string>();
 
-            // Extract health-related information from the summary
+            // 1. Test SQLite database connectivity
+            bool sqliteHealthy = false;
+            int totalKnowledgeBases = 0;
+            try
+            {
+                var allKnowledge = await knowledgeRepository.GetAllAsync();
+                totalKnowledgeBases = allKnowledge.Count();
+                sqliteHealthy = true;
+            }
+            catch (Exception ex)
+            {
+                healthIssues.Add($"SQLite database not accessible: {ex.Message}");
+            }
+
+            // 2. Test Qdrant vector store connectivity
+            bool qdrantHealthy = false;
+            var vectorCollections = new List<string>();
+            try
+            {
+                vectorCollections = await vectorStore.ListCollectionsAsync();
+                qdrantHealthy = true;
+            }
+            catch (Exception ex)
+            {
+                healthIssues.Add($"Qdrant vector store not accessible: {ex.Message}");
+            }
+
+            // 3. Check synchronization between SQLite and Qdrant
+            var orphanedCollections = new List<string>();
+            var missingSqliteEntries = new List<string>();
+
+            if (checkSynchronization && sqliteHealthy && qdrantHealthy)
+            {
+                var knowledgeBases = await knowledgeRepository.GetAllAsync();
+                var knowledgeIds = knowledgeBases.Select(k => k.Id).ToHashSet();
+
+                // Find collections in Qdrant but not in SQLite
+                orphanedCollections = vectorCollections
+                    .Where(collectionName => !knowledgeIds.Contains(collectionName))
+                    .ToList();
+
+                // Find knowledge bases in SQLite but not in Qdrant
+                missingSqliteEntries = knowledgeIds
+                    .Where(knowledgeId => !vectorCollections.Contains(knowledgeId))
+                    .ToList();
+
+                if (orphanedCollections.Any())
+                {
+                    healthWarnings.Add($"{orphanedCollections.Count} orphaned collections in Qdrant (no SQLite metadata)");
+                }
+
+                if (missingSqliteEntries.Any())
+                {
+                    healthWarnings.Add($"{missingSqliteEntries.Count} knowledge bases missing Qdrant collections");
+                }
+            }
+
+            // Determine overall health status
+            var healthStatus = healthIssues.Any() ? "Critical" :
+                              healthWarnings.Any() ? "Warning" :
+                              "Healthy";
+
             var healthReport = new
             {
-                Status = "Partial Implementation",
-                Message = "Knowledge base health checking is currently integrated into GetKnowledgeBaseSummaryAsync method",
-                Recommendation = "Use GetKnowledgeBaseSummaryAsync for orphaned collection detection and basic health metrics",
-                PlannedFeatures = new[]
+                Status = healthStatus,
+                Timestamp = DateTime.UtcNow,
+                Components = new
                 {
-                    "Dedicated synchronization verification",
-                    "Index performance analysis",
-                    "Storage consistency checks",
-                    "Automated repair suggestions",
+                    SqliteDatabase = new
+                    {
+                        Status = sqliteHealthy ? "Operational" : "Failed",
+                        KnowledgeBases = totalKnowledgeBases,
+                    },
+                    QdrantVectorStore = new
+                    {
+                        Status = qdrantHealthy ? "Operational" : "Failed",
+                        Collections = vectorCollections.Count,
+                    },
                 },
-                CurrentHealthIndicators = new
+                Synchronization = checkSynchronization ? new
                 {
-                    OrphanedCollectionDetection = "Available in GetKnowledgeBaseSummaryAsync",
-                    BasicMetrics = "Document counts, storage usage, activity levels",
-                    SynchronizationStatus = "Basic comparison between SQLite and vector store",
+                    Checked = true,
+                    OrphanedCollections = (IEnumerable<string>)orphanedCollections,
+                    MissingCollections = (IEnumerable<string>)missingSqliteEntries,
+                    InSync = (bool?)(orphanedCollections.Count == 0 && missingSqliteEntries.Count == 0),
+                } : new
+                {
+                    Checked = false,
+                    OrphanedCollections = (IEnumerable<string>)Array.Empty<string>(),
+                    MissingCollections = (IEnumerable<string>)Array.Empty<string>(),
+                    InSync = (bool?)null,
                 },
+                Issues = healthIssues,
+                Warnings = healthWarnings,
+                Recommendations = GenerateHealthRecommendations(healthIssues, healthWarnings, orphanedCollections, missingSqliteEntries),
             };
 
             Console.WriteLine(
-                "📊 MCP KnowledgeBaseHealth - Using summary method for health insights"
+                $"🏥 MCP KnowledgeBaseHealth completed - Status: {healthStatus}, Issues: {healthIssues.Count}, Warnings: {healthWarnings.Count}"
             );
 
             return JsonSerializer.Serialize(
@@ -211,6 +289,14 @@ public sealed class KnowledgeAnalyticsMcpTool
                 }
             );
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("service"))
+        {
+            // Handle service resolution failures - typically configuration issues
+            return CreateErrorResponse(
+                $"Service configuration error: {ex.Message}",
+                nameof(GetKnowledgeBaseHealthAsync)
+            );
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"❌ MCP KnowledgeBaseHealth error: {ex.Message}");
@@ -219,6 +305,50 @@ public sealed class KnowledgeAnalyticsMcpTool
                 nameof(GetKnowledgeBaseHealthAsync)
             );
         }
+    }
+
+    /// <summary>
+    /// Generate actionable recommendations based on health check results.
+    /// </summary>
+    private static List<string> GenerateHealthRecommendations(
+        List<string> issues,
+        List<string> warnings,
+        List<string> orphanedCollections,
+        List<string> missingSqliteEntries)
+    {
+        var recommendations = new List<string>();
+
+        if (issues.Any(i => i.Contains("SQLite")))
+        {
+            recommendations.Add("Check SQLite database file path and permissions in appsettings.json");
+            recommendations.Add("Verify database file is not corrupted");
+        }
+
+        if (issues.Any(i => i.Contains("Qdrant")))
+        {
+            recommendations.Add("Verify Qdrant is running (check docker ps or systemctl status)");
+            recommendations.Add("Check Qdrant connection settings in appsettings.json (host, port)");
+            recommendations.Add("Ensure network connectivity to Qdrant server");
+        }
+
+        if (orphanedCollections.Any())
+        {
+            recommendations.Add($"Consider deleting orphaned Qdrant collections: {string.Join(", ", orphanedCollections)}");
+            recommendations.Add("Use Qdrant dashboard or API to inspect orphaned collections before deletion");
+        }
+
+        if (missingSqliteEntries.Any())
+        {
+            recommendations.Add($"Re-upload documents for knowledge bases missing Qdrant collections: {string.Join(", ", missingSqliteEntries)}");
+            recommendations.Add("Check logs for errors during document processing/embedding");
+        }
+
+        if (!recommendations.Any())
+        {
+            recommendations.Add("All systems operational - no action required");
+        }
+
+        return recommendations;
     }
 
     /// <summary>
