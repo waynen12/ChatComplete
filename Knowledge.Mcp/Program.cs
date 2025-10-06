@@ -206,6 +206,9 @@ class Program
                     services.AddScoped<KnowledgeEngine.Agents.Plugins.ModelRecommendationAgent>();
                     services.AddScoped<KnowledgeEngine.Agents.Plugins.KnowledgeAnalyticsAgent>();
 
+                    // Register MCP resource provider (Phase 2B: Resources protocol)
+                    services.AddScoped<Knowledge.Mcp.Resources.KnowledgeResourceProvider>();
+
                     // Configure MCP server with STDIO transport
                     services.AddMcpServer().WithStdioServerTransport().WithToolsFromAssembly();
 
