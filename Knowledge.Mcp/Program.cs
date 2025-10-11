@@ -207,10 +207,14 @@ class Program
                     services.AddScoped<KnowledgeEngine.Agents.Plugins.KnowledgeAnalyticsAgent>();
 
                     // Register MCP resource provider (Phase 2B: Resources protocol)
+                    // Note: KnowledgeResourceMethods is now an instance class registered via .WithResources<>()
                     services.AddScoped<Knowledge.Mcp.Resources.KnowledgeResourceProvider>();
 
                     // Configure MCP server with STDIO transport
-                    services.AddMcpServer().WithStdioServerTransport().WithToolsFromAssembly();
+                    services.AddMcpServer()
+                        .WithStdioServerTransport()
+                        .WithToolsFromAssembly()
+                        .WithResources<Knowledge.Mcp.Resources.KnowledgeResourceMethods>();
 
                     // Configure logging
                     services.AddLogging(builder =>
