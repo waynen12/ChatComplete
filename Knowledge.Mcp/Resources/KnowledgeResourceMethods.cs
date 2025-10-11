@@ -1,4 +1,5 @@
 using ModelContextProtocol.Server;
+using ModelContextProtocol.Protocol;
 using System.ComponentModel;
 using Knowledge.Contracts;
 using KnowledgeEngine.Persistence;
@@ -21,7 +22,7 @@ public class KnowledgeResourceMethods
     /// Lists all knowledge collections with metadata and document counts.
     /// URI: resource://knowledge/collections
     /// </summary>
-    [McpServerResource(UriTemplate = "knowledge://collections", Name = "Knowledge Collections", MimeType = "application/json"), Description("Complete list of all knowledge collections with document counts and metadata")]
+    [McpServerResource(UriTemplate = "resource://knowledge/collections", Name = "Knowledge Collections", MimeType = "application/json"), Description("Complete list of all knowledge collections with document counts and metadata")]
     public static async Task<string> GetCollections(
         IKnowledgeRepository repository,
         ILogger<IKnowledgeRepository> logger,
@@ -49,8 +50,9 @@ public class KnowledgeResourceMethods
     /// Lists all documents in a specific knowledge collection.
     /// URI: resource://knowledge/{collectionId}/documents
     /// </summary>
-    [McpServerResource(UriTemplate = "knowledge://{collectionId}/documents", Name = "Collection Documents", MimeType = "application/json"), Description("List of documents in a specific knowledge collection")]
-    public static async Task<string> GetCollectionDocuments(
+    [McpServerResource(UriTemplate = "resource://knowledge/{collectionId}/documents", Name = "Collection Documents", MimeType = "application/json"), Description("List of documents in a specific knowledge collection")]
+    public static async Task<ResourceContents> GetCollectionDocuments(
+        RequestContext<ReadResourceRequestParams> requestContext,
         string collectionId,
         IKnowledgeRepository repository,
         ILogger<IKnowledgeRepository> logger,
@@ -80,15 +82,23 @@ public class KnowledgeResourceMethods
             })
         };
 
-        return JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+        var jsonText = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+
+        return new TextResourceContents
+        {
+            Uri = requestContext.Params?.Uri ?? $"resource://knowledge/{collectionId}/documents",
+            MimeType = "application/json",
+            Text = jsonText
+        };
     }
 
     /// <summary>
     /// Retrieves the full content of a specific document with automatic MIME type detection.
     /// URI: resource://knowledge/{collectionId}/document/{documentId}
     /// </summary>
-    [McpServerResource(UriTemplate = "knowledge://{collectionId}/document/{documentId}", Name = "Document Content", MimeType = "application/json"), Description("Full content of a specific document with MIME type detection")]
-    public static async Task<string> GetDocument(
+    [McpServerResource(UriTemplate = "resource://knowledge/{collectionId}/document/{documentId}", Name = "Document Content", MimeType = "application/json"), Description("Full content of a specific document with MIME type detection")]
+    public static async Task<ResourceContents> GetDocument(
+        RequestContext<ReadResourceRequestParams> requestContext,
         string collectionId,
         string documentId,
         IKnowledgeRepository repository,
@@ -127,15 +137,23 @@ public class KnowledgeResourceMethods
             content = fullText
         };
 
-        return JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+        var jsonText = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+
+        return new TextResourceContents
+        {
+            Uri = requestContext.Params?.Uri ?? $"resource://knowledge/{collectionId}/document/{documentId}",
+            MimeType = "application/json",
+            Text = jsonText
+        };
     }
 
     /// <summary>
     /// Retrieves analytics and usage statistics for a specific knowledge collection.
     /// URI: resource://knowledge/{collectionId}/stats
     /// </summary>
-    [McpServerResource(UriTemplate = "knowledge://{collectionId}/stats", Name = "Collection Statistics", MimeType = "application/json"), Description("Analytics and usage statistics for a knowledge collection")]
-    public static async Task<string> GetCollectionStats(
+    [McpServerResource(UriTemplate = "resource://knowledge/{collectionId}/stats", Name = "Collection Statistics", MimeType = "application/json"), Description("Analytics and usage statistics for a knowledge collection")]
+    public static async Task<ResourceContents> GetCollectionStats(
+        RequestContext<ReadResourceRequestParams> requestContext,
         string collectionId,
         IKnowledgeRepository repository,
         IUsageTrackingService usageTracking,
@@ -171,14 +189,21 @@ public class KnowledgeResourceMethods
             totalFileSize = usageStats?.TotalFileSize ?? 0
         };
 
-        return JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+        var jsonText = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+
+        return new TextResourceContents
+        {
+            Uri = requestContext.Params?.Uri ?? $"resource://knowledge/{collectionId}/stats",
+            MimeType = "application/json",
+            Text = jsonText
+        };
     }
 
     /// <summary>
     /// Retrieves overall system health status including all components.
     /// URI: resource://system/health
     /// </summary>
-    [McpServerResource(UriTemplate = "system://health", Name = "System Health", MimeType = "application/json"), Description("System health status for vector stores, databases, and AI providers")]
+    [McpServerResource(UriTemplate = "resource://system/health", Name = "System Health", MimeType = "application/json"), Description("System health status for vector stores, databases, and AI providers")]
     public static async Task<string> GetSystemHealth(
         ISystemHealthService systemHealth,
         ILogger<ISystemHealthService> logger,
@@ -195,7 +220,7 @@ public class KnowledgeResourceMethods
     /// Retrieves inventory of all available AI models with usage statistics.
     /// URI: resource://system/models
     /// </summary>
-    [McpServerResource(UriTemplate = "system://models", Name = "AI Models Inventory", MimeType = "application/json"), Description("Inventory of AI models with usage stats (Ollama, OpenAI, Anthropic, Google)")]
+    [McpServerResource(UriTemplate = "resource://system/models", Name = "AI Models Inventory", MimeType = "application/json"), Description("Inventory of AI models with usage stats (Ollama, OpenAI, Anthropic, Google)")]
     public static async Task<string> GetModels(
         IUsageTrackingService usageTracking,
         ILogger<IUsageTrackingService> logger,
