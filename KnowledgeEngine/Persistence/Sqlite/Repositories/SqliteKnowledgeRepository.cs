@@ -167,7 +167,7 @@ public class SqliteKnowledgeRepository : IKnowledgeRepository
         CancellationToken cancellationToken = default)
     {
         const string sql = """
-            INSERT INTO KnowledgeDocuments 
+            INSERT INTO KnowledgeDocuments
             (CollectionId, DocumentId, OriginalFileName, FileSize, FileType, UploadedAt)
             VALUES (@collectionId, @documentId, @fileName, @fileSize, @fileType, CURRENT_TIMESTAMP)
             """;
@@ -182,5 +182,87 @@ public class SqliteKnowledgeRepository : IKnowledgeRepository
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return documentId;
+    }
+
+    /// <summary>
+    /// Gets all documents within a specific knowledge collection.
+    /// Returns metadata only (no chunk content).
+    /// </summary>
+    public async Task<IEnumerable<DocumentMetadataDto>> GetDocumentsByCollectionAsync(
+        string collectionId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT DocumentId, OriginalFileName, ChunkCount, FileSize, FileType, UploadedAt
+            FROM KnowledgeDocuments
+            WHERE CollectionId = @collectionId AND ProcessingStatus = 'Completed'
+            ORDER BY UploadedAt DESC
+            """;
+
+        var results = new List<DocumentMetadataDto>();
+        var connection = await _dbContext.GetConnectionAsync();
+
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@collectionId", collectionId);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new DocumentMetadataDto
+            {
+                DocumentId = reader.GetString(0),
+                OriginalFileName = reader.GetString(1),
+                ChunkCount = reader.GetInt32(2),
+                FileSize = reader.GetInt64(3),
+                FileType = reader.GetString(4),
+                UploadedAt = reader.GetDateTime(5)
+            });
+        }
+
+        _logger.LogDebug("Found {Count} documents in collection {CollectionId}", results.Count, collectionId);
+        return results;
+    }
+
+    /// <summary>
+    /// Gets all chunks for a specific document, ordered by chunk index.
+    /// Used to reconstruct the full document text.
+    /// </summary>
+    public async Task<IEnumerable<DocumentChunkDto>> GetDocumentChunksAsync(
+        string collectionId,
+        string documentId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT ChunkId, ChunkText, ChunkOrder, TokenCount, CharacterCount
+            FROM KnowledgeChunks
+            WHERE CollectionId = @collectionId AND DocumentId = @documentId
+            ORDER BY ChunkOrder ASC
+            """;
+
+        var results = new List<DocumentChunkDto>();
+        var connection = await _dbContext.GetConnectionAsync();
+
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@collectionId", collectionId);
+        command.Parameters.AddWithValue("@documentId", documentId);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new DocumentChunkDto
+            {
+                ChunkId = reader.GetString(0),
+                ChunkText = reader.GetString(1),
+                ChunkOrder = reader.GetInt32(2),
+                TokenCount = reader.GetInt32(3),
+                CharacterCount = reader.GetInt32(4)
+            });
+        }
+
+        _logger.LogDebug("Retrieved {Count} chunks for document {DocumentId} in collection {CollectionId}",
+            results.Count, documentId, collectionId);
+        return results;
     }
 }

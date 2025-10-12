@@ -44,8 +44,32 @@ public interface IKnowledgeRepository
     /// <param name="chunkCount">Number of chunks to add to the count</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task UpdateCollectionStatsAsync(
-        string collectionId, 
-        int documentCount, 
+        string collectionId,
+        int documentCount,
         int chunkCount,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all documents within a specific knowledge collection.
+    /// Returns metadata only (no chunk content).
+    /// </summary>
+    /// <param name="collectionId">The collection identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of document metadata entries</returns>
+    Task<IEnumerable<DocumentMetadataDto>> GetDocumentsByCollectionAsync(
+        string collectionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all chunks for a specific document, ordered by chunk index.
+    /// Used to reconstruct the full document text.
+    /// </summary>
+    /// <param name="collectionId">The collection identifier</param>
+    /// <param name="documentId">The document identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Ordered list of document chunks</returns>
+    Task<IEnumerable<DocumentChunkDto>> GetDocumentChunksAsync(
+        string collectionId,
+        string documentId,
         CancellationToken cancellationToken = default);
 }

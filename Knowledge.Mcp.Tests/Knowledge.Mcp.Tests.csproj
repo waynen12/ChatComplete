@@ -27,6 +27,7 @@
     <ProjectReference Include="../Knowledge.Mcp/Knowledge.Mcp.csproj" />
     <ProjectReference Include="../KnowledgeEngine/KnowledgeEngine.csproj" />
     <ProjectReference Include="../Knowledge.Contracts/Knowledge.Contracts.csproj" />
+    <ProjectReference Include="../Knowledge.Analytics/Knowledge.Analytics.csproj" />
   </ItemGroup>
 
   <ItemGroup>
