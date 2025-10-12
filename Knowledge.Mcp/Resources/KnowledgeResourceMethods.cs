@@ -23,7 +23,8 @@ public class KnowledgeResourceMethods
     /// URI: resource://knowledge/collections
     /// </summary>
     [McpServerResource(UriTemplate = "resource://knowledge/collections", Name = "Knowledge Collections", MimeType = "application/json"), Description("Complete list of all knowledge collections with document counts and metadata")]
-    public static async Task<string> GetCollections(
+    public static async Task<ResourceContents> GetCollections(
+        RequestContext<ReadResourceRequestParams> requestContext,
         IKnowledgeRepository repository,
         ILogger<IKnowledgeRepository> logger,
         CancellationToken cancellationToken = default)
@@ -43,7 +44,14 @@ public class KnowledgeResourceMethods
             })
         };
 
-        return JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+        var jsonText = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+
+        return new TextResourceContents
+        {
+            Uri = requestContext.Params?.Uri ?? "resource://knowledge/collections",
+            MimeType = "application/json",
+            Text = jsonText
+        };
     }
 
     /// <summary>
@@ -204,7 +212,8 @@ public class KnowledgeResourceMethods
     /// URI: resource://system/health
     /// </summary>
     [McpServerResource(UriTemplate = "resource://system/health", Name = "System Health", MimeType = "application/json"), Description("System health status for vector stores, databases, and AI providers")]
-    public static async Task<string> GetSystemHealth(
+    public static async Task<ResourceContents> GetSystemHealth(
+        RequestContext<ReadResourceRequestParams> requestContext,
         ISystemHealthService systemHealth,
         ILogger<ISystemHealthService> logger,
         CancellationToken cancellationToken = default)
@@ -213,7 +222,14 @@ public class KnowledgeResourceMethods
 
         var healthStatus = await systemHealth.GetSystemHealthAsync(cancellationToken);
 
-        return JsonSerializer.Serialize(healthStatus, new JsonSerializerOptions { WriteIndented = true });
+        var jsonText = JsonSerializer.Serialize(healthStatus, new JsonSerializerOptions { WriteIndented = true });
+
+        return new TextResourceContents
+        {
+            Uri = requestContext.Params?.Uri ?? "resource://system/health",
+            MimeType = "application/json",
+            Text = jsonText
+        };
     }
 
     /// <summary>
@@ -221,7 +237,8 @@ public class KnowledgeResourceMethods
     /// URI: resource://system/models
     /// </summary>
     [McpServerResource(UriTemplate = "resource://system/models", Name = "AI Models Inventory", MimeType = "application/json"), Description("Inventory of AI models with usage stats (Ollama, OpenAI, Anthropic, Google)")]
-    public static async Task<string> GetModels(
+    public static async Task<ResourceContents> GetModels(
+        RequestContext<ReadResourceRequestParams> requestContext,
         IUsageTrackingService usageTracking,
         ILogger<IUsageTrackingService> logger,
         CancellationToken cancellationToken = default)
@@ -253,6 +270,13 @@ public class KnowledgeResourceMethods
             models
         };
 
-        return JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+        var jsonText = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+
+        return new TextResourceContents
+        {
+            Uri = requestContext.Params?.Uri ?? "resource://system/models",
+            MimeType = "application/json",
+            Text = jsonText
+        };
     }
 }

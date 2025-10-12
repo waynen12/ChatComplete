@@ -211,6 +211,8 @@ class Program
                     services.AddScoped<Knowledge.Mcp.Resources.KnowledgeResourceProvider>();
 
                     // Configure MCP server with STDIO transport
+                    // Note: MCP SDK automatically declares resource capabilities when .WithResources<>() is called
+                    // The SDK handles the capabilities response in initialize protocol method
                     services.AddMcpServer()
                         .WithStdioServerTransport()
                         .WithToolsFromAssembly()
