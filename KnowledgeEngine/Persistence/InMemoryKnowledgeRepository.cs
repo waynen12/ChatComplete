@@ -105,4 +105,21 @@ public class InMemoryKnowledgeRepository : IKnowledgeRepository
             "Chunk retrieval is not supported in InMemoryKnowledgeRepository. " +
             "Use SqliteKnowledgeRepository for full document and chunk management.");
     }
+
+    /// <summary>
+    /// Adds a document record to track uploaded files.
+    /// NOT SUPPORTED in InMemoryKnowledgeRepository - use SqliteKnowledgeRepository for document tracking.
+    /// </summary>
+    public Task<string> AddDocumentAsync(
+        string collectionId,
+        string documentId,
+        string fileName,
+        long fileSize,
+        string fileType,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            "Document tracking is not supported in InMemoryKnowledgeRepository. " +
+            "Use SqliteKnowledgeRepository for full document and chunk management.");
+    }
 }

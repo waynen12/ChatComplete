@@ -72,4 +72,23 @@ public interface IKnowledgeRepository
         string collectionId,
         string documentId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds a document record to track uploaded files.
+    /// Called during document upload to record metadata.
+    /// </summary>
+    /// <param name="collectionId">The collection identifier</param>
+    /// <param name="documentId">The document identifier</param>
+    /// <param name="fileName">Original file name</param>
+    /// <param name="fileSize">File size in bytes</param>
+    /// <param name="fileType">File extension/type</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The document identifier</returns>
+    Task<string> AddDocumentAsync(
+        string collectionId,
+        string documentId,
+        string fileName,
+        long fileSize,
+        string fileType,
+        CancellationToken cancellationToken = default);
 }
