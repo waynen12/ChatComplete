@@ -119,8 +119,11 @@ public class OllamaEmbeddingService : IEmbeddingGenerator<string, Embedding<floa
         GC.SuppressFinalize(this);
     }
 
-    private static readonly JsonSerializerOptions JsonSerializerOptions =
-        new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, WriteIndented = false };
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        WriteIndented = false,
+    };
 
     /// <summary>
     /// Request model for Ollama embed API

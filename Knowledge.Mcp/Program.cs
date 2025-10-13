@@ -1,18 +1,19 @@
+using ChatCompletion.Config;
+using Knowledge.Analytics.Services;
+using Knowledge.Data.Extensions;
+using Knowledge.Mcp.Configuration;
+using KnowledgeEngine.Extensions;
+using KnowledgeEngine.Services;
+using KnowledgeEngine.Services.HealthCheckers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using OpenTelemetry;
 using OpenTelemetry.Trace;
-using KnowledgeEngine.Services;
-using KnowledgeEngine.Services.HealthCheckers;
-using Knowledge.Analytics.Services;
-using Knowledge.Data.Extensions;
-using KnowledgeEngine.Extensions;
-using ChatCompletion.Config;
-using Knowledge.Mcp.Configuration;
 
 namespace Knowledge.Mcp;
 
@@ -28,7 +29,7 @@ class Program
         {
             return await TestQdrantCollections.RunTest(args);
         }
-        
+
         // Check if we should run minimal MCP server
         if (args.Length > 0 && args[0] == "--minimal")
         {
@@ -53,25 +54,28 @@ class Program
 
     static IHostBuilder CreateHostBuilder(string[] args) =>
         Host.CreateDefaultBuilder(args)
-            .ConfigureAppConfiguration((context, config) =>
-            {
-                // Set the base path to the directory where the executable is located
-                // This ensures appsettings.json is found regardless of working directory
-                var basePath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                config.SetBasePath(basePath!);
+            .ConfigureAppConfiguration(
+                (context, config) =>
+                {
+                    // Set the base path to the directory where the executable is located
+                    // This ensures appsettings.json is found regardless of working directory
+                    var basePath = System.IO.Path.GetDirectoryName(
+                        System.Reflection.Assembly.GetExecutingAssembly().Location
+                    );
+                    config.SetBasePath(basePath!);
 
-                // Clear existing sources and add our configuration files
-                config.Sources.Clear();
-                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-                config.AddEnvironmentVariables();
-                config.AddCommandLine(args);
+                    // Clear existing sources and add our configuration files
+                    config.Sources.Clear();
+                    config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                    config.AddEnvironmentVariables();
+                    config.AddCommandLine(args);
 
-                Console.WriteLine($"MCP Server configuration base path: {basePath}");
-            })
+                    Console.WriteLine($"MCP Server configuration base path: {basePath}");
+                }
+            )
             .ConfigureServices(
                 (context, services) =>
                 {
-                    
                     // Add configuration
                     var configuration = context.Configuration;
                     // Create ChatCompleteSettings from configuration
@@ -81,15 +85,17 @@ class Program
 
                     if (string.IsNullOrWhiteSpace(databasePath))
                     {
-                        Console.WriteLine("WARNING: DatabasePath not configured in appsettings.json.");
-                        Console.WriteLine("This likely means appsettings.json was not copied to the output directory.");
+                        Console.WriteLine(
+                            "WARNING: DatabasePath not configured in appsettings.json."
+                        );
+                        Console.WriteLine(
+                            "This likely means appsettings.json was not copied to the output directory."
+                        );
                         throw new Exception("DatabasePath not configured in appsettings.json.");
                     }
 
                     Console.WriteLine($"MCP Server using database path: {databasePath}");
 
-
-                    
                     // Force correct Qdrant configuration (Bind() doesn't override defaults properly)
                     chatCompleteSettings.VectorStore.Provider = "Qdrant";
                     chatCompleteSettings.VectorStore.Qdrant.Port = 6334;
@@ -121,33 +127,52 @@ class Program
                     services.AddKnowledgeData(databasePath);
 
                     // Register Qdrant-only services (bypass MongoDB completely)
-                    
+
                     // Register QdrantSettings
                     services.AddSingleton(chatCompleteSettings.VectorStore.Qdrant);
-                    
+
                     // Register Qdrant services directly
-                    services.AddSingleton<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>(provider =>
-                    {
-                        var qdrantSettings = chatCompleteSettings.VectorStore.Qdrant;
-                        var qdrantClient = new Qdrant.Client.QdrantClient(
-                            host: qdrantSettings.Host,
-                            port: qdrantSettings.Port,
-                            https: qdrantSettings.UseHttps,
-                            apiKey: qdrantSettings.ApiKey
-                        );
-                        return new Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore(qdrantClient, ownsClient: true);
-                    });
-                    
+                    services.AddSingleton<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>(
+                        provider =>
+                        {
+                            var qdrantSettings = chatCompleteSettings.VectorStore.Qdrant;
+                            var qdrantClient = new Qdrant.Client.QdrantClient(
+                                host: qdrantSettings.Host,
+                                port: qdrantSettings.Port,
+                                https: qdrantSettings.UseHttps,
+                                apiKey: qdrantSettings.ApiKey
+                            );
+                            return new Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore(
+                                qdrantClient,
+                                ownsClient: true
+                            );
+                        }
+                    );
+
                     // Register Qdrant Index Manager
-                    services.AddScoped<KnowledgeEngine.Persistence.IndexManagers.IIndexManager, KnowledgeEngine.Persistence.IndexManagers.QdrantIndexManager>();
-                    
+                    services.AddScoped<
+                        KnowledgeEngine.Persistence.IndexManagers.IIndexManager,
+                        KnowledgeEngine.Persistence.IndexManagers.QdrantIndexManager
+                    >();
+
                     // Register Qdrant Vector Store Strategy
-                    services.AddScoped<KnowledgeEngine.Persistence.VectorStores.IVectorStoreStrategy, KnowledgeEngine.Persistence.VectorStores.QdrantVectorStoreStrategy>(provider =>
+                    services.AddScoped<
+                        KnowledgeEngine.Persistence.VectorStores.IVectorStoreStrategy,
+                        KnowledgeEngine.Persistence.VectorStores.QdrantVectorStoreStrategy
+                    >(provider =>
                     {
-                        var vectorStore = provider.GetRequiredService<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>();
-                        var qdrantSettings = provider.GetRequiredService<ChatCompletion.Config.QdrantSettings>();
-                        var indexManager = provider.GetRequiredService<KnowledgeEngine.Persistence.IndexManagers.IIndexManager>();
-                        return new KnowledgeEngine.Persistence.VectorStores.QdrantVectorStoreStrategy(vectorStore, qdrantSettings, indexManager, chatCompleteSettings);
+                        var vectorStore =
+                            provider.GetRequiredService<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>();
+                        var qdrantSettings =
+                            provider.GetRequiredService<ChatCompletion.Config.QdrantSettings>();
+                        var indexManager =
+                            provider.GetRequiredService<KnowledgeEngine.Persistence.IndexManagers.IIndexManager>();
+                        return new KnowledgeEngine.Persistence.VectorStores.QdrantVectorStoreStrategy(
+                            vectorStore,
+                            qdrantSettings,
+                            indexManager,
+                            chatCompleteSettings
+                        );
                     });
 
                     // Register system health services and their dependencies
@@ -164,43 +189,64 @@ class Program
                     // services.AddScoped<IComponentHealthChecker, GoogleAIHealthChecker>();
 
                     // Register knowledge management services (required for search and analytics MCP tools)
-                    
+
                     // Register KnowledgeEngine SqliteDbContext (different from Knowledge.Data one)
-                    services.AddScoped<KnowledgeEngine.Persistence.Sqlite.SqliteDbContext>(provider =>
-                    {
-                        return new KnowledgeEngine.Persistence.Sqlite.SqliteDbContext(databasePath);
-                    });
-                    
-                    services.AddScoped<KnowledgeEngine.Persistence.IKnowledgeRepository, KnowledgeEngine.Persistence.Sqlite.Repositories.SqliteKnowledgeRepository>();
-                    
+                    services.AddScoped<KnowledgeEngine.Persistence.Sqlite.SqliteDbContext>(
+                        provider =>
+                        {
+                            return new KnowledgeEngine.Persistence.Sqlite.SqliteDbContext(
+                                databasePath
+                            );
+                        }
+                    );
+
+                    services.AddScoped<
+                        KnowledgeEngine.Persistence.IKnowledgeRepository,
+                        KnowledgeEngine.Persistence.Sqlite.Repositories.SqliteKnowledgeRepository
+                    >();
+
                     // Register embedding services (required for knowledge search)
                     // Use Ollama embedding service (configured in appsettings.json)
-                    var activeProvider = chatCompleteSettings.EmbeddingProviders?.ActiveProvider ?? "Ollama";
+                    var activeProvider =
+                        chatCompleteSettings.EmbeddingProviders?.ActiveProvider ?? "Ollama";
 
                     if (activeProvider == "Ollama")
                     {
                         var ollamaSettings = chatCompleteSettings.EmbeddingProviders?.Ollama;
-                        var ollamaBaseUrl = chatCompleteSettings.OllamaBaseUrl ?? "http://localhost:11434";
+                        var ollamaBaseUrl =
+                            chatCompleteSettings.OllamaBaseUrl ?? "http://localhost:11434";
                         var modelName = ollamaSettings?.ModelName ?? "nomic-embed-text";
 
-                        Console.WriteLine($"MCP Server configuring Ollama embedding: {ollamaBaseUrl} with model {modelName}");
+                        Console.WriteLine(
+                            $"MCP Server configuring Ollama embedding: {ollamaBaseUrl} with model {modelName}"
+                        );
 
-                        services.AddScoped<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(provider =>
+                        services.AddScoped<Microsoft.Extensions.AI.IEmbeddingGenerator<
+                            string,
+                            Microsoft.Extensions.AI.Embedding<float>
+                        >>(provider =>
                         {
-                            var httpClient = provider.GetRequiredService<IHttpClientFactory>().CreateClient();
-                            return new Knowledge.Mcp.Services.OllamaEmbeddingService(httpClient, ollamaBaseUrl, modelName);
+                            var httpClient = provider
+                                .GetRequiredService<IHttpClientFactory>()
+                                .CreateClient();
+                            return new Knowledge.Mcp.Services.OllamaEmbeddingService(
+                                httpClient,
+                                ollamaBaseUrl,
+                                modelName
+                            );
                         });
                     }
                     else
                     {
                         throw new NotSupportedException(
-                            $"Embedding provider '{activeProvider}' not supported in MCP server. " +
-                            "Currently only Ollama is supported. Set ActiveProvider to 'Ollama' in appsettings.json");
+                            $"Embedding provider '{activeProvider}' not supported in MCP server. "
+                                + "Currently only Ollama is supported. Set ActiveProvider to 'Ollama' in appsettings.json"
+                        );
                     }
-                    
+
                     // Register KnowledgeManager (required for CrossKnowledgeSearchMcpTool)
                     services.AddScoped<KnowledgeEngine.KnowledgeManager>();
-                    
+
                     // Register agent plugins (required for MCP tool implementations)
                     services.AddScoped<KnowledgeEngine.Agents.Plugins.CrossKnowledgeSearchPlugin>();
                     services.AddScoped<KnowledgeEngine.Agents.Plugins.ModelRecommendationAgent>();
@@ -213,10 +259,13 @@ class Program
                     // Configure MCP server with STDIO transport
                     // Note: .WithResources<>() handles both list and read operations automatically
                     // The SDK scans for [McpServerResource] attributes and builds the resource catalog
-                    services.AddMcpServer()
+                    services
+                        .AddMcpServer()
                         .WithStdioServerTransport()
                         .WithToolsFromAssembly()
                         .WithResources<Knowledge.Mcp.Resources.KnowledgeResourceMethods>();
+                        // NOTE: resources/templates/list is automatically generated from McpServerResource attributes
+                        // No need for explicit WithListResourceTemplatesHandler - SDK discovers templates automatically
 
                     // Configure logging
                     services.AddLogging(builder =>

@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using ModelContextProtocol.Server;
 
 namespace Knowledge.Mcp;
 
@@ -16,14 +16,12 @@ public static class MinimalProgram
         try
         {
             var builder = Host.CreateDefaultBuilder(args);
-            
+
             builder.ConfigureServices(services =>
             {
                 // Add MCP server with minimal configuration
-                services.AddMcpServer()
-                    .WithStdioServerTransport()
-                    .WithToolsFromAssembly();
-                
+                services.AddMcpServer().WithStdioServerTransport().WithToolsFromAssembly();
+
                 // No complex dependencies
             });
 
@@ -50,13 +48,18 @@ public sealed class MinimalTestTool
         {
             Status = "Working",
             Timestamp = DateTime.UtcNow,
-            Message = "Minimal MCP server is responding correctly"
+            Message = "Minimal MCP server is responding correctly",
         };
 
-        return Task.FromResult(JsonSerializer.Serialize(result, new JsonSerializerOptions 
-        { 
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        }));
+        return Task.FromResult(
+            JsonSerializer.Serialize(
+                result,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                }
+            )
+        );
     }
 }

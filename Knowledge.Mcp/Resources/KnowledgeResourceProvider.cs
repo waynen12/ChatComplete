@@ -1,13 +1,13 @@
+using System.ComponentModel;
+using System.Text.Json;
+using Knowledge.Analytics.Services;
 using Knowledge.Contracts;
 using Knowledge.Data;
 using Knowledge.Mcp.Resources.Models;
-using System.Text.Json;
-using Knowledge.Analytics.Services;
 using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Services;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
-using System.ComponentModel;
 
 namespace Knowledge.Mcp.Resources;
 
@@ -33,11 +33,15 @@ public class KnowledgeResourceProvider
         IKnowledgeRepository knowledgeRepository,
         IUsageTrackingService usageTrackingService,
         ISystemHealthService systemHealthService,
-        ILogger<KnowledgeResourceProvider> logger)
+        ILogger<KnowledgeResourceProvider> logger
+    )
     {
-        _knowledgeRepository = knowledgeRepository ?? throw new ArgumentNullException(nameof(knowledgeRepository));
-        _usageTrackingService = usageTrackingService ?? throw new ArgumentNullException(nameof(usageTrackingService));
-        _systemHealthService = systemHealthService ?? throw new ArgumentNullException(nameof(systemHealthService));
+        _knowledgeRepository =
+            knowledgeRepository ?? throw new ArgumentNullException(nameof(knowledgeRepository));
+        _usageTrackingService =
+            usageTrackingService ?? throw new ArgumentNullException(nameof(usageTrackingService));
+        _systemHealthService =
+            systemHealthService ?? throw new ArgumentNullException(nameof(systemHealthService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _uriParser = new ResourceUriParser();
     }
@@ -50,38 +54,47 @@ public class KnowledgeResourceProvider
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of all available resource URIs with metadata</returns>
-    public async Task<ResourceListResult> ListResourcesAsync(CancellationToken cancellationToken = default)
+    public async Task<ResourceListResult> ListResourcesAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation("MCP Resources: Listing all available resources");
 
         var resources = new List<ResourceMetadata>();
 
         // 1. Add root collection list resource
-        resources.Add(new ResourceMetadata
-        {
-            Uri = "resource://knowledge/collections",
-            Name = "All Knowledge Collections",
-            Description = "Complete list of knowledge bases with document counts and metadata",
-            MimeType = "application/json"
-        });
+        resources.Add(
+            new ResourceMetadata
+            {
+                Uri = "resource://knowledge/collections",
+                Name = "All Knowledge Collections",
+                Description = "Complete list of knowledge bases with document counts and metadata",
+                MimeType = "application/json",
+            }
+        );
 
         // 2. Add system health resource
-        resources.Add(new ResourceMetadata
-        {
-            Uri = "resource://system/health",
-            Name = "System Health Status",
-            Description = "Overall health metrics for vector stores, databases, and AI providers",
-            MimeType = "application/json"
-        });
+        resources.Add(
+            new ResourceMetadata
+            {
+                Uri = "resource://system/health",
+                Name = "System Health Status",
+                Description =
+                    "Overall health metrics for vector stores, databases, and AI providers",
+                MimeType = "application/json",
+            }
+        );
 
         // 3. Add system models resource
-        resources.Add(new ResourceMetadata
-        {
-            Uri = "resource://system/models",
-            Name = "AI Model Inventory",
-            Description = "List of available AI models (Ollama, OpenAI, Anthropic, Google)",
-            MimeType = "application/json"
-        });
+        resources.Add(
+            new ResourceMetadata
+            {
+                Uri = "resource://system/models",
+                Name = "AI Model Inventory",
+                Description = "List of available AI models (Ollama, OpenAI, Anthropic, Google)",
+                MimeType = "application/json",
+            }
+        );
 
         // 4. Query all collections and add resources for each
         var collections = await _knowledgeRepository.GetAllAsync(cancellationToken);
@@ -89,34 +102,42 @@ public class KnowledgeResourceProvider
         foreach (var collection in collections)
         {
             // Add document list resource for each collection
-            resources.Add(new ResourceMetadata
-            {
-                Uri = $"resource://knowledge/{collection.Id}/documents",
-                Name = $"{collection.Name} - Documents",
-                Description = $"List of {collection.DocumentCount} documents in {collection.Name}",
-                MimeType = "application/json",
-                Annotations = new Dictionary<string, object>
+            resources.Add(
+                new ResourceMetadata
                 {
-                    ["collectionId"] = collection.Id,
-                    ["documentCount"] = collection.DocumentCount
+                    Uri = $"resource://knowledge/{collection.Id}/documents",
+                    Name = $"{collection.Name} - Documents",
+                    Description =
+                        $"List of {collection.DocumentCount} documents in {collection.Name}",
+                    MimeType = "application/json",
+                    Annotations = new Dictionary<string, object>
+                    {
+                        ["collectionId"] = collection.Id,
+                        ["documentCount"] = collection.DocumentCount,
+                    },
                 }
-            });
+            );
 
             // Add collection stats resource
-            resources.Add(new ResourceMetadata
-            {
-                Uri = $"resource://knowledge/{collection.Id}/stats",
-                Name = $"{collection.Name} - Statistics",
-                Description = $"Analytics and usage statistics for {collection.Name}",
-                MimeType = "application/json",
-                Annotations = new Dictionary<string, object>
+            resources.Add(
+                new ResourceMetadata
                 {
-                    ["collectionId"] = collection.Id
+                    Uri = $"resource://knowledge/{collection.Id}/stats",
+                    Name = $"{collection.Name} - Statistics",
+                    Description = $"Analytics and usage statistics for {collection.Name}",
+                    MimeType = "application/json",
+                    Annotations = new Dictionary<string, object>
+                    {
+                        ["collectionId"] = collection.Id,
+                    },
                 }
-            });
+            );
 
             // Get documents for each collection and add individual document resources
-            var documents = await _knowledgeRepository.GetDocumentsByCollectionAsync(collection.Id, cancellationToken);
+            var documents = await _knowledgeRepository.GetDocumentsByCollectionAsync(
+                collection.Id,
+                cancellationToken
+            );
             foreach (var doc in documents)
             {
                 // Detect MIME type from filename
@@ -131,31 +152,37 @@ public class KnowledgeResourceProvider
                     mimeType = "application/json";
                 }
 
-                resources.Add(new ResourceMetadata
-                {
-                    Uri = $"resource://knowledge/{collection.Id}/document/{doc.DocumentId}",
-                    Name = doc.OriginalFileName,
-                    Description = $"Document from {collection.Name} ({doc.ChunkCount} chunks, {doc.FileSize} bytes)",
-                    MimeType = mimeType,
-                    Annotations = new Dictionary<string, object>
+                resources.Add(
+                    new ResourceMetadata
                     {
-                        ["collectionId"] = collection.Id,
-                        ["documentId"] = doc.DocumentId,
-                        ["chunkCount"] = doc.ChunkCount,
-                        ["fileSize"] = doc.FileSize,
-                        ["uploadedAt"] = doc.UploadedAt
+                        Uri = $"resource://knowledge/{collection.Id}/document/{doc.DocumentId}",
+                        Name = doc.OriginalFileName,
+                        Description =
+                            $"Document from {collection.Name} ({doc.ChunkCount} chunks, {doc.FileSize} bytes)",
+                        MimeType = mimeType,
+                        Annotations = new Dictionary<string, object>
+                        {
+                            ["collectionId"] = collection.Id,
+                            ["documentId"] = doc.DocumentId,
+                            ["chunkCount"] = doc.ChunkCount,
+                            ["fileSize"] = doc.FileSize,
+                            ["uploadedAt"] = doc.UploadedAt,
+                        },
                     }
-                });
+                );
             }
         }
 
-        _logger.LogInformation("MCP Resources: Returning {Count} resources ({CollectionCount} collections)",
-            resources.Count, collections.Count());
+        _logger.LogInformation(
+            "MCP Resources: Returning {Count} resources ({CollectionCount} collections)",
+            resources.Count,
+            collections.Count()
+        );
 
         return new ResourceListResult
         {
             Resources = resources,
-            NextCursor = null // No pagination for now
+            NextCursor = null, // No pagination for now
         };
     }
 
@@ -168,7 +195,8 @@ public class KnowledgeResourceProvider
     /// <returns>Resource content</returns>
     public async Task<ResourceReadResult> ReadResourceAsync(
         string uri,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation("MCP Resources: Reading resource {Uri}", uri);
 
@@ -179,12 +207,24 @@ public class KnowledgeResourceProvider
         return parsedUri.Type switch
         {
             ResourceType.CollectionList => await ReadCollectionListAsync(cancellationToken),
-            ResourceType.DocumentList => await ReadDocumentListAsync(parsedUri.CollectionId!, cancellationToken),
-            ResourceType.Document => await ReadDocumentAsync(parsedUri.CollectionId!, parsedUri.DocumentId!, cancellationToken),
-            ResourceType.CollectionStats => await ReadCollectionStatsAsync(parsedUri.CollectionId!, cancellationToken),
+            ResourceType.DocumentList => await ReadDocumentListAsync(
+                parsedUri.CollectionId!,
+                cancellationToken
+            ),
+            ResourceType.Document => await ReadDocumentAsync(
+                parsedUri.CollectionId!,
+                parsedUri.DocumentId!,
+                cancellationToken
+            ),
+            ResourceType.CollectionStats => await ReadCollectionStatsAsync(
+                parsedUri.CollectionId!,
+                cancellationToken
+            ),
             ResourceType.SystemHealth => await ReadSystemHealthAsync(cancellationToken),
             ResourceType.ModelList => await ReadModelListAsync(cancellationToken),
-            _ => throw new InvalidOperationException($"Unsupported resource type: {parsedUri.Type}")
+            _ => throw new InvalidOperationException(
+                $"Unsupported resource type: {parsedUri.Type}"
+            ),
         };
     }
 
@@ -216,7 +256,9 @@ public class KnowledgeResourceProvider
     /// Reads the list of all knowledge base collections.
     /// URI: resource://knowledge/collections
     /// </summary>
-    private async Task<ResourceReadResult> ReadCollectionListAsync(CancellationToken cancellationToken)
+    private async Task<ResourceReadResult> ReadCollectionListAsync(
+        CancellationToken cancellationToken
+    )
     {
         _logger.LogDebug("MCP Resources: Reading collection list");
 
@@ -226,12 +268,14 @@ public class KnowledgeResourceProvider
         // Build response object
         var response = new
         {
-            collections = collections.Select(c => new
-            {
-                id = c.Id,
-                name = c.Name,
-                documentCount = c.DocumentCount
-            }).ToList()
+            collections = collections
+                .Select(c => new
+                {
+                    id = c.Id,
+                    name = c.Name,
+                    documentCount = c.DocumentCount,
+                })
+                .ToList(),
         };
 
         var resourceContent = CreateJsonResourceContent(
@@ -239,10 +283,7 @@ public class KnowledgeResourceProvider
             response
         );
 
-        return new ResourceReadResult
-        {
-            Contents = new[] { resourceContent }
-        };
+        return new ResourceReadResult { Contents = new[] { resourceContent } };
     }
 
     /// <summary>
@@ -251,14 +292,21 @@ public class KnowledgeResourceProvider
     /// </summary>
     private async Task<ResourceReadResult> ReadDocumentListAsync(
         string collectionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
-        _logger.LogDebug("MCP Resources: Reading document list for collection {CollectionId}", collectionId);
+        _logger.LogDebug(
+            "MCP Resources: Reading document list for collection {CollectionId}",
+            collectionId
+        );
 
         // Validate collection ID
         if (!ResourceUriParser.IsValidCollectionId(collectionId))
         {
-            throw new ArgumentException($"Invalid collection ID: {collectionId}", nameof(collectionId));
+            throw new ArgumentException(
+                $"Invalid collection ID: {collectionId}",
+                nameof(collectionId)
+            );
         }
 
         // Verify collection exists
@@ -269,21 +317,26 @@ public class KnowledgeResourceProvider
         }
 
         // Get all documents for the collection
-        var documents = await _knowledgeRepository.GetDocumentsByCollectionAsync(collectionId, cancellationToken);
+        var documents = await _knowledgeRepository.GetDocumentsByCollectionAsync(
+            collectionId,
+            cancellationToken
+        );
 
         // Build response object
         var response = new
         {
             collectionId = collectionId,
-            documents = documents.Select(d => new
-            {
-                id = d.DocumentId,
-                fileName = d.OriginalFileName,
-                fileType = d.FileType,
-                chunkCount = d.ChunkCount,
-                fileSize = d.FileSize,
-                uploadedAt = d.UploadedAt
-            }).ToList()
+            documents = documents
+                .Select(d => new
+                {
+                    id = d.DocumentId,
+                    fileName = d.OriginalFileName,
+                    fileType = d.FileType,
+                    chunkCount = d.ChunkCount,
+                    fileSize = d.FileSize,
+                    uploadedAt = d.UploadedAt,
+                })
+                .ToList(),
         };
 
         var resourceContent = CreateJsonResourceContent(
@@ -291,10 +344,7 @@ public class KnowledgeResourceProvider
             response
         );
 
-        return new ResourceReadResult
-        {
-            Contents = new[] { resourceContent }
-        };
+        return new ResourceReadResult { Contents = new[] { resourceContent } };
     }
 
     /// <summary>
@@ -304,7 +354,8 @@ public class KnowledgeResourceProvider
     private async Task<ResourceReadResult> ReadDocumentAsync(
         string collectionId,
         string documentId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         _logger.LogDebug(
             "MCP Resources: Reading document {DocumentId} from collection {CollectionId}",
@@ -315,7 +366,10 @@ public class KnowledgeResourceProvider
         // Validate IDs
         if (!ResourceUriParser.IsValidCollectionId(collectionId))
         {
-            throw new ArgumentException($"Invalid collection ID: {collectionId}", nameof(collectionId));
+            throw new ArgumentException(
+                $"Invalid collection ID: {collectionId}",
+                nameof(collectionId)
+            );
         }
 
         if (!ResourceUriParser.IsValidDocumentId(documentId))
@@ -324,26 +378,41 @@ public class KnowledgeResourceProvider
         }
 
         // Verify collection exists
-        var collectionExists = await _knowledgeRepository.ExistsAsync(collectionId, cancellationToken);
+        var collectionExists = await _knowledgeRepository.ExistsAsync(
+            collectionId,
+            cancellationToken
+        );
         if (!collectionExists)
         {
             throw new KeyNotFoundException($"Collection not found: {collectionId}");
         }
 
         // Get all chunks for the document
-        var chunks = await _knowledgeRepository.GetDocumentChunksAsync(collectionId, documentId, cancellationToken);
+        var chunks = await _knowledgeRepository.GetDocumentChunksAsync(
+            collectionId,
+            documentId,
+            cancellationToken
+        );
         var chunkList = chunks.ToList();
 
         if (!chunkList.Any())
         {
-            throw new KeyNotFoundException($"Document not found: {documentId} in collection {collectionId}");
+            throw new KeyNotFoundException(
+                $"Document not found: {documentId} in collection {collectionId}"
+            );
         }
 
         // Reconstruct full document text from ordered chunks
-        var fullText = string.Join("", chunkList.OrderBy(c => c.ChunkOrder).Select(c => c.ChunkText));
+        var fullText = string.Join(
+            "",
+            chunkList.OrderBy(c => c.ChunkOrder).Select(c => c.ChunkText)
+        );
 
         // Get document metadata to determine file type
-        var documents = await _knowledgeRepository.GetDocumentsByCollectionAsync(collectionId, cancellationToken);
+        var documents = await _knowledgeRepository.GetDocumentsByCollectionAsync(
+            collectionId,
+            cancellationToken
+        );
         var documentMetadata = documents.FirstOrDefault(d => d.DocumentId == documentId);
 
         // Detect MIME type from file type/name
@@ -383,10 +452,7 @@ public class KnowledgeResourceProvider
             mimeType
         );
 
-        return new ResourceReadResult
-        {
-            Contents = new[] { resourceContent }
-        };
+        return new ResourceReadResult { Contents = new[] { resourceContent } };
     }
 
     /// <summary>
@@ -395,14 +461,21 @@ public class KnowledgeResourceProvider
     /// </summary>
     private async Task<ResourceReadResult> ReadCollectionStatsAsync(
         string collectionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
-        _logger.LogDebug("MCP Resources: Reading stats for collection {CollectionId}", collectionId);
+        _logger.LogDebug(
+            "MCP Resources: Reading stats for collection {CollectionId}",
+            collectionId
+        );
 
         // Validate collection ID
         if (!ResourceUriParser.IsValidCollectionId(collectionId))
         {
-            throw new ArgumentException($"Invalid collection ID: {collectionId}", nameof(collectionId));
+            throw new ArgumentException(
+                $"Invalid collection ID: {collectionId}",
+                nameof(collectionId)
+            );
         }
 
         // Verify collection exists
@@ -422,7 +495,9 @@ public class KnowledgeResourceProvider
         }
 
         // Get usage statistics for this collection
-        var allKnowledgeStats = await _usageTrackingService.GetKnowledgeUsageStatsAsync(cancellationToken);
+        var allKnowledgeStats = await _usageTrackingService.GetKnowledgeUsageStatsAsync(
+            cancellationToken
+        );
         var usageStats = allKnowledgeStats.FirstOrDefault(k => k.KnowledgeId == collectionId);
 
         // Build response object
@@ -437,7 +512,7 @@ public class KnowledgeResourceProvider
             lastQueried = usageStats?.LastQueried,
             createdAt = usageStats?.CreatedAt,
             vectorStore = usageStats?.VectorStore ?? "Qdrant",
-            totalFileSize = usageStats?.TotalFileSize ?? 0
+            totalFileSize = usageStats?.TotalFileSize ?? 0,
         };
 
         var resourceContent = CreateJsonResourceContent(
@@ -445,17 +520,16 @@ public class KnowledgeResourceProvider
             response
         );
 
-        return new ResourceReadResult
-        {
-            Contents = new[] { resourceContent }
-        };
+        return new ResourceReadResult { Contents = new[] { resourceContent } };
     }
 
     /// <summary>
     /// Reads current system health status.
     /// URI: resource://system/health
     /// </summary>
-    private async Task<ResourceReadResult> ReadSystemHealthAsync(CancellationToken cancellationToken)
+    private async Task<ResourceReadResult> ReadSystemHealthAsync(
+        CancellationToken cancellationToken
+    )
     {
         _logger.LogDebug("MCP Resources: Reading system health");
 
@@ -463,15 +537,9 @@ public class KnowledgeResourceProvider
         var healthStatus = await _systemHealthService.GetSystemHealthAsync(cancellationToken);
 
         // Serialize the health status directly (SystemHealthStatus already has all needed properties)
-        var resourceContent = CreateJsonResourceContent(
-            "resource://system/health",
-            healthStatus
-        );
+        var resourceContent = CreateJsonResourceContent("resource://system/health", healthStatus);
 
-        return new ResourceReadResult
-        {
-            Contents = new[] { resourceContent }
-        };
+        return new ResourceReadResult { Contents = new[] { resourceContent } };
     }
 
     /// <summary>
@@ -487,38 +555,34 @@ public class KnowledgeResourceProvider
         var modelStatsList = modelStats.ToList();
 
         // Build models list from usage stats
-        var models = modelStatsList.Select(m => new
-        {
-            name = m.ModelName,
-            provider = m.Provider.ToString(),
-            conversationCount = m.ConversationCount,
-            totalTokens = m.TotalTokens,
-            averageTokensPerRequest = m.AverageTokensPerRequest,
-            averageResponseTime = m.AverageResponseTime.TotalMilliseconds,
-            lastUsed = m.LastUsed,
-            supportsTools = m.SupportsTools,
-            successRate = m.SuccessRate,
-            successfulRequests = m.SuccessfulRequests,
-            failedRequests = m.FailedRequests
-        }).ToList();
+        var models = modelStatsList
+            .Select(m => new
+            {
+                name = m.ModelName,
+                provider = m.Provider.ToString(),
+                conversationCount = m.ConversationCount,
+                totalTokens = m.TotalTokens,
+                averageTokensPerRequest = m.AverageTokensPerRequest,
+                averageResponseTime = m.AverageResponseTime.TotalMilliseconds,
+                lastUsed = m.LastUsed,
+                supportsTools = m.SupportsTools,
+                successRate = m.SuccessRate,
+                successfulRequests = m.SuccessfulRequests,
+                failedRequests = m.FailedRequests,
+            })
+            .ToList();
 
         // Build response object
         var response = new
         {
             totalModels = models.Count,
             providers = modelStatsList.Select(m => m.Provider.ToString()).Distinct().ToList(),
-            models = models
+            models = models,
         };
 
-        var resourceContent = CreateJsonResourceContent(
-            "resource://system/models",
-            response
-        );
+        var resourceContent = CreateJsonResourceContent("resource://system/models", response);
 
-        return new ResourceReadResult
-        {
-            Contents = new[] { resourceContent }
-        };
+        return new ResourceReadResult { Contents = new[] { resourceContent } };
     }
 
     #endregion
@@ -530,30 +594,37 @@ public class KnowledgeResourceProvider
     /// </summary>
     private ResourceContent CreateJsonResourceContent(string uri, object data)
     {
-        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        var json = JsonSerializer.Serialize(
+            data,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            }
+        );
 
         return new ResourceContent
         {
             Uri = uri,
             MimeType = "application/json",
-            Text = json
+            Text = json,
         };
     }
 
     /// <summary>
     /// Creates a ResourceContent object with text data.
     /// </summary>
-    private ResourceContent CreateTextResourceContent(string uri, string text, string mimeType = "text/plain")
+    private ResourceContent CreateTextResourceContent(
+        string uri,
+        string text,
+        string mimeType = "text/plain"
+    )
     {
         return new ResourceContent
         {
             Uri = uri,
             MimeType = mimeType,
-            Text = text
+            Text = text,
         };
     }
 

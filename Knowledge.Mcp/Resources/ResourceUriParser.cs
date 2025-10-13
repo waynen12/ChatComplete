@@ -61,7 +61,7 @@ public class ResourceUriParser
             _ => throw new ArgumentException(
                 $"Unknown resource domain: '{parts[0]}'. Valid domains are 'knowledge' and 'system'",
                 nameof(uri)
-            )
+            ),
         };
     }
 
@@ -76,7 +76,7 @@ public class ResourceUriParser
             return new ParsedResourceUri
             {
                 Type = ResourceType.CollectionList,
-                OriginalUri = originalUri
+                OriginalUri = originalUri,
             };
         }
 
@@ -87,7 +87,7 @@ public class ResourceUriParser
             {
                 Type = ResourceType.DocumentList,
                 CollectionId = parts[1],
-                OriginalUri = originalUri
+                OriginalUri = originalUri,
             };
         }
 
@@ -99,7 +99,7 @@ public class ResourceUriParser
                 Type = ResourceType.Document,
                 CollectionId = parts[1],
                 DocumentId = parts[3],
-                OriginalUri = originalUri
+                OriginalUri = originalUri,
             };
         }
 
@@ -110,18 +110,18 @@ public class ResourceUriParser
             {
                 Type = ResourceType.CollectionStats,
                 CollectionId = parts[1],
-                OriginalUri = originalUri
+                OriginalUri = originalUri,
             };
         }
 
         // If we get here, the pattern didn't match any known format
         throw new ArgumentException(
-            $"Unknown knowledge resource pattern: '{originalUri}'. " +
-            "Valid patterns are: " +
-            "'resource://knowledge/collections', " +
-            "'resource://knowledge/{{collectionId}}/documents', " +
-            "'resource://knowledge/{{collectionId}}/document/{{docId}}', " +
-            "'resource://knowledge/{{collectionId}}/stats'",
+            $"Unknown knowledge resource pattern: '{originalUri}'. "
+                + "Valid patterns are: "
+                + "'resource://knowledge/collections', "
+                + "'resource://knowledge/{{collectionId}}/documents', "
+                + "'resource://knowledge/{{collectionId}}/document/{{docId}}', "
+                + "'resource://knowledge/{{collectionId}}/stats'",
             nameof(originalUri)
         );
     }
@@ -137,7 +137,7 @@ public class ResourceUriParser
             return new ParsedResourceUri
             {
                 Type = ResourceType.SystemHealth,
-                OriginalUri = originalUri
+                OriginalUri = originalUri,
             };
         }
 
@@ -147,14 +147,14 @@ public class ResourceUriParser
             return new ParsedResourceUri
             {
                 Type = ResourceType.ModelList,
-                OriginalUri = originalUri
+                OriginalUri = originalUri,
             };
         }
 
         // If we get here, the pattern didn't match any known format
         throw new ArgumentException(
-            $"Unknown system resource pattern: '{originalUri}'. " +
-            "Valid patterns are: 'resource://system/health', 'resource://system/models'",
+            $"Unknown system resource pattern: '{originalUri}'. "
+                + "Valid patterns are: 'resource://system/health', 'resource://system/models'",
             nameof(originalUri)
         );
     }
@@ -172,10 +172,10 @@ public class ResourceUriParser
 
         // Allow alphanumeric, hyphen, underscore, and dot
         // Disallow path traversal attempts (../ or ..\)
-        return !collectionId.Contains("..") &&
-               !collectionId.Contains('/') &&
-               !collectionId.Contains('\\') &&
-               collectionId.Length <= 256; // Reasonable length limit
+        return !collectionId.Contains("..")
+            && !collectionId.Contains('/')
+            && !collectionId.Contains('\\')
+            && collectionId.Length <= 256; // Reasonable length limit
     }
 
     /// <summary>
@@ -190,9 +190,9 @@ public class ResourceUriParser
         }
 
         // Same rules as collection ID
-        return !documentId.Contains("..") &&
-               !documentId.Contains('/') &&
-               !documentId.Contains('\\') &&
-               documentId.Length <= 256; // Reasonable length limit
+        return !documentId.Contains("..")
+            && !documentId.Contains('/')
+            && !documentId.Contains('\\')
+            && documentId.Length <= 256; // Reasonable length limit
     }
 }

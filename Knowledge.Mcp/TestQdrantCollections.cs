@@ -1,9 +1,9 @@
-using KnowledgeEngine.Persistence.VectorStores;
-using Microsoft.SemanticKernel.Connectors.Qdrant;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
 using ChatCompletion.Config;
 using KnowledgeEngine.Extensions;
+using KnowledgeEngine.Persistence.VectorStores;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.SemanticKernel.Connectors.Qdrant;
 
 namespace Knowledge.Mcp;
 
@@ -24,15 +24,18 @@ public static class TestQdrantCollections
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
                 .Build();
 
-            var chatCompleteSettings = configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>()
-                ?? throw new InvalidOperationException("ChatCompleteSettings configuration is missing");
+            var chatCompleteSettings =
+                configuration.GetSection("ChatCompleteSettings").Get<ChatCompleteSettings>()
+                ?? throw new InvalidOperationException(
+                    "ChatCompleteSettings configuration is missing"
+                );
 
             Console.WriteLine($"Qdrant Host: {chatCompleteSettings.VectorStore.Qdrant.Host}");
             Console.WriteLine($"Qdrant Port: {chatCompleteSettings.VectorStore.Qdrant.Port}");
 
             // Create Qdrant client directly - try both configurations
             Console.WriteLine("Attempting to create Qdrant client...");
-            
+
             // First try: gRPC client (default for Semantic Kernel)
             var qdrantClient = new Qdrant.Client.QdrantClient(
                 host: chatCompleteSettings.VectorStore.Qdrant.Host,
@@ -40,8 +43,10 @@ public static class TestQdrantCollections
                 https: chatCompleteSettings.VectorStore.Qdrant.UseHttps,
                 apiKey: chatCompleteSettings.VectorStore.Qdrant.ApiKey
             );
-            
-            Console.WriteLine($"Created Qdrant client - Host: {chatCompleteSettings.VectorStore.Qdrant.Host}, Port: {chatCompleteSettings.VectorStore.Qdrant.Port}, HTTPS: {chatCompleteSettings.VectorStore.Qdrant.UseHttps}");
+
+            Console.WriteLine(
+                $"Created Qdrant client - Host: {chatCompleteSettings.VectorStore.Qdrant.Host}, Port: {chatCompleteSettings.VectorStore.Qdrant.Port}, HTTPS: {chatCompleteSettings.VectorStore.Qdrant.UseHttps}"
+            );
 
             var qdrantVectorStore = new QdrantVectorStore(qdrantClient, ownsClient: true);
 
@@ -62,9 +67,12 @@ public static class TestQdrantCollections
             services.AddSingleton(chatCompleteSettings.VectorStore.Qdrant);
             services.AddSingleton(qdrantVectorStore);
             services.AddSingleton(chatCompleteSettings);
-            
+
             // Add a mock index manager for the strategy
-            services.AddSingleton<KnowledgeEngine.Persistence.IndexManagers.IIndexManager, MockIndexManager>();
+            services.AddSingleton<
+                KnowledgeEngine.Persistence.IndexManagers.IIndexManager,
+                MockIndexManager
+            >();
             services.AddSingleton<IVectorStoreStrategy, QdrantVectorStoreStrategy>();
 
             var serviceProvider = services.BuildServiceProvider();
@@ -93,27 +101,42 @@ public static class TestQdrantCollections
 /// </summary>
 public class MockIndexManager : KnowledgeEngine.Persistence.IndexManagers.IIndexManager
 {
-    public Task CreateIndexAsync(string collectionName, CancellationToken cancellationToken = default)
+    public Task CreateIndexAsync(
+        string collectionName,
+        CancellationToken cancellationToken = default
+    )
     {
         return Task.CompletedTask;
     }
 
-    public Task DeleteIndexAsync(string collectionName, CancellationToken cancellationToken = default)
+    public Task DeleteIndexAsync(
+        string collectionName,
+        CancellationToken cancellationToken = default
+    )
     {
         return Task.CompletedTask;
     }
 
-    public Task<bool> IndexExistsAsync(string collectionName, CancellationToken cancellationToken = default)
+    public Task<bool> IndexExistsAsync(
+        string collectionName,
+        CancellationToken cancellationToken = default
+    )
     {
         return Task.FromResult(true);
     }
 
-    public Task WaitForIndexReadyAsync(string collectionName, CancellationToken cancellationToken = default)
+    public Task WaitForIndexReadyAsync(
+        string collectionName,
+        CancellationToken cancellationToken = default
+    )
     {
         return Task.CompletedTask;
     }
 
-    public Task<string?> GetIndexIdAsync(string collectionName, CancellationToken cancellationToken = default)
+    public Task<string?> GetIndexIdAsync(
+        string collectionName,
+        CancellationToken cancellationToken = default
+    )
     {
         return Task.FromResult<string?>(collectionName);
     }
