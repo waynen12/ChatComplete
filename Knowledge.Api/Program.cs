@@ -222,6 +222,20 @@ builder.Services.Configure<Knowledge.Api.Services.AnalyticsUpdateOptions>(
 );
 builder.Services.AddHostedService<Knowledge.Api.Services.AnalyticsUpdateService>();
 
+// ── MCP Server Configuration (HTTP SSE Transport) ────────────────────────────
+// Register MCP server with HTTP transport and tools
+// Note: This provides HTTP SSE access to the same MCP tools available via STDIO
+// Resources will be added once Knowledge.Mcp library is extracted from executable
+builder.Services
+    .AddMcpServer()
+    .WithHttpTransport(options =>
+    {
+        // Configure session timeout and limits for HTTP SSE transport
+        options.IdleTimeout = TimeSpan.FromHours(1);
+        options.MaxIdleSessionCount = 100;
+    })
+    .WithToolsFromAssembly(); // Discovers tools with [McpServerTool] attribute
+
 var app = builder.Build();
 
 // Initialize SQLite database for Qdrant deployments
@@ -235,6 +249,10 @@ if (vectorStoreProvider == "qdrant")
     _ = await sqliteContext.GetConnectionAsync();
     await appSettingsRepo.InitializeDefaultsAsync();
 }
+
+// ── MCP HTTP Endpoints (must come before middleware) ─────────────────────────
+// Map MCP endpoints (adds /api/mcp/messages and /api/mcp/sse)
+app.MapMcp("/api/mcp");
 
 // ─── API route group ─────────────────────────────────────────────────────────
 var api = app.MapGroup(ApiConstants.Routes.Api).WithOpenApi();
