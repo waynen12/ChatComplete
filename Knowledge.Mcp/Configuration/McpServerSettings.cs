@@ -32,6 +32,16 @@ public class McpServerSettings
     public SystemHealthSettings SystemHealth { get; set; } = new();
 
     /// <summary>
+    /// Resources functionality configuration
+    /// </summary>
+    public ResourceSettings Resources { get; set; } = new();
+
+    /// <summary>
+    /// HTTP transport configuration
+    /// </summary>
+    public HttpTransportSettings HttpTransport { get; set; } = new();
+
+    /// <summary>
     /// General MCP server configuration
     /// </summary>
     public GeneralSettings General { get; set; } = new();
@@ -134,6 +144,193 @@ public class SystemHealthSettings
     /// Default value for including recommendations
     /// </summary>
     public bool DefaultIncludeRecommendations { get; set; } = true;
+}
+
+/// <summary>
+/// Resources specific configuration settings
+/// </summary>
+public class ResourceSettings
+{
+    /// <summary>
+    /// Enable caching for resources
+    /// </summary>
+    public bool EnableCaching { get; set; } = true;
+
+    /// <summary>
+    /// Cache duration in seconds
+    /// </summary>
+    public int CacheDurationSeconds { get; set; } = 300;
+
+    /// <summary>
+    /// Maximum number of resources per list operation
+    /// </summary>
+    public int MaxResourcesPerList { get; set; } = 1000;
+
+    /// <summary>
+    /// Enable document content in resource responses
+    /// </summary>
+    public bool EnableDocumentContent { get; set; } = true;
+
+    /// <summary>
+    /// Maximum document size in bytes
+    /// </summary>
+    public int MaxDocumentSizeBytes { get; set; } = 10485760;
+
+    /// <summary>
+    /// Enable resource subscriptions (for future use)
+    /// </summary>
+    public bool EnableResourceSubscriptions { get; set; } = false;
+
+    /// <summary>
+    /// Default MIME type for resources
+    /// </summary>
+    public string DefaultMimeType { get; set; } = "text/plain";
+
+    /// <summary>
+    /// Enable statistics aggregation for resources
+    /// </summary>
+    public bool EnableStatisticsAggregation { get; set; } = true;
+}
+
+/// <summary>
+/// HTTP transport specific configuration settings
+/// </summary>
+public class HttpTransportSettings
+{
+    /// <summary>
+    /// HTTP server port
+    /// </summary>
+    public int Port { get; set; } = 5001;
+
+    /// <summary>
+    /// HTTP server host (e.g., localhost, 0.0.0.0)
+    /// </summary>
+    public string Host { get; set; } = "localhost";
+
+    /// <summary>
+    /// Session timeout in minutes
+    /// </summary>
+    public int SessionTimeoutMinutes { get; set; } = 30;
+
+    /// <summary>
+    /// Enable stateless mode (session data in headers instead of server memory)
+    /// </summary>
+    public bool EnableStatelessMode { get; set; } = false;
+
+    /// <summary>
+    /// CORS configuration
+    /// </summary>
+    public CorsSettings Cors { get; set; } = new();
+
+    /// <summary>
+    /// OAuth 2.1 authentication configuration (Milestone #23)
+    /// </summary>
+    public OAuthSettings? OAuth { get; set; }
+}
+
+/// <summary>
+/// CORS (Cross-Origin Resource Sharing) configuration
+/// </summary>
+public class CorsSettings
+{
+    /// <summary>
+    /// Enable CORS
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Allowed origins (use ["*"] for any origin in development only)
+    /// </summary>
+    public string[] AllowedOrigins { get; set; } = new[]
+    {
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://copilot.github.com"
+    };
+
+    /// <summary>
+    /// Allow any origin (DEVELOPMENT ONLY - insecure for production)
+    /// </summary>
+    public bool AllowAnyOrigin { get; set; } = false;
+
+    /// <summary>
+    /// Allow credentials (required for OAuth flows)
+    /// </summary>
+    public bool AllowCredentials { get; set; } = true;
+
+    /// <summary>
+    /// Exposed headers for clients
+    /// </summary>
+    public string[] ExposedHeaders { get; set; } = new[]
+    {
+        "Content-Type",
+        "Cache-Control",
+        "X-Request-Id",
+        "Mcp-Session-Id"
+    };
+}
+
+/// <summary>
+/// OAuth 2.1 authentication configuration (Milestone #23)
+/// Reference: MCP Authorization Specification
+/// </summary>
+public class OAuthSettings
+{
+    /// <summary>
+    /// Enable OAuth 2.1 authentication
+    /// </summary>
+    public bool Enabled { get; set; } = false;
+
+    /// <summary>
+    /// Authorization server URL (OAuth 2.0 Authorization Server Metadata - RFC8414)
+    /// </summary>
+    public string? AuthorizationServerUrl { get; set; }
+
+    /// <summary>
+    /// Resource indicator (RFC 8707) - binds tokens to intended audience
+    /// </summary>
+    public string? ResourceIndicator { get; set; }
+
+    /// <summary>
+    /// Require PKCE (Proof Key for Code Exchange) - MUST be true per MCP spec
+    /// </summary>
+    public bool RequirePkce { get; set; } = true;
+
+    /// <summary>
+    /// Token validation settings
+    /// </summary>
+    public TokenValidationSettings TokenValidation { get; set; } = new();
+
+    /// <summary>
+    /// OAuth scopes required for MCP access
+    /// </summary>
+    public string[] RequiredScopes { get; set; } = new[] { "mcp:read", "mcp:execute" };
+}
+
+/// <summary>
+/// Token validation configuration
+/// </summary>
+public class TokenValidationSettings
+{
+    /// <summary>
+    /// Validate token audience
+    /// </summary>
+    public bool ValidateAudience { get; set; } = true;
+
+    /// <summary>
+    /// Validate token issuer
+    /// </summary>
+    public bool ValidateIssuer { get; set; } = true;
+
+    /// <summary>
+    /// Validate token lifetime
+    /// </summary>
+    public bool ValidateLifetime { get; set; } = true;
+
+    /// <summary>
+    /// Clock skew tolerance in seconds
+    /// </summary>
+    public int ClockSkewSeconds { get; set; } = 300;
 }
 
 /// <summary>

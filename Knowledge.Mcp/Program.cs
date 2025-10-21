@@ -36,14 +36,32 @@ class Program
             return await MinimalProgram.RunMinimal(args);
         }
 
+        // Check if we should run minimal HTTP MCP server (for testing)
+        if (args.Contains("--minimal-http"))
+        {
+            return await MinimalHttpProgram.RunMinimalHttp(args);
+        }
+
+        // Check for HTTP transport mode
+        bool useHttp = args.Contains("--http") || args.Contains("--http-transport");
+
         try
         {
-            // Build and run the MCP server host
-            var host = CreateHostBuilder(args).Build();
-
-            // Start the MCP server
-            await host.RunAsync();
-            return 0;
+            if (useHttp)
+            {
+                // Run as HTTP SSE server (for web clients)
+                Console.WriteLine("Starting Knowledge MCP Server in HTTP SSE mode...");
+                await RunHttpServer(args);
+                return 0;
+            }
+            else
+            {
+                // Run as STDIO server (for Claude Desktop, default)
+                Console.WriteLine("Starting Knowledge MCP Server in STDIO mode...");
+                var host = CreateHostBuilder(args).Build();
+                await host.RunAsync();
+                return 0;
+            }
         }
         catch (Exception ex)
         {
@@ -264,8 +282,8 @@ class Program
                         .WithStdioServerTransport()
                         .WithToolsFromAssembly()
                         .WithResources<Knowledge.Mcp.Resources.KnowledgeResourceMethods>();
-                        // NOTE: resources/templates/list is automatically generated from McpServerResource attributes
-                        // No need for explicit WithListResourceTemplatesHandler - SDK discovers templates automatically
+                    // NOTE: resources/templates/list is automatically generated from McpServerResource attributes
+                    // No need for explicit WithListResourceTemplatesHandler - SDK discovers templates automatically
 
                     // Configure logging
                     services.AddLogging(builder =>
@@ -275,4 +293,270 @@ class Program
                     });
                 }
             );
+
+    /// <summary>
+    /// Runs the MCP server in HTTP SSE mode for web clients
+    /// </summary>
+    static async Task RunHttpServer(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+
+        // Configure base path for appsettings.json
+        var basePath = System.IO.Path.GetDirectoryName(
+            System.Reflection.Assembly.GetExecutingAssembly().Location
+        );
+        builder.Configuration.SetBasePath(basePath!);
+        builder.Configuration.AddJsonFile(
+            "appsettings.json",
+            optional: false,
+            reloadOnChange: true
+        );
+        builder.Configuration.AddEnvironmentVariables();
+        builder.Configuration.AddCommandLine(args);
+
+        Console.WriteLine($"MCP Server configuration base path: {basePath}");
+
+        // Load ChatCompleteSettings from configuration
+        var chatCompleteSettings = new ChatCompleteSettings();
+        builder.Configuration.GetSection("ChatCompleteSettings").Bind(chatCompleteSettings);
+        var databasePath = chatCompleteSettings.DatabasePath;
+
+        if (string.IsNullOrWhiteSpace(databasePath))
+        {
+            throw new Exception("DatabasePath not configured in appsettings.json.");
+        }
+
+        Console.WriteLine($"MCP Server using database path: {databasePath}");
+
+        // Force Qdrant configuration
+        chatCompleteSettings.VectorStore.Provider = "Qdrant";
+        chatCompleteSettings.VectorStore.Qdrant.Port = 6334;
+
+        // Register settings
+        builder.Services.AddSingleton(chatCompleteSettings);
+
+        // Register MCP server specific settings
+        var mcpServerSettings = new McpServerSettings();
+        builder.Configuration.GetSection(McpServerSettings.SectionName).Bind(mcpServerSettings);
+        builder.Services.AddSingleton(mcpServerSettings);
+
+        // Configure HTTP client services
+        builder.Services.AddHttpClient();
+
+        // Configure database services
+        builder.Services.AddKnowledgeData(databasePath);
+
+        // Register Qdrant services
+        builder.Services.AddSingleton(chatCompleteSettings.VectorStore.Qdrant);
+        builder.Services.AddSingleton<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>(
+            provider =>
+            {
+                var qdrantSettings = chatCompleteSettings.VectorStore.Qdrant;
+                var qdrantClient = new Qdrant.Client.QdrantClient(
+                    host: qdrantSettings.Host,
+                    port: qdrantSettings.Port,
+                    https: qdrantSettings.UseHttps,
+                    apiKey: qdrantSettings.ApiKey
+                );
+                return new Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore(
+                    qdrantClient,
+                    ownsClient: true
+                );
+            }
+        );
+
+        // Register Index Manager
+        builder.Services.AddScoped<
+            KnowledgeEngine.Persistence.IndexManagers.IIndexManager,
+            KnowledgeEngine.Persistence.IndexManagers.QdrantIndexManager
+        >();
+
+        // Register Vector Store Strategy
+        builder.Services.AddScoped<
+            KnowledgeEngine.Persistence.VectorStores.IVectorStoreStrategy,
+            KnowledgeEngine.Persistence.VectorStores.QdrantVectorStoreStrategy
+        >(provider =>
+        {
+            var vectorStore =
+                provider.GetRequiredService<Microsoft.SemanticKernel.Connectors.Qdrant.QdrantVectorStore>();
+            var qdrantSettings =
+                provider.GetRequiredService<ChatCompletion.Config.QdrantSettings>();
+            var indexManager =
+                provider.GetRequiredService<KnowledgeEngine.Persistence.IndexManagers.IIndexManager>();
+            return new KnowledgeEngine.Persistence.VectorStores.QdrantVectorStoreStrategy(
+                vectorStore,
+                qdrantSettings,
+                indexManager,
+                chatCompleteSettings
+            );
+        });
+
+        // Register system health services
+        builder.Services.AddScoped<ISystemHealthService, SystemHealthService>();
+        builder.Services.AddScoped<IUsageTrackingService, SqliteUsageTrackingService>();
+
+        // Register component health checkers
+        builder.Services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
+        builder.Services.AddScoped<IComponentHealthChecker, OllamaHealthChecker>();
+        builder.Services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
+
+        // Register knowledge management services
+        builder.Services.AddScoped<KnowledgeEngine.Persistence.Sqlite.SqliteDbContext>(
+            provider => new KnowledgeEngine.Persistence.Sqlite.SqliteDbContext(databasePath)
+        );
+
+        builder.Services.AddScoped<
+            KnowledgeEngine.Persistence.IKnowledgeRepository,
+            KnowledgeEngine.Persistence.Sqlite.Repositories.SqliteKnowledgeRepository
+        >();
+
+        // Register embedding services
+        var activeProvider = chatCompleteSettings.EmbeddingProviders?.ActiveProvider ?? "Ollama";
+        if (activeProvider == "Ollama")
+        {
+            var ollamaSettings = chatCompleteSettings.EmbeddingProviders?.Ollama;
+            var ollamaBaseUrl = chatCompleteSettings.OllamaBaseUrl ?? "http://localhost:11434";
+            var modelName = ollamaSettings?.ModelName ?? "nomic-embed-text";
+
+            Console.WriteLine(
+                $"MCP Server configuring Ollama embedding: {ollamaBaseUrl} with model {modelName}"
+            );
+
+            builder.Services.AddScoped<Microsoft.Extensions.AI.IEmbeddingGenerator<
+                string,
+                Microsoft.Extensions.AI.Embedding<float>
+            >>(provider =>
+            {
+                var httpClient = provider.GetRequiredService<IHttpClientFactory>().CreateClient();
+                return new Knowledge.Mcp.Services.OllamaEmbeddingService(
+                    httpClient,
+                    ollamaBaseUrl,
+                    modelName
+                );
+            });
+        }
+        else
+        {
+            throw new NotSupportedException(
+                $"Embedding provider '{activeProvider}' not supported in MCP server. "
+                    + "Currently only Ollama is supported."
+            );
+        }
+
+        // Register KnowledgeManager
+        builder.Services.AddScoped<KnowledgeEngine.KnowledgeManager>();
+
+        // Register agent plugins
+        builder.Services.AddScoped<KnowledgeEngine.Agents.Plugins.CrossKnowledgeSearchPlugin>();
+        builder.Services.AddScoped<KnowledgeEngine.Agents.Plugins.ModelRecommendationAgent>();
+        builder.Services.AddScoped<KnowledgeEngine.Agents.Plugins.KnowledgeAnalyticsAgent>();
+
+        // Register MCP resource provider
+        builder.Services.AddScoped<Knowledge.Mcp.Resources.KnowledgeResourceProvider>();
+
+        // ⭐ Configure URL from settings
+        var httpTransportSettings = mcpServerSettings.HttpTransport;
+        var serverUrl = $"http://{httpTransportSettings.Host}:{httpTransportSettings.Port}";
+        builder.WebHost.UseUrls(serverUrl);
+
+        Console.WriteLine($"MCP Server configured to listen on: {serverUrl}");
+
+        // ⭐ Add CORS (required for web clients like MCP Inspector)
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                var corsSettings = httpTransportSettings.Cors;
+
+                if (corsSettings.AllowAnyOrigin)
+                {
+                    Console.WriteLine("⚠️  WARNING: CORS AllowAnyOrigin is enabled - suitable for development only!");
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                }
+                else
+                {
+                    Console.WriteLine($"CORS configured with allowed origins: {string.Join(", ", corsSettings.AllowedOrigins)}");
+                    policy.WithOrigins(corsSettings.AllowedOrigins)
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+
+                    if (corsSettings.AllowCredentials)
+                    {
+                        policy.AllowCredentials();
+                    }
+                }
+
+                if (corsSettings.ExposedHeaders.Length > 0)
+                {
+                    policy.WithExposedHeaders(corsSettings.ExposedHeaders);
+                }
+            });
+        });
+
+        // ⭐ Configure MCP server with HTTP transport
+        builder
+            .Services.AddMcpServer()
+            .WithHttpTransport(options =>
+            {
+                // Note: SessionTimeout and IsStateless properties may not be available in v0.4.0-preview.2
+                // These will be configured when SDK is updated to support them
+                // TODO: Uncomment when SDK supports these properties:
+                // options.SessionTimeout = TimeSpan.FromMinutes(httpTransportSettings.SessionTimeoutMinutes);
+                // options.IsStateless = httpTransportSettings.EnableStatelessMode;
+
+                Console.WriteLine($"HTTP Transport configured with {httpTransportSettings.SessionTimeoutMinutes} minute session timeout (when SDK supports it)");
+            })
+            .WithToolsFromAssembly()
+            .WithResources<Knowledge.Mcp.Resources.KnowledgeResourceMethods>();
+
+        // Log OAuth status
+        if (httpTransportSettings.OAuth?.Enabled == true)
+        {
+            Console.WriteLine("⚠️  OAuth 2.1 authentication configured but not yet implemented (Milestone #23)");
+            Console.WriteLine($"   Authorization Server: {httpTransportSettings.OAuth.AuthorizationServerUrl}");
+        }
+
+        var app = builder.Build();
+
+        // ⭐ Enable CORS (must be before UseRouting)
+        app.UseCors();
+
+        // ⭐ Add routing middleware (required for endpoint mapping)
+        app.UseRouting();
+
+        // ⭐ Add exception handling for debugging
+        app.Use(
+            async (context, next) =>
+            {
+                try
+                {
+                    await next(context);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Unhandled exception in HTTP request:");
+                    Console.WriteLine($"   Path: {context.Request.Path}");
+                    Console.WriteLine($"   Method: {context.Request.Method}");
+                    Console.WriteLine($"   Error: {ex.Message}");
+                    Console.WriteLine($"   Stack: {ex.StackTrace}");
+                    throw;
+                }
+            }
+        );
+
+        // ⭐ Map MCP endpoints (creates /sse and /messages endpoints)
+        app.MapMcp();
+
+        Console.WriteLine("Knowledge MCP Server HTTP endpoints:");
+        Console.WriteLine("  GET  /sse       - Server-Sent Events stream");
+        Console.WriteLine("  POST /messages  - JSON-RPC requests");
+        Console.WriteLine();
+        Console.WriteLine(
+            $"Server listening on: {app.Urls.FirstOrDefault() ?? "http://localhost:5000"}"
+        );
+
+        await app.RunAsync();
+    }
 }
