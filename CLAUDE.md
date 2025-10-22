@@ -489,16 +489,17 @@ dotnet run --project Knowledge.Mcp/Knowledge.Mcp.csproj -- --http
 Based on MCP Authorization Specification (March 2025):
 
 **OAuth 2.1 Compliance:**
-- MCP servers act as OAuth 2.1 **resource servers only**
-- Validation of tokens issued by external authorization servers
-- **PKCE required** (Proof Key for Code Exchange) - no client_secret support
-- Must implement OAuth 2.0 Authorization Server Metadata (RFC8414)
-- Should support Dynamic Client Registration Protocol (RFC7591)
-- Should support Resource Indicators (RFC 8707) for token audience binding
+- MCP servers act as OAuth 2.1 **resource servers only** ✅ (Recommended by Okta Director of Identity Standards)
+- Validation of tokens issued by external authorization servers (Auth0, Azure AD, AWS Cognito)
+- **PKCE required** on client side (handled by authorization server)
+- Token validation via JWKS (JSON Web Key Set) endpoint
+- Scope-based authorization (mcp:read, mcp:execute)
+- WWW-Authenticate header for 401 responses
 
-**Discovery Mechanisms:**
-- WWW-Authenticate Header for authorization server location
-- OAuth 2.0 Authorization Server Metadata endpoint
+**Expert Validation:**
+- **Source:** Aaron Parecki (Director of Identity Standards at Okta)
+- **Video:** https://www.youtube.com/watch?v=mYKMwZcGynw
+- **Recommendation:** Simplified resource server pattern, not full OAuth AS
 
 **Configuration Structure Ready:**
 Configuration classes already in place ([McpServerSettings.cs](Knowledge.Mcp/Configuration/McpServerSettings.cs#L277-L334)):
@@ -514,38 +515,73 @@ public class OAuthSettings
 }
 ```
 
-### Implementation Tasks (Phase 1)
+### Implementation Tasks (Simplified - Resource Server Only)
 
-**Week 1: Token Validation Infrastructure**
-- [ ] Integrate OAuth 2.1 token validation library (Microsoft.IdentityModel.Tokens)
-- [ ] Implement WWW-Authenticate header responses
-- [ ] Create middleware for token extraction and validation
-- [ ] Configure authorization server metadata discovery (RFC8414)
+**Week 1: JWT Bearer Authentication Setup**
+- [ ] Add Microsoft.AspNetCore.Authentication.JwtBearer NuGet package
+- [ ] Configure JWT Bearer authentication middleware
+- [ ] Set up Auth0 as primary identity provider
+- [ ] Configure JWKS endpoint for signature validation
+- [ ] Implement WWW-Authenticate header responses (401)
 
-**Week 2: Authorization Policy**
-- [ ] Define MCP-specific scopes (`mcp:read`, `mcp:execute`)
-- [ ] Implement scope-based authorization for tools and resources
-- [ ] Add PKCE validation (RFC 7636)
-- [ ] Resource Indicators support (RFC 8707)
-
-**Week 3: Integration & Testing**
-- [ ] Test with common OAuth providers (Auth0, Azure AD, AWS Cognito)
-- [ ] Validate PKCE flow end-to-end
+**Week 2: Scope-Based Authorization**
+- [ ] Define authorization policies for MCP scopes
+  - `mcp:read` - Read-only operations (resources, health checks)
+  - `mcp:execute` - Tool execution (search, analytics)
+- [ ] Apply [Authorize] attributes to MCP endpoints
 - [ ] Test scope enforcement on all tools/resources
-- [ ] Performance testing with token validation overhead
+- [ ] Add logging for authorization failures
 
-### Security Architecture
+**Week 3: Testing & Documentation**
+- [ ] Set up free Auth0 tenant for testing
+- [ ] Configure API and scopes in Auth0
+- [ ] Test with real Auth0 tokens
+- [ ] Create client integration guide (how to get tokens)
+- [ ] Document token format and claims
+- [ ] Performance testing with token validation
 
-**Token Flow:**
-1. Client obtains token from authorization server (with PKCE)
-2. Client includes `Authorization: Bearer <token>` header in MCP requests
-3. Knowledge.Mcp validates token against authorization server metadata
-4. Request proceeds if token valid and has required scopes
+**Implementation Effort:** 2-3 weeks (vs 3-6 months for full OAuth AS)
+
+### Security Architecture (Resource Server Pattern)
+
+**Simplified Token Flow:**
+```
+┌─────────────┐                      ┌─────────────────────┐
+│             │  1. Get token        │   Auth0/Azure AD    │
+│  MCP Client │─────────────────────>│  (with PKCE)        │
+│             │                      └─────────────────────┘
+└─────────────┘                               │
+      │                                       │ 2. Token
+      │                                       │    (JWT)
+      │<──────────────────────────────────────┘
+      │
+      │ 3. Authorization: Bearer <token>
+      v
+┌─────────────────────┐
+│   Knowledge.Mcp     │
+│  (Resource Server)  │
+│  - Validate token   │
+│  - Check scopes     │
+│  - Serve tools      │
+└─────────────────────┘
+```
+
+**Responsibilities:**
+- **Authorization Server (Auth0):** User authentication, token issuance, MFA, SSO
+- **MCP Server (Knowledge.Mcp):** Token validation, scope checking, business logic
+- **MCP Client:** OAuth flow, token refresh, include token in requests
 
 **Scope Design:**
 - `mcp:read` - Access to read-only resources and health checks
 - `mcp:execute` - Execute tools (search, analytics, recommendations)
 - `mcp:admin` - Administrative operations (future: manage knowledge bases)
+
+**Token Validation:**
+1. Extract token from `Authorization: Bearer <token>` header
+2. Validate signature using JWKS from Auth0
+3. Validate issuer, audience, expiration
+4. Extract and verify scopes
+5. Allow/deny request based on scopes
 
 ### Testing Strategy
 - Unit tests for token validation logic
