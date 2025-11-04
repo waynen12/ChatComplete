@@ -19,16 +19,21 @@ public class WWWAuthenticateHeaderMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        await _next(context);
-
-        // If response is 401 Unauthorized, enhance WWW-Authenticate header
-        if (context.Response.StatusCode == 401)
+        // Register callback to modify headers before response starts
+        context.Response.OnStarting(() =>
         {
-            // Replace basic "Bearer" header from JWT middleware with enhanced version
-            // that includes authorization_uri per MCP specification
-            context.Response.Headers["WWW-Authenticate"] =
-                $"Bearer realm=\"mcp-server\", authorization_uri=\"{_authorizationUri}\"";
-        }
+            // If response is 401 Unauthorized, enhance WWW-Authenticate header
+            if (context.Response.StatusCode == 401)
+            {
+                // Replace basic "Bearer" header from JWT middleware with enhanced version
+                // that includes authorization_uri per MCP specification
+                context.Response.Headers["WWW-Authenticate"] =
+                    $"Bearer realm=\"mcp-server\", authorization_uri=\"{_authorizationUri}\"";
+            }
+            return Task.CompletedTask;
+        });
+
+        await _next(context);
     }
 }
 

@@ -530,6 +530,9 @@ class Program
                         ValidateLifetime = true, // Verify token hasn't expired
                         ClockSkew = TimeSpan.FromSeconds(300), // Allow 5 min clock difference
                     };
+
+                // Customize WWW-Authenticate header for 401 responses
+                options.Challenge = $"Bearer realm=\"mcp-server\", authorization_uri=\"http://localhost:5001/.well-known/oauth-authorization-server\"";
             });
 
         // ⭐ Configure authorization policies for each scope
