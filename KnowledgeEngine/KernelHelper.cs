@@ -100,10 +100,12 @@ public static class KernelHelper
     {
         IKernelBuilder builder;
         builder = Kernel.CreateBuilder();
-        
+        var ollamaApiKey = Environment.GetEnvironmentVariable("OLLAMA_API_KEY");
+        var client = new HttpClient();
         var uri = new Uri(SettingsProvider.Settings.OllamaBaseUrl);
-        builder.AddOllamaChatCompletion(
+        builder.AddOpenAIChatCompletion(
             modelId : SettingsProvider.Settings.OllamaModel,               // "gemma3:12b"
+            apiKey: ollamaApiKey,
             endpoint : uri,
             serviceId: null);           // "http://localhost:11434"
 
