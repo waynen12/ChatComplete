@@ -2,6 +2,8 @@ using ChatCompletion.Config;
 using Knowledge.Analytics.Services;
 using Knowledge.Data.Extensions;
 using Knowledge.Mcp.Configuration;
+using Knowledge.Mcp.Endpoints;
+using Knowledge.Mcp.Middleware;
 using KnowledgeEngine.Extensions;
 using KnowledgeEngine.Services;
 using KnowledgeEngine.Services.HealthCheckers;
@@ -470,17 +472,20 @@ class Program
 
                 if (corsSettings.AllowAnyOrigin)
                 {
-                    Console.WriteLine("⚠️  WARNING: CORS AllowAnyOrigin is enabled - suitable for development only!");
-                    policy.AllowAnyOrigin()
-                          .AllowAnyMethod()
-                          .AllowAnyHeader();
+                    Console.WriteLine(
+                        "⚠️  WARNING: CORS AllowAnyOrigin is enabled - suitable for development only!"
+                    );
+                    policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
                 }
                 else
                 {
-                    Console.WriteLine($"CORS configured with allowed origins: {string.Join(", ", corsSettings.AllowedOrigins)}");
-                    policy.WithOrigins(corsSettings.AllowedOrigins)
-                          .AllowAnyMethod()
-                          .AllowAnyHeader();
+                    Console.WriteLine(
+                        $"CORS configured with allowed origins: {string.Join(", ", corsSettings.AllowedOrigins)}"
+                    );
+                    policy
+                        .WithOrigins(corsSettings.AllowedOrigins)
+                        .AllowAnyMethod()
+                        .AllowAnyHeader();
 
                     if (corsSettings.AllowCredentials)
                     {
@@ -495,6 +500,75 @@ class Program
             });
         });
 
+        // ⭐ Read Auth0 configuration
+        var domain = $"https://{builder.Configuration["Auth0:Domain"]}";
+        var audience = builder.Configuration["Auth0:Audience"];
+
+        // Auth0 JWT tokens have trailing slash in issuer claim, ensure we match it
+        var issuer = domain.EndsWith("/") ? domain : $"{domain}/";
+
+        Console.WriteLine($"Configuring JWT Bearer authentication:");
+        Console.WriteLine($"  Authority: {domain}");
+        Console.WriteLine($"  Issuer (for scope validation): {issuer}");
+        Console.WriteLine($"  Audience: {audience}");
+
+        // ⭐ Configure JWT Bearer authentication
+        builder
+            .Services.AddAuthentication(
+                Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme
+            )
+            .AddJwtBearer(options =>
+            {
+                options.Authority = domain;
+                options.Audience = audience;
+                options.TokenValidationParameters =
+                    new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true, // Verify signature using Auth0's public key
+                        ValidateIssuer = true, // Verify token came from our Auth0 tenant
+                        ValidateAudience = true, // CRITICAL: Prevents token passthrough attack
+                        ValidateLifetime = true, // Verify token hasn't expired
+                        ClockSkew = TimeSpan.FromSeconds(300), // Allow 5 min clock difference
+                    };
+            });
+
+        // ⭐ Configure authorization policies for each scope
+        builder.Services.AddAuthorization(options =>
+        {
+            // Policy for read-only operations (resources, health checks)
+            options.AddPolicy(
+                "mcp:read",
+                policy =>
+                    policy.Requirements.Add(
+                        new Knowledge.Mcp.Authorization.HasScopeRequirement("mcp:read", issuer)
+                    )
+            );
+
+            // Policy for tool execution (search, analytics, recommendations)
+            options.AddPolicy(
+                "mcp:execute",
+                policy =>
+                    policy.Requirements.Add(
+                        new Knowledge.Mcp.Authorization.HasScopeRequirement("mcp:execute", issuer)
+                    )
+            );
+
+            // Policy for admin operations (future: manage knowledge bases)
+            options.AddPolicy(
+                "mcp:admin",
+                policy =>
+                    policy.Requirements.Add(
+                        new Knowledge.Mcp.Authorization.HasScopeRequirement("mcp:admin", issuer)
+                    )
+            );
+        });
+
+        // ⭐ Register the scope authorization handler as a singleton
+        builder.Services.AddSingleton<
+            Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+            Knowledge.Mcp.Authorization.HasScopeHandler
+        >();
+
         // ⭐ Configure MCP server with HTTP transport
         builder
             .Services.AddMcpServer()
@@ -506,7 +580,9 @@ class Program
                 // options.SessionTimeout = TimeSpan.FromMinutes(httpTransportSettings.SessionTimeoutMinutes);
                 // options.IsStateless = httpTransportSettings.EnableStatelessMode;
 
-                Console.WriteLine($"HTTP Transport configured with {httpTransportSettings.SessionTimeoutMinutes} minute session timeout (when SDK supports it)");
+                Console.WriteLine(
+                    $"HTTP Transport configured with {httpTransportSettings.SessionTimeoutMinutes} minute session timeout (when SDK supports it)"
+                );
             })
             .WithToolsFromAssembly()
             .WithResources<Knowledge.Mcp.Resources.KnowledgeResourceMethods>();
@@ -514,17 +590,36 @@ class Program
         // Log OAuth status
         if (httpTransportSettings.OAuth?.Enabled == true)
         {
-            Console.WriteLine("⚠️  OAuth 2.1 authentication configured but not yet implemented (Milestone #23)");
-            Console.WriteLine($"   Authorization Server: {httpTransportSettings.OAuth.AuthorizationServerUrl}");
+            Console.WriteLine(
+                "⚠️  OAuth 2.1 authentication configured but not yet implemented (Milestone #23)"
+            );
+            Console.WriteLine(
+                $"   Authorization Server: {httpTransportSettings.OAuth.AuthorizationServerUrl}"
+            );
         }
 
         var app = builder.Build();
+
+        // ⭐ Register OAuth metadata endpoints (RFC 9728)
+        var auth0Domain = builder.Configuration["Auth0:Domain"];
+        app.MapOAuthMetadataEndpoints(auth0Domain!);
 
         // ⭐ Enable CORS (must be before UseRouting)
         app.UseCors();
 
         // ⭐ Add routing middleware (required for endpoint mapping)
         app.UseRouting();
+
+        // ⭐ Enable authentication and authorization middleware
+        // IMPORTANT: Must come AFTER UseCors() and UseRouting(), BEFORE MapMcp()
+        app.UseAuthentication(); // First: Validate JWT token
+        app.UseAuthorization(); // Second: Check if user has required scopes
+
+        Console.WriteLine("Authentication and authorization middleware enabled");
+
+        // ⭐ Add WWW-Authenticate header to 401 responses (MCP spec requirement)
+        app.UseWWWAuthenticateHeader(serverUrl);
+        Console.WriteLine($"WWW-Authenticate header middleware enabled (authorization_uri: {serverUrl}/.well-known/oauth-authorization-server)");
 
         // ⭐ Add exception handling for debugging
         app.Use(
@@ -547,11 +642,13 @@ class Program
         );
 
         // ⭐ Map MCP endpoints (creates /sse and /messages endpoints)
-        app.MapMcp();
+        // Require mcp:execute scope for all MCP operations (tool execution)
+        app.MapMcp()
+            .RequireAuthorization("mcp:execute");
 
         Console.WriteLine("Knowledge MCP Server HTTP endpoints:");
-        Console.WriteLine("  GET  /sse       - Server-Sent Events stream");
-        Console.WriteLine("  POST /messages  - JSON-RPC requests");
+        Console.WriteLine("  GET  /sse       - Server-Sent Events stream (requires mcp:execute scope)");
+        Console.WriteLine("  POST /messages  - JSON-RPC requests (requires mcp:execute scope)");
         Console.WriteLine();
         Console.WriteLine(
             $"Server listening on: {app.Urls.FirstOrDefault() ?? "http://localhost:5000"}"

@@ -477,12 +477,42 @@ MCP server would just validate tokens issued by Auth0/Azure AD directly:
 
 ## Resources
 
-- **MCP + Auth0:** https://auth0.com/blog/an-introduction-to-mcp-and-authorization/
-- **OAuth 2.1:** https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1
-- **Token Exchange (RFC 8693):** https://datatracker.ietf.org/doc/html/rfc8693
+### Auth0 MCP-Specific Documentation
+- **Auth0 MCP Authorization Guide:** https://auth0.com/ai/docs/mcp/auth-for-mcp ⏳ TO READ
+- **Auth0 AI Agents Overview:** https://auth0.com/ai/docs/intro/overview ⏳ TO READ
+- **Auth0 MCP Blog Post:** https://auth0.com/blog/an-introduction-to-mcp-and-authorization/ ✅ READ
+
+### OAuth & Identity Standards
+- **OAuth 2.1 Draft:** https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1
 - **PKCE (RFC 7636):** https://datatracker.ietf.org/doc/html/rfc7636
+- **Token Exchange (RFC 8693):** https://datatracker.ietf.org/doc/html/rfc8693
+- **OAuth 2.0 Security Best Practices:** https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics
+
+### Expert Presentations
+- **Aaron Parecki (Okta) - MCP OAuth:** https://www.youtube.com/watch?v=mYKMwZcGynw ✅ WATCHED
+
+### MCP Specification
+- **MCP Authorization Spec:** https://spec.modelcontextprotocol.io/authorization
+- **MCP Protocol Spec:** https://spec.modelcontextprotocol.io/
+
+---
+
+## Reading List Progress
+
+**Completed:** ✅
+1. Auth0 blog post on MCP authorization
+2. Aaron Parecki video on OAuth for MCP
+
+**In Progress:** ⏳
+1. Auth0 MCP Authorization Guide (https://auth0.com/ai/docs/mcp/auth-for-mcp)
+2. Auth0 AI Agents Overview (https://auth0.com/ai/docs/intro/overview)
+
+**To Read:** 📚
+1. MCP Authorization Specification
+2. OAuth 2.1 Draft (high-level overview)
+3. PKCE RFC 7636 (understand client-side requirements)
 
 ---
 
 **Last Updated:** 2025-10-22
-**Status:** Initial research - understanding authorization flow options
+**Status:** Research ongoing - reading Auth0 AI documentation
