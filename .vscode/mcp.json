@@ -9,8 +9,12 @@
 			"cwd": "${workspaceFolder}"
 		},
 		"mcp-ui Docs": {
-			"type": "sse",
+			"type": "http",
 			"url": "https://gitmcp.io/idosal/mcp-ui"
+		},
+		"knowledge-oauth-test": {
+			"url": "http://localhost:5001",
+			"type": "http"
 		}
 	},
 	"inputs": []
