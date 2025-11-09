@@ -12,6 +12,7 @@ public interface IOllamaRepository
     Task MarkModelUsedAsync(string modelName, CancellationToken cancellationToken = default);
     Task<OllamaModelRecord?> GetModelAsync(string modelName, CancellationToken cancellationToken = default);
     Task UpdateSupportsToolsAsync(string modelName, bool supportsTools, CancellationToken cancellationToken = default);
+    Task ResetSupportsToolsAsync(string modelName, CancellationToken cancellationToken = default);
     Task DeleteModelAsync(string modelName, CancellationToken cancellationToken = default);
     Task UpsertDownloadProgressAsync(OllamaDownloadRecord download, CancellationToken cancellationToken = default);
     Task<OllamaDownloadRecord?> GetDownloadStatusAsync(string modelName, CancellationToken cancellationToken = default);

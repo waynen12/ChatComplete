@@ -142,6 +142,23 @@ public class KnowledgeManager
                 $"Knowledge collection created from {Path.GetFileName(documentPath)}"
             );
 
+            // Record individual document metadata
+            var fileName = Path.GetFileName(documentPath);
+            var fileInfo = new FileInfo(documentPath);
+            var fileSize = fileInfo.Exists ? fileInfo.Length : 0;
+            var fileType = Path.GetExtension(documentPath).TrimStart('.').ToLowerInvariant();
+
+            // Generate document ID from filename
+            var documentId = fileId; // Already computed at line 112
+
+            await _knowledgeRepository.AddDocumentAsync(
+                collectionName,
+                documentId,
+                fileName,
+                fileSize,
+                fileType
+            );
+
             // Update document and chunk counts
             await _knowledgeRepository.UpdateCollectionStatsAsync(
                 collectionName,
@@ -150,8 +167,9 @@ public class KnowledgeManager
             );
 
             LoggerProvider.Logger.Information(
-                "📊 Updated collection metadata for {Collection}: 1 document, {ChunkCount} chunks",
+                "📊 Updated collection metadata for {Collection}: 1 document ({FileName}), {ChunkCount} chunks",
                 collectionName,
+                fileName,
                 paragraphs.Count
             );
         }

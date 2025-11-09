@@ -74,8 +74,8 @@ public class OllamaApiService : IOllamaApiService
             _ollamaBaseUrl
         );
 
-        // Set timeout for Ollama API calls
-        _httpClient.Timeout = TimeSpan.FromSeconds(30);
+        // Set timeout for Ollama API calls (increased for tool calling)
+        _httpClient.Timeout = TimeSpan.FromSeconds(180);
     }
 
     /// <inheritdoc />

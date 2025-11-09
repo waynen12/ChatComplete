@@ -22,12 +22,14 @@ using KnowledgeEngine.Persistence.IndexManagers;
 using KnowledgeEngine.Persistence.Sqlite;
 using KnowledgeEngine.Persistence.Sqlite.Repositories;
 using KnowledgeEngine.Persistence.VectorStores;
+using KnowledgeEngine.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
+using KnowledgeEngine.Services.HealthCheckers;
 
 #pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
 
@@ -138,6 +140,21 @@ builder.Services.AddScoped<ChatComplete>(sp =>
 
 // Register agent plugins for cross-knowledge search capabilities
 builder.Services.AddScoped<CrossKnowledgeSearchPlugin>();
+builder.Services.AddScoped<ModelRecommendationAgent>();
+builder.Services.AddScoped<KnowledgeAnalyticsAgent>();
+builder.Services.AddScoped<ISystemHealthService, SystemHealthService>();
+builder.Services.AddScoped<SystemHealthAgent>();
+  // All health checkers for SystemHealthService to discover
+  builder.Services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, OpenAIHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, AnthropicHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker, GoogleAIHealthChecker>();
+  
+  // OllamaHealthChecker needs HttpClient and interface registration
+  builder.Services.AddHttpClient<OllamaHealthChecker>();
+  builder.Services.AddScoped<IComponentHealthChecker>(provider => 
+      provider.GetRequiredService<OllamaHealthChecker>());
 
 // ── CORS policy for the Vite front-end ────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -192,7 +209,7 @@ else
 // Register Ollama API service
 builder.Services.AddHttpClient<IOllamaApiService, OllamaApiService>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(30);
+    client.Timeout = TimeSpan.FromSeconds(180); // Increased for tool calling
     client.DefaultRequestHeaders.Add("User-Agent", "AIKnowledgeManager/1.0");
 });
 

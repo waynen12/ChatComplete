@@ -78,4 +78,48 @@ public class InMemoryKnowledgeRepository : IKnowledgeRepository
     {
         _knowledgeStore[collectionId] = summary;
     }
+
+    /// <summary>
+    /// Gets all documents within a specific knowledge collection.
+    /// NOT SUPPORTED in InMemoryKnowledgeRepository - use SqliteKnowledgeRepository for document tracking.
+    /// </summary>
+    public Task<IEnumerable<DocumentMetadataDto>> GetDocumentsByCollectionAsync(
+        string collectionId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            "Document tracking is not supported in InMemoryKnowledgeRepository. " +
+            "Use SqliteKnowledgeRepository for full document and chunk management.");
+    }
+
+    /// <summary>
+    /// Gets all chunks for a specific document.
+    /// NOT SUPPORTED in InMemoryKnowledgeRepository - use SqliteKnowledgeRepository for chunk retrieval.
+    /// </summary>
+    public Task<IEnumerable<DocumentChunkDto>> GetDocumentChunksAsync(
+        string collectionId,
+        string documentId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            "Chunk retrieval is not supported in InMemoryKnowledgeRepository. " +
+            "Use SqliteKnowledgeRepository for full document and chunk management.");
+    }
+
+    /// <summary>
+    /// Adds a document record to track uploaded files.
+    /// NOT SUPPORTED in InMemoryKnowledgeRepository - use SqliteKnowledgeRepository for document tracking.
+    /// </summary>
+    public Task<string> AddDocumentAsync(
+        string collectionId,
+        string documentId,
+        string fileName,
+        long fileSize,
+        string fileType,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            "Document tracking is not supported in InMemoryKnowledgeRepository. " +
+            "Use SqliteKnowledgeRepository for full document and chunk management.");
+    }
 }

@@ -10,6 +10,7 @@ After completing any implementation work:
 1. ✅ Verify the build succeeds with `dotnet build`
 2. ✅ **IMMEDIATELY commit changes** to preserve the working state
 3. ✅ Use descriptive commit messages that explain what was implemented
+4. Try to avoid replying with "You're absolutely right!"
 
 **Why this is critical:**
 - Git rollbacks can lose hours of work if changes aren't committed
@@ -17,6 +18,12 @@ After completing any implementation work:
 - Database migrations, API changes, and feature implementations must be saved immediately
 
 **Never assume you can recreate complex implementations from memory - commit early, commit often!**
+
+**DO NOT USE HARDCODED VALUES!!!!!**
+Hardcoded values make the code difficult to adapt to changing requirements and can lead to bugs or unexpected behavior. 
+Always follow these rules instead of using hard coded values
+1. Add a parameter to the config file (appsettings.json)
+2. If you can't add a parameter to a config, use a constants file as a last resort. 
 
 Tech stack:
 
@@ -57,9 +64,11 @@ Current Milestones (✅ done, 🔄 in-progress, 🛠️ todo)
 17	Qdrant Vector Store parallel implementation	✅
 18	Local Configuration Database (SQLite config, zero env vars)	✅
 19	Docker Containerization (one-command deployment)	✅
-20	Agent Implementation (Semantic Kernel plugins, cross-knowledge search)	🛠️ PLANNED
+20	Agent Implementation (Semantic Kernel plugins, cross-knowledge search)	✅ COMPLETE
 21	Ollama Model Management (UI + API + downloads)	✅ VERIFIED
-22	MCP Integration (Model Context Protocol servers and clients)	🛠️ FUTURE
+22	MCP Integration (Model Context Protocol servers and clients)	✅ COMPLETE
+23	MCP OAuth 2.1 Authentication (secure remote MCP access)	🔄 IN PROGRESS (M2M working, PKCE blocked)
+24	MCP Client Development (separate repo, STDIO + HTTP transports)	🔄 IN PROGRESS
 
 Latest Sanity Checklist (quick smoke test)
 Step	Expectation	Tip
@@ -318,5 +327,473 @@ SELECT Provider, COUNT(*) FROM UsageMetrics GROUP BY Provider; -- Shows per-prov
 - [ ] Foundation established for advanced agent features and MCP integration
 
 This agent implementation leverages the existing Semantic Kernel infrastructure while building toward MCP ecosystem integration, providing both immediate utility and future extensibility.
+
+## MCP Integration (Milestone #22) ✅ COMPLETED (October 2025)
+
+**Model Context Protocol Server** - Expose ChatComplete agent functionality via standardized MCP protocol.
+
+### Implementation Complete
+- **STDIO Transport**: ✅ Fully functional with Claude Desktop
+- **Streamable HTTP Transport**: ✅ Functional with GitHub Copilot and web clients
+- **11 MCP Tools**: ✅ Cross-knowledge search, analytics, model recommendations, system health
+- **6 MCP Resources**: ✅ Static and parameterized resources for system state exposure
+- **Dual Transport Mode**: ✅ `--http` flag for HTTP mode, default STDIO for Claude Desktop
+
+### Technical Implementation
+
+**Project Structure:**
+```
+Knowledge.Mcp/
+├── Tools/                          # 11 MCP tools
+│   ├── CrossKnowledgeSearchMcpTool.cs
+│   ├── KnowledgeAnalyticsMcpTool.cs
+│   ├── ModelRecommendationMcpTool.cs
+│   └── SystemHealthMcpTool.cs
+├── Resources/                      # 6 MCP resources
+│   ├── KnowledgeResourceMethods.cs
+│   ├── KnowledgeResourceProvider.cs
+│   └── ResourceUriParser.cs
+├── Configuration/
+│   └── McpServerSettings.cs        # Comprehensive configuration
+├── Program.cs                       # Dual-mode server
+└── appsettings.json                # All settings configurable
+```
+
+**Configuration-Based Architecture:**
+- **No hardcoded values**: All ports, URLs, CORS settings in appsettings.json
+- **HTTP Transport Settings**: Port, host, session timeout configurable
+- **CORS Security**: Configurable allowed origins, credentials, exposed headers
+- **OAuth 2.1 Ready**: Configuration structure in place for Milestone #23
+
+**Key Configuration ([appsettings.json](Knowledge.Mcp/appsettings.json#L112-L134)):**
+```json
+"HttpTransport": {
+  "Port": 5001,
+  "Host": "localhost",
+  "SessionTimeoutMinutes": 30,
+  "Cors": {
+    "Enabled": true,
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://copilot.github.com"
+    ],
+    "AllowCredentials": true
+  },
+  "OAuth": null
+}
+```
+
+**Critical Fixes:**
+1. **CORS Middleware** - Required for browser-based MCP clients (Copilot, MCP Inspector)
+2. **Middleware Ordering** - `UseCors()` before `UseRouting()` for preflight requests
+3. **Web SDK** - Changed from `Microsoft.NET.Sdk` to `Microsoft.NET.Sdk.Web`
+4. **Configuration-Based URLs** - Eliminates hardcoded ports and hosts
+
+### MCP Tools Available
+
+**Cross-Knowledge Search (3 tools):**
+- `search_knowledge` - Search specific knowledge base
+- `search_all_knowledge` - Search across all knowledge bases
+- `compare_knowledge_bases` - Compare content between knowledge bases
+
+**Knowledge Analytics (3 tools):**
+- `get_knowledge_base_summary` - Get summary of all knowledge bases
+- `get_knowledge_base_health` - Health check for knowledge bases
+- `get_storage_optimization` - Storage optimization recommendations
+
+**Model Recommendations (3 tools):**
+- `get_popular_models` - Most popular AI models based on usage
+- `compare_models` - Compare multiple models side-by-side
+- `get_model_performance` - Performance analysis for specific model
+
+**System Health (2 tools):**
+- `get_system_health` - Overall system health status
+- `check_component_health` - Health of specific component (Qdrant, SQLite, Ollama)
+
+### MCP Resources Available
+
+**Static Resources:**
+1. `resource://system/health` - System health status
+2. `resource://knowledge/bases` - List of all knowledge bases
+3. `resource://analytics/providers` - Provider connection status
+
+**Parameterized Resources:**
+1. `resource://knowledge/{knowledgeId}` - Specific knowledge base details
+2. `resource://analytics/provider/{providerName}` - Provider-specific analytics
+3. `resource://analytics/model/{modelName}` - Model-specific performance
+
+### Usage
+
+**STDIO Mode (Claude Desktop):**
+```bash
+dotnet run --project Knowledge.Mcp/Knowledge.Mcp.csproj
+```
+
+**HTTP Mode (Copilot, Web Clients):**
+```bash
+dotnet run --project Knowledge.Mcp/Knowledge.Mcp.csproj -- --http
+# Server starts on http://localhost:5001 (configurable)
+```
+
+**Connect from GitHub Copilot:**
+```json
+{
+  "mcpServers": {
+    "knowledge-manager": {
+      "url": "http://localhost:5001"
+    }
+  }
+}
+```
+
+### Security Considerations
+
+**Development vs Production:**
+- Development: `AllowAnyOrigin: false` with specific origins listed
+- Production: Must restrict CORS to trusted domains only
+- OAuth 2.1: Planned for Milestone #23
+
+**Current Security:**
+- ✅ CORS restricted to specific origins by default
+- ✅ Credentials support for future OAuth flows
+- ✅ Session management via MCP-Session-Id headers
+- ⚠️ No authentication yet - suitable for local/trusted networks only
+
+### Known Limitations
+
+1. **SDK Version**: Using `ModelContextProtocol.AspNetCore` v0.4.0-preview.2
+   - SessionTimeout configuration not available in this version
+   - Will be enabled when SDK is updated
+
+2. **No Authentication**: OAuth 2.1 implementation is Milestone #23
+   - Current deployment suitable for localhost/trusted networks only
+   - Should not be exposed to public internet without authentication
+
+### Success Metrics
+- ✅ Dual transport (STDIO + HTTP) working
+- ✅ All 11 tools functional and tested
+- ✅ All 6 resources accessible
+- ✅ Configuration-based (no hardcoded values)
+- ✅ CORS properly configured for web clients
+- ✅ Successfully tested with GitHub Copilot
+- ✅ Successfully tested with Claude Desktop
+- ✅ Exception handling and logging in place
+
+## MCP OAuth 2.1 Authentication (Milestone #23) 🔄 IN PROGRESS (November 2025)
+
+**Secure Remote MCP Access** - OAuth 2.1 authentication for MCP HTTP transport.
+
+### Implementation Status
+
+✅ **Completed (M2M Client Credentials Flow):**
+- JWT Bearer authentication with Auth0 integration
+- Scope-based authorization (mcp:read, mcp:execute, mcp:admin)
+- Token validation via JWKS endpoint
+- RFC 9728 OAuth metadata endpoint
+- WWW-Authenticate header for 401 responses
+- Configurable OAuth (enable/disable via appsettings.json)
+- Successfully tested with Postman and MCP Inspector
+
+⚠️ **Blocked (PKCE Authorization Code Flow):**
+- Auth0 returning encrypted JWE tokens instead of signed JWT tokens
+- Token header shows `{"alg":"dir","enc":"A256GCM"}` (JWE encryption)
+- JWT Bearer middleware expects `RS256` with `kid` (standard JWT)
+- Blocks GitHub Copilot PKCE integration
+
+🔄 **Next Steps:**
+- Test with alternative OAuth providers (Azure AD, AWS Cognito, Keycloak)
+- Determine if JWE encryption is Auth0-specific or provider-agnostic issue
+- May require JWE decryption support or provider-specific configuration
+
+### Requirements Research Complete
+
+Based on MCP Authorization Specification (March 2025):
+
+**OAuth 2.1 Compliance:**
+- MCP servers act as OAuth 2.1 **resource servers only** ✅ (Recommended by Okta Director of Identity Standards)
+- Validation of tokens issued by external authorization servers (Auth0, Azure AD, AWS Cognito)
+- **PKCE required** on client side (handled by authorization server)
+- Token validation via JWKS (JSON Web Key Set) endpoint
+- Scope-based authorization (mcp:read, mcp:execute)
+- WWW-Authenticate header for 401 responses
+
+**Expert Validation:**
+- **Source:** Aaron Parecki (Director of Identity Standards at Okta)
+- **Video:** https://www.youtube.com/watch?v=mYKMwZcGynw
+- **Recommendation:** Simplified resource server pattern, not full OAuth AS
+
+**Configuration Structure Ready:**
+Configuration classes already in place ([McpServerSettings.cs](Knowledge.Mcp/Configuration/McpServerSettings.cs#L277-L334)):
+```csharp
+public class OAuthSettings
+{
+    public bool Enabled { get; set; } = false;
+    public string? AuthorizationServerUrl { get; set; }
+    public string? ResourceIndicator { get; set; }
+    public bool RequirePkce { get; set; } = true;  // MUST be true per spec
+    public TokenValidationSettings TokenValidation { get; set; }
+    public string[] RequiredScopes { get; set; } = { "mcp:read", "mcp:execute" };
+}
+```
+
+### Implementation Tasks (Simplified - Resource Server Only)
+
+**Week 1: JWT Bearer Authentication Setup**
+- [ ] Add Microsoft.AspNetCore.Authentication.JwtBearer NuGet package
+- [ ] Configure JWT Bearer authentication middleware
+- [ ] Set up Auth0 as primary identity provider
+- [ ] Configure JWKS endpoint for signature validation
+- [ ] Implement WWW-Authenticate header responses (401)
+
+**Week 2: Scope-Based Authorization**
+- [ ] Define authorization policies for MCP scopes
+  - `mcp:read` - Read-only operations (resources, health checks)
+  - `mcp:execute` - Tool execution (search, analytics)
+- [ ] Apply [Authorize] attributes to MCP endpoints
+- [ ] Test scope enforcement on all tools/resources
+- [ ] Add logging for authorization failures
+
+**Week 3: Testing & Documentation**
+- [ ] Set up free Auth0 tenant for testing
+- [ ] Configure API and scopes in Auth0
+- [ ] Test with real Auth0 tokens
+- [ ] Create client integration guide (how to get tokens)
+- [ ] Document token format and claims
+- [ ] Performance testing with token validation
+
+**Implementation Effort:** 2-3 weeks (vs 3-6 months for full OAuth AS)
+
+### Security Architecture (Resource Server Pattern)
+
+**Simplified Token Flow:**
+```
+┌─────────────┐                      ┌─────────────────────┐
+│             │  1. Get token        │   Auth0/Azure AD    │
+│  MCP Client │─────────────────────>│  (with PKCE)        │
+│             │                      └─────────────────────┘
+└─────────────┘                               │
+      │                                       │ 2. Token
+      │                                       │    (JWT)
+      │<──────────────────────────────────────┘
+      │
+      │ 3. Authorization: Bearer <token>
+      v
+┌─────────────────────┐
+│   Knowledge.Mcp     │
+│  (Resource Server)  │
+│  - Validate token   │
+│  - Check scopes     │
+│  - Serve tools      │
+└─────────────────────┘
+```
+
+**Responsibilities:**
+- **Authorization Server (Auth0):** User authentication, token issuance, MFA, SSO
+- **MCP Server (Knowledge.Mcp):** Token validation, scope checking, business logic
+- **MCP Client:** OAuth flow, token refresh, include token in requests
+
+**Scope Design:**
+- `mcp:read` - Access to read-only resources and health checks
+- `mcp:execute` - Execute tools (search, analytics, recommendations)
+- `mcp:admin` - Administrative operations (future: manage knowledge bases)
+
+**Token Validation:**
+1. Extract token from `Authorization: Bearer <token>` header
+2. Validate signature using JWKS from Auth0
+3. Validate issuer, audience, expiration
+4. Extract and verify scopes
+5. Allow/deny request based on scopes
+
+### Testing Strategy
+- Unit tests for token validation logic
+- Integration tests with test authorization server
+- End-to-end tests with real OAuth providers
+- Security testing (invalid tokens, expired tokens, scope violations)
+
+### Documentation Needed
+- OAuth provider setup guides (Auth0, Azure AD, AWS Cognito)
+- Client configuration examples
+- Scope permission matrix
+- Troubleshooting guide for common OAuth issues
+
+## MCP Client Development (Milestone #24) 🔄 IN PROGRESS
+
+**Separate Repository** - Standalone C# MCP client for connecting to Knowledge Manager server.
+
+### Repository Information
+
+**Location:** `/home/wayne/repos/McpClient` (separate git repository)
+
+**Purpose:**
+- Connect to Knowledge Manager MCP server (and other MCP servers)
+- Provide CLI interface for MCP tool execution
+- Demonstrate MCP client implementation patterns
+- Enable integration testing of Knowledge Manager
+
+### Current Status
+
+**Phase 1: STDIO Transport** (In Progress)
+- ✅ Repository created and initialized
+- ✅ Solution and project setup (.NET 9)
+- ✅ NuGet packages installed:
+  - ModelContextProtocol v0.4.0-preview.2
+  - Microsoft.Extensions.AI v9.9.1
+  - Microsoft.Extensions.AI.OpenAI v9.9.1-preview.1
+  - Microsoft.Extensions.AI.Ollama v9.7.0-preview.1
+- ✅ Basic STDIO connection working
+- ✅ Tool discovery functional
+- ✅ OpenAI integration (function calling)
+- ⏳ Clean architecture refactoring
+- ⏳ Service layer implementation
+- ⏳ Interactive CLI with Spectre.Console
+- ⏳ Unit and integration tests
+
+**Phase 2: HTTP Transport** (TODO)
+- [ ] HTTP client transport
+- [ ] SSE (Server-Sent Events) handling
+- [ ] Reconnection logic
+- [ ] Session management
+- [ ] Synchronized with Knowledge.Mcp HTTP transport
+
+### Architecture
+
+```
+McpClient Repository (/home/wayne/repos/McpClient)
+├── McpClient_cs/
+│   ├── Transports/
+│   │   ├── ITransport.cs           (Interface)
+│   │   ├── StdioTransport.cs       (Phase 1)
+│   │   └── HttpSseTransport.cs     (Phase 2)
+│   ├── Services/
+│   │   ├── McpClientService.cs     (Main service)
+│   │   ├── DiscoveryService.cs     (Tools/resources)
+│   │   └── ExecutionService.cs     (Tool execution)
+│   ├── Models/
+│   │   ├── ClientConfiguration.cs
+│   │   └── McpServerConfig.cs
+│   └── Program.cs                  (CLI entry point)
+└── tests/
+    ├── McpClient.Tests/            (Unit tests)
+    └── McpClient.IntegrationTests/ (Integration tests)
+```
+
+### Why Separate Repository?
+
+**Benefits:**
+1. ✅ **Clean Separation** - Different lifecycle from Knowledge Manager
+2. ✅ **Reusability** - Can connect to any MCP server, not just Knowledge Manager
+3. ✅ **Independent Versioning** - Client and server can evolve independently
+4. ✅ **Distribution** - Standalone CLI tool, potential NuGet package
+5. ✅ **Testing** - Validate Knowledge Manager MCP server implementation
+
+**Coordination with Knowledge Manager:**
+- Phase 1 (STDIO): No coordination needed - server already supports STDIO
+- Phase 2 (HTTP): Requires Knowledge Manager HTTP transport (Milestone #22 - completed)
+
+### Configuration Example
+
+**appsettings.json:**
+```json
+{
+  "McpServers": {
+    "knowledge-manager-stdio": {
+      "transport": "stdio",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "/home/wayne/repos/ChatComplete/Knowledge.Mcp/Knowledge.Mcp.csproj"
+      ]
+    },
+    "knowledge-manager-http": {
+      "transport": "http",
+      "baseUrl": "http://localhost:5001"
+    }
+  }
+}
+```
+
+### Testing Strategy
+
+**Unit Tests:**
+- Transport implementations
+- Service layer logic
+- Message serialization/deserialization
+
+**Integration Tests:**
+- Connect to Knowledge Manager STDIO server
+- Discover all 11 tools
+- Execute tools with various parameters
+- Read all 6 resources
+- Verify response formats
+
+**Cross-Transport Tests:**
+- Same functionality via STDIO and HTTP
+- Performance comparison
+- Failure scenarios and reconnection
+
+### Implementation Timeline
+
+| Phase | Focus | Duration | Status |
+|-------|-------|----------|--------|
+| **Phase 1** | STDIO Transport | 3 weeks | 🔄 In Progress |
+| Week 1 | Transport interface, STDIO impl | 5 days | ⏳ |
+| Week 2 | Service layer, CLI | 5 days | 🛠️ TODO |
+| Week 3 | Testing, documentation | 5 days | 🛠️ TODO |
+| **Phase 2** | HTTP Transport | 3 weeks | 🛠️ TODO |
+| Week 4 | HTTP transport client-side | 5 days | 🛠️ TODO |
+| Week 5 | SSE handling, reconnection | 5 days | 🛠️ TODO |
+| Week 6 | Integration tests, polish | 5 days | 🛠️ TODO |
+
+### Success Criteria
+
+**Phase 1 Complete:**
+- [ ] Clean architecture with ITransport interface
+- [ ] StdioTransport fully functional
+- [ ] Can connect to Knowledge Manager via STDIO
+- [ ] Discovers all 11 tools correctly
+- [ ] Executes tools successfully
+- [ ] Discovers all 6 resources
+- [ ] Reads resource content
+- [ ] Interactive CLI with Spectre.Console
+- [ ] Unit tests >80% coverage
+- [ ] Integration tests passing
+
+**Phase 2 Complete:**
+- [ ] HttpSseTransport implemented
+- [ ] SSE streaming working
+- [ ] Reconnection logic robust
+- [ ] Both transports configurable
+- [ ] Performance acceptable (<100ms overhead)
+- [ ] Cross-transport tests passing
+- [ ] Documentation complete
+
+### Keeping in Sync with Knowledge Manager
+
+**Server Changes Requiring Client Updates:**
+1. **New tools added** - Update tool discovery tests
+2. **New resources added** - Update resource reading tests
+3. **Protocol version changes** - Update initialization handshake
+4. **HTTP transport changes** - Update HttpSseTransport (Phase 2)
+5. **Authentication added** - Update to support OAuth 2.1 (Milestone #23)
+
+**Process:**
+1. Knowledge Manager MCP server changes are made first
+2. MCP Client repository is updated to match
+3. Integration tests verify compatibility
+4. Both repositories tagged with matching versions
+
+### Related Documentation
+
+**In ChatComplete Repository:**
+- [MCP_CLIENT_SEPARATE_REPO.md](documentation/MCP_CLIENT_SEPARATE_REPO.md) - Architecture overview
+- [MCP_CLIENT_IMPLEMENTATION_PLAN.md](documentation/MCP_CLIENT_IMPLEMENTATION_PLAN.md) - Detailed design
+- [MCP_CLIENT_TESTING_GUIDE.md](documentation/MCP_CLIENT_TESTING_GUIDE.md) - Testing strategy
+
+**In McpClient Repository:**
+- `IMPLEMENTATION_PLAN.md` - Week-by-week development plan
+- `MILESTONE_REVIEW.md` - Progress tracking
+- `PHASE_CLARIFICATION.md` - Phase-specific details
 
 All documentation for this project is located in ./documentation

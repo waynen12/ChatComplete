@@ -7,7 +7,7 @@ namespace Knowledge.Data;
 /// SQLite database context for local configuration and metadata storage
 /// Provides connection management and schema initialization
 /// </summary>
-public class SqliteDbContext : IDisposable
+public class SqliteDbContext : ISqliteDbContext
 {
     private readonly string _connectionString;
     private SqliteConnection? _connection;
@@ -57,6 +57,14 @@ public class SqliteDbContext : IDisposable
         var newConnection = new SqliteConnection(_connectionString);
         await newConnection.OpenAsync();
         return newConnection;
+    }
+
+    /// <summary>
+    /// Initializes the database schema if it doesn't exist
+    /// </summary>
+    public async Task InitializeDatabaseAsync()
+    {
+        await EnsureDatabaseInitializedAsync();
     }
 
     /// <summary>

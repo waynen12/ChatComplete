@@ -44,8 +44,51 @@ public interface IKnowledgeRepository
     /// <param name="chunkCount">Number of chunks to add to the count</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task UpdateCollectionStatsAsync(
-        string collectionId, 
-        int documentCount, 
+        string collectionId,
+        int documentCount,
         int chunkCount,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all documents within a specific knowledge collection.
+    /// Returns metadata only (no chunk content).
+    /// </summary>
+    /// <param name="collectionId">The collection identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of document metadata entries</returns>
+    Task<IEnumerable<DocumentMetadataDto>> GetDocumentsByCollectionAsync(
+        string collectionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all chunks for a specific document, ordered by chunk index.
+    /// Used to reconstruct the full document text.
+    /// </summary>
+    /// <param name="collectionId">The collection identifier</param>
+    /// <param name="documentId">The document identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Ordered list of document chunks</returns>
+    Task<IEnumerable<DocumentChunkDto>> GetDocumentChunksAsync(
+        string collectionId,
+        string documentId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds a document record to track uploaded files.
+    /// Called during document upload to record metadata.
+    /// </summary>
+    /// <param name="collectionId">The collection identifier</param>
+    /// <param name="documentId">The document identifier</param>
+    /// <param name="fileName">Original file name</param>
+    /// <param name="fileSize">File size in bytes</param>
+    /// <param name="fileType">File extension/type</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The document identifier</returns>
+    Task<string> AddDocumentAsync(
+        string collectionId,
+        string documentId,
+        string fileName,
+        long fileSize,
+        string fileType,
         CancellationToken cancellationToken = default);
 }

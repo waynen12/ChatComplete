@@ -34,6 +34,10 @@ interface ChatSettingsPanelProps {
   // Markdown settings
   stripMarkdown: boolean;
   onStripMarkdownChange: (strip: boolean) => void;
+  
+  // Agent mode settings
+  useAgent: boolean;
+  onAgentModeChange: (useAgent: boolean) => void;
 }
 
 export function ChatSettingsPanel({
@@ -51,6 +55,8 @@ export function ChatSettingsPanel({
   loadingModels,
   stripMarkdown,
   onStripMarkdownChange,
+  useAgent,
+  onAgentModeChange,
 }: ChatSettingsPanelProps) {
   if (!isOpen) return null;
 
@@ -75,10 +81,52 @@ export function ChatSettingsPanel({
           </Button>
         </div>
 
+        {/* Agent Mode Toggle - only shown when no knowledge base is selected */}
+        {selectedCollectionId === GLOBAL_KNOWLEDGE_ID && (
+          <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">🤖</span>
+              <div>
+                <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                  Agent Testing Mode
+                </h4>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Test AI agents without selecting a knowledge base
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="agent-mode"
+                checked={useAgent}
+                onChange={(e) => onAgentModeChange(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-background border-blue-300 rounded focus:ring-blue-500 focus:ring-2"
+              />
+              <label htmlFor="agent-mode" className="text-sm text-blue-900 dark:text-blue-100 cursor-pointer">
+                Enable Agent Mode
+              </label>
+            </div>
+            {useAgent && (
+              <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                <p><strong>Try asking:</strong></p>
+                <ul className="list-disc list-inside space-y-0.5 ml-2">
+                  <li>"What are the most popular models?"</li>
+                  <li>"Compare gpt-4o and claude-3-sonnet"</li>
+                  <li>"Show me performance analysis for gpt-4o"</li>
+                  <li>"Which model has the best success rate?"</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Knowledge Selection */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">
-            Knowledge Base <span className="text-destructive">*</span>
+            Knowledge Base {selectedCollectionId === GLOBAL_KNOWLEDGE_ID && !useAgent && (
+              <span className="text-destructive">*</span>
+            )}
           </label>
           {collections.length > 0 ? (
             <Select
@@ -88,12 +136,14 @@ export function ChatSettingsPanel({
               <SelectTrigger className="w-full">
                 <span className="truncate">
                   {selectedCollectionId === GLOBAL_KNOWLEDGE_ID
-                    ? "Please choose a knowledge item"
+                    ? useAgent ? "Agent Mode (No Knowledge Base)" : "Please choose a knowledge item"
                     : collections.find((c) => c.id === selectedCollectionId)?.name ?? "Unknown"}
                 </span>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={GLOBAL_KNOWLEDGE_ID} disabled>Please choose a knowledge item</SelectItem>
+                <SelectItem value={GLOBAL_KNOWLEDGE_ID}>
+                  {useAgent ? "Agent Mode (No Knowledge Base)" : "Please choose a knowledge item"}
+                </SelectItem>
                 {collections.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}

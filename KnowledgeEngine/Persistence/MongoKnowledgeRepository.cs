@@ -125,15 +125,59 @@ public sealed partial class MongoKnowledgeRepository : IKnowledgeRepository
     /// This method is a no-op but maintains interface compatibility.
     /// </summary>
     public async Task UpdateCollectionStatsAsync(
-        string collectionId, 
-        int documentCount, 
+        string collectionId,
+        int documentCount,
         int chunkCount,
         CancellationToken cancellationToken = default)
     {
         // MongoDB calculates document counts dynamically in GetAllAsync
         // No need to store separate stats, just log the incremental operation
-        _log.LogDebug("MongoDB collection {CollectionId} incremented by: {DocumentCount} documents, {ChunkCount} chunks", 
+        _log.LogDebug("MongoDB collection {CollectionId} incremented by: {DocumentCount} documents, {ChunkCount} chunks",
             collectionId, documentCount, chunkCount);
         await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Gets all documents within a specific knowledge collection.
+    /// NOT SUPPORTED in MongoKnowledgeRepository - use SqliteKnowledgeRepository for document tracking.
+    /// </summary>
+    public Task<IEnumerable<DocumentMetadataDto>> GetDocumentsByCollectionAsync(
+        string collectionId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            "Document tracking is not supported in MongoKnowledgeRepository. " +
+            "Use SqliteKnowledgeRepository for full document and chunk management.");
+    }
+
+    /// <summary>
+    /// Gets all chunks for a specific document.
+    /// NOT SUPPORTED in MongoKnowledgeRepository - use SqliteKnowledgeRepository for chunk retrieval.
+    /// </summary>
+    public Task<IEnumerable<DocumentChunkDto>> GetDocumentChunksAsync(
+        string collectionId,
+        string documentId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            "Chunk retrieval is not supported in MongoKnowledgeRepository. " +
+            "Use SqliteKnowledgeRepository for full document and chunk management.");
+    }
+
+    /// <summary>
+    /// Adds a document record to track uploaded files.
+    /// NOT SUPPORTED in MongoKnowledgeRepository - use SqliteKnowledgeRepository for document tracking.
+    /// </summary>
+    public Task<string> AddDocumentAsync(
+        string collectionId,
+        string documentId,
+        string fileName,
+        long fileSize,
+        string fileType,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException(
+            "Document tracking is not supported in MongoKnowledgeRepository. " +
+            "Use SqliteKnowledgeRepository for full document and chunk management.");
     }
 }
