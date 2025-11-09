@@ -501,19 +501,23 @@ class Program
         });
 
         // ⭐ Read Auth0 configuration
-        var domain = $"https://{builder.Configuration["Auth0:Domain"]}";
-        var audience = builder.Configuration["Auth0:Audience"];
+        var auth0Enabled = builder.Configuration.GetValue<bool>("Auth0:Enabled", false);
 
-        // Auth0 JWT tokens have trailing slash in issuer claim, ensure we match it
-        var issuer = domain.EndsWith("/") ? domain : $"{domain}/";
+        if (auth0Enabled)
+        {
+            var domain = $"https://{builder.Configuration["Auth0:Domain"]}";
+            var audience = builder.Configuration["Auth0:Audience"];
 
-        Console.WriteLine($"Configuring JWT Bearer authentication:");
-        Console.WriteLine($"  Authority: {domain}");
-        Console.WriteLine($"  Issuer (for scope validation): {issuer}");
-        Console.WriteLine($"  Audience: {audience}");
+            // Auth0 JWT tokens have trailing slash in issuer claim, ensure we match it
+            var issuer = domain.EndsWith("/") ? domain : $"{domain}/";
 
-        // ⭐ Configure JWT Bearer authentication
-        builder
+            Console.WriteLine($"⚠️  OAuth 2.1 Authentication ENABLED");
+            Console.WriteLine($"  Authority: {domain}");
+            Console.WriteLine($"  Issuer (for scope validation): {issuer}");
+            Console.WriteLine($"  Audience: {audience}");
+
+            // ⭐ Configure JWT Bearer authentication
+            builder
             .Services.AddAuthentication(
                 Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme
             )
@@ -532,7 +536,59 @@ class Program
                     };
 
                 // Customize WWW-Authenticate header for 401 responses
-                options.Challenge = $"Bearer realm=\"mcp-server\", authorization_uri=\"http://localhost:5001/.well-known/oauth-authorization-server\"";
+                options.Challenge = $"Bearer realm=\"mcp-server\", authorization_uri=\"http://192.168.50.91:5001/.well-known/oauth-authorization-server\"";
+
+                // Add event handlers for debugging OAuth flow
+                options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+                {
+                    OnAuthenticationFailed = context =>
+                    {
+                        Console.WriteLine($"[OAuth Debug] Authentication failed: {context.Exception.Message}");
+                        if (context.Exception.InnerException != null)
+                        {
+                            Console.WriteLine($"[OAuth Debug] Inner exception: {context.Exception.InnerException.Message}");
+                        }
+
+                        // Try to decode token header to see kid
+                        if (!string.IsNullOrEmpty(context.Request.Headers["Authorization"]))
+                        {
+                            var authHeader = context.Request.Headers["Authorization"].ToString();
+                            if (authHeader.StartsWith("Bearer "))
+                            {
+                                var token = authHeader.Substring(7);
+                                var parts = token.Split('.');
+                                if (parts.Length >= 2)
+                                {
+                                    try
+                                    {
+                                        var headerJson = System.Text.Encoding.UTF8.GetString(
+                                            Convert.FromBase64String(parts[0].PadRight(parts[0].Length + (4 - parts[0].Length % 4) % 4, '=')));
+                                        Console.WriteLine($"[OAuth Debug] Token header: {headerJson}");
+                                    }
+                                    catch { }
+                                }
+                            }
+                        }
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        var claims = context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}");
+                        Console.WriteLine($"[OAuth Debug] Token validated successfully. Claims: {string.Join(", ", claims ?? Array.Empty<string>())}");
+                        return Task.CompletedTask;
+                    },
+                    OnChallenge = context =>
+                    {
+                        Console.WriteLine($"[OAuth Debug] Challenge issued. Error: {context.Error}, Description: {context.ErrorDescription}");
+                        return Task.CompletedTask;
+                    },
+                    OnMessageReceived = context =>
+                    {
+                        var token = context.Token;
+                        Console.WriteLine($"[OAuth Debug] Token received: {(string.IsNullOrEmpty(token) ? "NONE" : "Present (length: " + token.Length + ")")}");
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
         // ⭐ Configure authorization policies for each scope
@@ -566,11 +622,17 @@ class Program
             );
         });
 
-        // ⭐ Register the scope authorization handler as a singleton
-        builder.Services.AddSingleton<
-            Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
-            Knowledge.Mcp.Authorization.HasScopeHandler
-        >();
+            // ⭐ Register the scope authorization handler as a singleton
+            builder.Services.AddSingleton<
+                Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+                Knowledge.Mcp.Authorization.HasScopeHandler
+            >();
+        }
+        else
+        {
+            Console.WriteLine($"⚠️  OAuth 2.1 Authentication DISABLED - Server is running WITHOUT authentication!");
+            Console.WriteLine($"  ⚠️  This should ONLY be used for local development/testing");
+        }
 
         // ⭐ Configure MCP server with HTTP transport
         builder
@@ -603,9 +665,13 @@ class Program
 
         var app = builder.Build();
 
-        // ⭐ Register OAuth metadata endpoints (RFC 9728)
-        var auth0Domain = builder.Configuration["Auth0:Domain"];
-        app.MapOAuthMetadataEndpoints(auth0Domain!);
+        // ⭐ Register OAuth metadata endpoints (RFC 9728) - only if OAuth is enabled
+        if (auth0Enabled)
+        {
+            var auth0Domain = builder.Configuration["Auth0:Domain"];
+            var apiAudience = builder.Configuration["Auth0:Audience"] ?? "";
+            app.MapOAuthMetadataEndpoints(auth0Domain!, apiAudience);
+        }
 
         // ⭐ Enable CORS (must be before UseRouting)
         app.UseCors();
@@ -613,16 +679,19 @@ class Program
         // ⭐ Add routing middleware (required for endpoint mapping)
         app.UseRouting();
 
-        // ⭐ Enable authentication and authorization middleware
-        // IMPORTANT: Must come AFTER UseCors() and UseRouting(), BEFORE MapMcp()
-        app.UseAuthentication(); // First: Validate JWT token
-        app.UseAuthorization(); // Second: Check if user has required scopes
+        // ⭐ Enable authentication and authorization middleware - only if OAuth is enabled
+        if (auth0Enabled)
+        {
+            // IMPORTANT: Must come AFTER UseCors() and UseRouting(), BEFORE MapMcp()
+            app.UseAuthentication(); // First: Validate JWT token
+            app.UseAuthorization(); // Second: Check if user has required scopes
 
-        Console.WriteLine("Authentication and authorization middleware enabled");
+            Console.WriteLine("Authentication and authorization middleware enabled");
 
-        // ⭐ Add WWW-Authenticate header to 401 responses (MCP spec requirement)
-        app.UseWWWAuthenticateHeader(serverUrl);
-        Console.WriteLine($"WWW-Authenticate header middleware enabled (authorization_uri: {serverUrl}/.well-known/oauth-authorization-server)");
+            // ⭐ Add WWW-Authenticate header to 401 responses (MCP spec requirement)
+            app.UseWWWAuthenticateHeader(serverUrl);
+            Console.WriteLine($"WWW-Authenticate header middleware enabled (authorization_uri: {serverUrl}/.well-known/oauth-authorization-server)");
+        }
 
         // ⭐ Add exception handling for debugging
         app.Use(
@@ -645,13 +714,25 @@ class Program
         );
 
         // ⭐ Map MCP endpoints (creates /sse and /messages endpoints)
-        // Require mcp:execute scope for all MCP operations (tool execution)
-        app.MapMcp()
-            .RequireAuthorization("mcp:execute");
+        // Require mcp:execute scope for all MCP operations (tool execution) - only if OAuth enabled
+        if (auth0Enabled)
+        {
+            app.MapMcp()
+                .RequireAuthorization("mcp:execute");
 
-        Console.WriteLine("Knowledge MCP Server HTTP endpoints:");
-        Console.WriteLine("  GET  /sse       - Server-Sent Events stream (requires mcp:execute scope)");
-        Console.WriteLine("  POST /messages  - JSON-RPC requests (requires mcp:execute scope)");
+            Console.WriteLine("Knowledge MCP Server HTTP endpoints:");
+            Console.WriteLine("  GET  /sse       - Server-Sent Events stream (requires mcp:execute scope)");
+            Console.WriteLine("  POST /messages  - JSON-RPC requests (requires mcp:execute scope)");
+        }
+        else
+        {
+            app.MapMcp(); // No authorization required when OAuth is disabled
+
+            Console.WriteLine("⚠️  Knowledge MCP Server HTTP endpoints (UNAUTHENTICATED):");
+            Console.WriteLine("  GET  /sse       - Server-Sent Events stream (NO AUTH)");
+            Console.WriteLine("  POST /messages  - JSON-RPC requests (NO AUTH)");
+        }
+
         Console.WriteLine();
         Console.WriteLine(
             $"Server listening on: {app.Urls.FirstOrDefault() ?? "http://localhost:5000"}"
