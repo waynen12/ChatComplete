@@ -67,7 +67,7 @@ Current Milestones (✅ done, 🔄 in-progress, 🛠️ todo)
 20	Agent Implementation (Semantic Kernel plugins, cross-knowledge search)	✅ COMPLETE
 21	Ollama Model Management (UI + API + downloads)	✅ VERIFIED
 22	MCP Integration (Model Context Protocol servers and clients)	✅ COMPLETE
-23	MCP OAuth 2.1 Authentication (secure remote MCP access)	🛠️ TODO
+23	MCP OAuth 2.1 Authentication (secure remote MCP access)	🔄 IN PROGRESS (M2M working, PKCE blocked)
 24	MCP Client Development (separate repo, STDIO + HTTP transports)	🔄 IN PROGRESS
 
 Latest Sanity Checklist (quick smoke test)
@@ -480,9 +480,31 @@ dotnet run --project Knowledge.Mcp/Knowledge.Mcp.csproj -- --http
 - ✅ Successfully tested with Claude Desktop
 - ✅ Exception handling and logging in place
 
-## MCP OAuth 2.1 Authentication (Milestone #23) 🛠️ TODO
+## MCP OAuth 2.1 Authentication (Milestone #23) 🔄 IN PROGRESS (November 2025)
 
-**Secure Remote MCP Access** - Implement OAuth 2.1 authentication per MCP Authorization Specification.
+**Secure Remote MCP Access** - OAuth 2.1 authentication for MCP HTTP transport.
+
+### Implementation Status
+
+✅ **Completed (M2M Client Credentials Flow):**
+- JWT Bearer authentication with Auth0 integration
+- Scope-based authorization (mcp:read, mcp:execute, mcp:admin)
+- Token validation via JWKS endpoint
+- RFC 9728 OAuth metadata endpoint
+- WWW-Authenticate header for 401 responses
+- Configurable OAuth (enable/disable via appsettings.json)
+- Successfully tested with Postman and MCP Inspector
+
+⚠️ **Blocked (PKCE Authorization Code Flow):**
+- Auth0 returning encrypted JWE tokens instead of signed JWT tokens
+- Token header shows `{"alg":"dir","enc":"A256GCM"}` (JWE encryption)
+- JWT Bearer middleware expects `RS256` with `kid` (standard JWT)
+- Blocks GitHub Copilot PKCE integration
+
+🔄 **Next Steps:**
+- Test with alternative OAuth providers (Azure AD, AWS Cognito, Keycloak)
+- Determine if JWE encryption is Auth0-specific or provider-agnostic issue
+- May require JWE decryption support or provider-specific configuration
 
 ### Requirements Research Complete
 
