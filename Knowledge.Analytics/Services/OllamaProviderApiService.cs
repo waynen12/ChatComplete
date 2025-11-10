@@ -65,7 +65,7 @@ public class OllamaProviderApiService : IProviderApiService
                 {
                     ["isConnected"] = isConnected,
                     ["modelCount"] = models?.Count() ?? 0,
-                    ["errorMessage"] = isConnected ? null : "Ollama service not available"
+                    ["errorMessage"] = isConnected ? string.Empty : "Ollama service not available"
                 }
             };
         }

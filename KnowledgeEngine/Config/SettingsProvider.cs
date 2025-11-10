@@ -2,7 +2,7 @@ namespace ChatCompletion.Config
 {
     public static class SettingsProvider
     {
-        public static ChatCompleteSettings Settings { get; private set; }
+        public static ChatCompleteSettings Settings { get; private set; } = null!;
 
         public static void Initialize(ChatCompleteSettings settings)
         {

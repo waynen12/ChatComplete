@@ -9,16 +9,16 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Linq.Dynamic.Core;
 
-public class LibrAIan 
+public class LibrAIan
 {
     public LibrAIan()
     {
 
 
-       
+
     }
-   
-    public List<Book> Books { get; set; }
+
+    public List<Book> Books { get; set; } = new List<Book>();
     [KernelFunction("filter_books_by_expression")]
     [Description("Filter the list of books by a given expression. The expression must be a valid c# predicate. like book => book.Name == 'The Great Gatsby'")]
     [return: Description("List of books that match the expression")]

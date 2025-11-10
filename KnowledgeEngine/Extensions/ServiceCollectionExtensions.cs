@@ -28,22 +28,25 @@ public static class ServiceCollectionExtensions
         
         if (vectorStoreProvider == "qdrant")
         {
+            // Validate and get Qdrant settings
+            var qdrantSettings = settings.VectorStore?.Qdrant ?? throw new InvalidOperationException("Qdrant settings are required when VectorStore:Provider is set to 'qdrant'");
+
             // Register QdrantSettings
-            services.AddSingleton(settings.VectorStore.Qdrant);
-            
+            services.AddSingleton(qdrantSettings);
+
             // Register Qdrant services
             services.AddSingleton<QdrantVectorStore>(provider =>
             {
-                var qdrantSettings = settings.VectorStore.Qdrant;
-                
+                var qdrantSettingsFromProvider = provider.GetRequiredService<QdrantSettings>();
+
                 // Create QdrantClient using proper constructor parameters
                 // The constructor expects hostname only (not full URL) plus separate port/https/apiKey parameters
                 // It internally builds the URI using UriBuilder(protocol, host, port) to avoid gRPC HTTP/2 errors
                 var qdrantClient = new QdrantClient(
-                    host: qdrantSettings.Host,
-                    port: qdrantSettings.Port,
-                    https: qdrantSettings.UseHttps,
-                    apiKey: qdrantSettings.ApiKey
+                    host: qdrantSettingsFromProvider.Host,
+                    port: qdrantSettingsFromProvider.Port,
+                    https: qdrantSettingsFromProvider.UseHttps,
+                    apiKey: qdrantSettingsFromProvider.ApiKey
                 );
                 
                 return new QdrantVectorStore(qdrantClient, ownsClient: true);
