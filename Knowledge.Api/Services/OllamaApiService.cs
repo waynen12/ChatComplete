@@ -55,6 +55,12 @@ public class OllamaApiService : IOllamaApiService
     private readonly ILogger<OllamaApiService> _logger;
     private readonly string _ollamaBaseUrl;
 
+    /// <summary>
+    /// Initializes a new instance of the OllamaApiService.
+    /// </summary>
+    /// <param name="httpClient">The HTTP client for API requests.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="configuration">The application configuration.</param>
     public OllamaApiService(
         HttpClient httpClient,
         ILogger<OllamaApiService> logger,

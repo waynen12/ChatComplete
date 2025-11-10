@@ -18,6 +18,12 @@ public class OllamaDownloadService
     // Track active downloads for real-time updates
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _activeDownloads = new();
 
+    /// <summary>
+    /// Initializes a new instance of the OllamaDownloadService.
+    /// </summary>
+    /// <param name="ollamaApi">The Ollama API service.</param>
+    /// <param name="repository">The Ollama repository for database operations.</param>
+    /// <param name="logger">The logger instance.</param>
     public OllamaDownloadService(
         IOllamaApiService ollamaApi,
         IOllamaRepository repository,

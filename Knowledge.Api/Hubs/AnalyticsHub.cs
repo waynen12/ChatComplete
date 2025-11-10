@@ -12,6 +12,11 @@ public class AnalyticsHub : Hub
     private readonly ICachedProviderAggregationService _cachedProviderService;
     private readonly ILogger<AnalyticsHub> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the AnalyticsHub.
+    /// </summary>
+    /// <param name="cachedProviderService">The cached provider aggregation service.</param>
+    /// <param name="logger">The logger instance.</param>
     public AnalyticsHub(
         ICachedProviderAggregationService cachedProviderService,
         ILogger<AnalyticsHub> logger)

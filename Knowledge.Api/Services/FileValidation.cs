@@ -4,6 +4,9 @@ using ILogger = Serilog.ILogger;
 
 namespace Knowledge.Api.Services;
 
+/// <summary>
+/// Provides file upload validation services for the Knowledge API.
+/// </summary>
 public static class FileValidation
 {
     /// <summary>Allowed extensions (lower-case, no dot).</summary>

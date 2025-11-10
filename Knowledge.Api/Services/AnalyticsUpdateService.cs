@@ -5,10 +5,16 @@ using Microsoft.Extensions.Options;
 
 namespace Knowledge.Api.Services;
 
+/// <summary>
+/// Configuration options for analytics update service.
+/// </summary>
 public class AnalyticsUpdateOptions
 {
+    /// <summary>Update interval for general analytics data.</summary>
     public TimeSpan UpdateInterval { get; set; } = TimeSpan.FromMinutes(5);
+    /// <summary>Enable or disable real-time analytics updates.</summary>
     public bool EnableRealTimeUpdates { get; set; } = true;
+    /// <summary>Update interval for OpenAI balance checks.</summary>
     public TimeSpan OpenAIBalanceUpdateInterval { get; set; } = TimeSpan.FromMinutes(2);
 }
 
@@ -22,6 +28,13 @@ public class AnalyticsUpdateService : BackgroundService
     private readonly ILogger<AnalyticsUpdateService> _logger;
     private readonly AnalyticsUpdateOptions _options;
 
+    /// <summary>
+    /// Initializes a new instance of the AnalyticsUpdateService.
+    /// </summary>
+    /// <param name="serviceProvider">The service provider for scoped services.</param>
+    /// <param name="hubContext">The SignalR hub context.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="options">The analytics update options.</param>
     public AnalyticsUpdateService(
         IServiceProvider serviceProvider,
         IHubContext<AnalyticsHub> hubContext,
@@ -34,6 +47,10 @@ public class AnalyticsUpdateService : BackgroundService
         _options = options.Value;
     }
 
+    /// <summary>
+    /// Executes the background analytics update service.
+    /// </summary>
+    /// <param name="stoppingToken">Cancellation token to stop the service.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!_options.EnableRealTimeUpdates)
@@ -192,6 +209,9 @@ public class AnalyticsUpdateService : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Disposes resources used by the analytics update service.
+    /// </summary>
     public override void Dispose()
     {
         _logger.LogInformation("Analytics update service disposing");

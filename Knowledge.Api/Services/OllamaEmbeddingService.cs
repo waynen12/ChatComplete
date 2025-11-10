@@ -26,6 +26,9 @@ public class OllamaEmbeddingService : IEmbeddingGenerator<string, Embedding<floa
         _model = model ?? throw new ArgumentNullException(nameof(model));
     }
 
+    /// <summary>
+    /// Gets the metadata for this Ollama embedding generator.
+    /// </summary>
     public EmbeddingGeneratorMetadata Metadata => new($"ollama-{_model}");
 
     /// <summary>

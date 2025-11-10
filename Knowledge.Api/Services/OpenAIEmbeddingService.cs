@@ -75,11 +75,20 @@ public class OpenAiEmbeddingService : IEmbeddingGenerator<string, Embedding<floa
         return new GeneratedEmbeddings<Embedding<float>>(embeddings);
     }
 
+    /// <summary>
+    /// Gets a service of the specified type.
+    /// </summary>
+    /// <param name="serviceType">The type of service to retrieve.</param>
+    /// <param name="serviceKey">Optional service key.</param>
+    /// <returns>The service instance if available, otherwise null.</returns>
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
         return serviceType.IsInstanceOfType(this) ? this : null;
     }
 
+    /// <summary>
+    /// Disposes resources used by the embedding service.
+    /// </summary>
     public void Dispose()
     {
         // HttpClient is managed externally, don't dispose it here

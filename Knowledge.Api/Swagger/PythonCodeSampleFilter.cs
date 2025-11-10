@@ -3,8 +3,16 @@ using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
+/// <summary>
+/// Swagger operation filter that adds Python code samples to API documentation.
+/// </summary>
 public sealed class PythonCodeSampleFilter : IOperationFilter
 {
+    /// <summary>
+    /// Applies Python code sample to the chat endpoint in Swagger documentation.
+    /// </summary>
+    /// <param name="op">The OpenAPI operation to modify.</param>
+    /// <param name="ctx">The operation filter context.</param>
     public void Apply(OpenApiOperation op, OperationFilterContext ctx)
     {
         if (
