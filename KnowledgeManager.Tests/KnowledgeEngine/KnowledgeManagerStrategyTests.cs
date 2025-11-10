@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using KnowledgeEngine;
+using KnowledgeEngine.Models;
+using KnowledgeEngine.Persistence.IndexManagers;
+using KnowledgeEngine.Persistence.VectorStores;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Xunit;
 using Xunit.Abstractions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.AI;
-using KnowledgeEngine;
-using KnowledgeEngine.Persistence.VectorStores;
-using KnowledgeEngine.Persistence.IndexManagers;
-using KnowledgeEngine.Models;
 
 namespace KnowledgeManager.Tests.KnowledgeEngine;
 
@@ -32,23 +32,25 @@ public class KnowledgeManagerStrategyTests
     public void KnowledgeManager_ShouldAcceptStrategyDependencies()
     {
         // Test that KnowledgeManager constructor accepts the strategy interfaces
-        // We can't easily create real instances without full DI setup, 
+        // We can't easily create real instances without full DI setup,
         // but we can verify the constructor signature exists
-        
+
         var constructors = typeof(global::KnowledgeEngine.KnowledgeManager).GetConstructors();
         var primaryConstructor = constructors.FirstOrDefault();
-        
+
         Assert.NotNull(primaryConstructor);
-        
+
         var parameters = primaryConstructor.GetParameters();
         var parameterTypes = parameters.Select(p => p.ParameterType).ToList();
-        
+
         // Should have IVectorStoreStrategy and IIndexManager parameters
         Assert.Contains(typeof(IVectorStoreStrategy), parameterTypes);
         Assert.Contains(typeof(IIndexManager), parameterTypes);
-        
+
         _output.WriteLine($"✅ KnowledgeManager constructor accepts strategy dependencies");
-        _output.WriteLine($"   Parameters: {string.Join(", ", parameters.Select(p => p.ParameterType.Name))}");
+        _output.WriteLine(
+            $"   Parameters: {string.Join(", ", parameters.Select(p => p.ParameterType.Name))}"
+        );
     }
 
     [Fact]
@@ -56,14 +58,17 @@ public class KnowledgeManagerStrategyTests
     {
         // Verify that KnowledgeManager maintains its expected API
         var managerType = typeof(global::KnowledgeEngine.KnowledgeManager);
-        var publicMethods = managerType.GetMethods().Where(m => m.IsPublic && !m.IsSpecialName).ToList();
+        var publicMethods = managerType
+            .GetMethods()
+            .Where(m => m.IsPublic && !m.IsSpecialName)
+            .ToList();
         var methodNames = publicMethods.Select(m => m.Name).ToList();
 
         // Key methods that should exist for the RAG pipeline
         var expectedMethods = new[]
         {
-            "SaveToMemoryAsync",  // Document ingestion (actual method name)
-            "SearchAsync",        // Semantic search (actual method name)
+            "SaveToMemoryAsync", // Document ingestion (actual method name)
+            "SearchAsync", // Semantic search (actual method name)
         };
 
         foreach (var expectedMethod in expectedMethods)
@@ -76,26 +81,29 @@ public class KnowledgeManagerStrategyTests
     }
 
     [Fact]
-    public async Task KnowledgeManager_SaveToMemoryAsync_ShouldAcceptValidParameters()
+    public Task KnowledgeManager_SaveToMemoryAsync_ShouldAcceptValidParameters()
     {
         // Test parameter validation for the core SaveToMemoryAsync method
         // This is a structural test since we can't easily test with real data
-        
+
         var managerType = typeof(global::KnowledgeEngine.KnowledgeManager);
         var ingestMethod = managerType.GetMethod("SaveToMemoryAsync");
-        
+
         Assert.NotNull(ingestMethod);
-        
+
         var parameters = ingestMethod.GetParameters();
         Assert.True(parameters.Length > 0);
 
         // Should have async return type
-        Assert.True(ingestMethod.ReturnType == typeof(Task) || 
-                   ingestMethod.ReturnType.BaseType == typeof(Task));
+        Assert.True(
+            ingestMethod.ReturnType == typeof(Task)
+                || ingestMethod.ReturnType.BaseType == typeof(Task)
+        );
 
         _output.WriteLine($"✅ SaveToMemoryAsync method signature validation passed");
         _output.WriteLine($"   Parameters: {parameters.Length}");
         _output.WriteLine($"   Return type: {ingestMethod.ReturnType.Name}");
+        return Task.CompletedTask;
     }
 
     [Fact]
@@ -104,20 +112,22 @@ public class KnowledgeManagerStrategyTests
         // Verify the SearchAsync method returns the expected type
         var managerType = typeof(global::KnowledgeEngine.KnowledgeManager);
         var searchMethod = managerType.GetMethod("SearchAsync");
-        
+
         Assert.NotNull(searchMethod);
-        
+
         // Should return Task<List<KnowledgeSearchResult>>
         Assert.True(searchMethod.ReturnType.IsGenericType);
         var returnType = searchMethod.ReturnType;
-        
+
         if (returnType.GetGenericTypeDefinition() == typeof(Task<>))
         {
             var taskResultType = returnType.GetGenericArguments()[0];
-            
+
             // Check if it returns a collection of search results
-            if (taskResultType.IsGenericType && 
-                taskResultType.GetGenericTypeDefinition() == typeof(List<>))
+            if (
+                taskResultType.IsGenericType
+                && taskResultType.GetGenericTypeDefinition() == typeof(List<>)
+            )
             {
                 var listItemType = taskResultType.GetGenericArguments()[0];
                 Assert.Equal(typeof(KnowledgeSearchResult), listItemType);
@@ -136,15 +146,15 @@ public class KnowledgeManagerStrategyTests
     {
         // Test collection name validation logic
         // These should be valid collection names for both MongoDB and Qdrant
-        
+
         Assert.NotNull(collectionName);
         Assert.NotEmpty(collectionName);
         Assert.False(string.IsNullOrWhiteSpace(collectionName));
-        
+
         // Basic naming rules that should work for both vector stores
         Assert.DoesNotContain(" ", collectionName); // No spaces
         Assert.False(collectionName.StartsWith(".")); // No leading dots
-        
+
         _output.WriteLine($"✅ Collection name validation passed: '{collectionName}'");
     }
 
@@ -153,13 +163,16 @@ public class KnowledgeManagerStrategyTests
     {
         // Verify both strategy implementations exist and can be distinguished
         var strategyInterface = typeof(IVectorStoreStrategy);
-        var implementations = strategyInterface.Assembly
-            .GetTypes()
+        var implementations = strategyInterface
+            .Assembly.GetTypes()
             .Where(t => strategyInterface.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
             .ToList();
 
-        Assert.True(implementations.Count >= 2, "Should have at least 2 vector store implementations");
-        
+        Assert.True(
+            implementations.Count >= 2,
+            "Should have at least 2 vector store implementations"
+        );
+
         var implementationNames = implementations.Select(t => t.Name).ToList();
         Assert.Contains("MongoVectorStoreStrategy", implementationNames);
         Assert.Contains("QdrantVectorStoreStrategy", implementationNames);
@@ -176,13 +189,16 @@ public class KnowledgeManagerStrategyTests
     {
         // Verify both index manager implementations exist
         var managerInterface = typeof(IIndexManager);
-        var implementations = managerInterface.Assembly
-            .GetTypes()
+        var implementations = managerInterface
+            .Assembly.GetTypes()
             .Where(t => managerInterface.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
             .ToList();
 
-        Assert.True(implementations.Count >= 2, "Should have at least 2 index manager implementations");
-        
+        Assert.True(
+            implementations.Count >= 2,
+            "Should have at least 2 index manager implementations"
+        );
+
         var implementationNames = implementations.Select(t => t.Name).ToList();
         Assert.Contains("AtlasIndexManager", implementationNames);
         Assert.Contains("QdrantIndexManager", implementationNames);
@@ -212,7 +228,9 @@ public class KnowledgeManagerStrategyTests
         }
 
         _output.WriteLine($"✅ Clean architecture validation passed");
-        _output.WriteLine($"   Dependencies on interfaces: {parameterTypes.Count(t => t.IsInterface)}");
+        _output.WriteLine(
+            $"   Dependencies on interfaces: {parameterTypes.Count(t => t.IsInterface)}"
+        );
     }
 
     [Fact]
@@ -222,10 +240,10 @@ public class KnowledgeManagerStrategyTests
         var searchResult = new KnowledgeSearchResult
         {
             Text = "Test content for compatibility validation",
-            Source = "test-document.pdf", 
+            Source = "test-document.pdf",
             ChunkOrder = 0,
             Score = 0.85,
-            Tags = "test,validation"
+            Tags = "test,validation",
         };
 
         // Should be serializable/deserializable for storage
@@ -256,7 +274,7 @@ public class KnowledgeManagerStrategyTests
             Text = "Test chunk content for vector operations",
             Source = "test-document.pdf",
             ChunkOrder = 1,
-            Tags = "test,chunk"
+            Tags = "test,chunk",
         };
 
         Assert.Equal("test-chunk-1", chunkRecord.Id);
@@ -270,17 +288,17 @@ public class KnowledgeManagerStrategyTests
     }
 
     [Theory]
-    [InlineData(0.6)]  // Default threshold
-    [InlineData(0.7)]  // Higher threshold
-    [InlineData(0.5)]  // Lower threshold
+    [InlineData(0.6)] // Default threshold
+    [InlineData(0.7)] // Higher threshold
+    [InlineData(0.5)] // Lower threshold
     public void KnowledgeManager_SearchThreshold_ShouldBeConfigurable(double threshold)
     {
         // Test that different relevance thresholds produce expected filtering behavior
         var results = new List<KnowledgeSearchResult>
         {
             new() { Text = "High relevance", Score = 0.95 },
-            new() { Text = "Medium relevance", Score = 0.75 }, 
-            new() { Text = "Low relevance", Score = 0.45 }
+            new() { Text = "Medium relevance", Score = 0.75 },
+            new() { Text = "Low relevance", Score = 0.45 },
         };
 
         var filteredResults = results.Where(r => r.Score >= threshold).ToList();
@@ -297,9 +315,9 @@ public class KnowledgeManagerStrategyTests
     public void KnowledgeManager_ErrorHandling_ShouldBeResilient()
     {
         // Test error handling patterns that the strategies should implement
-        
+
         // Test null/empty inputs
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
         {
             string nullString = null!;
             if (string.IsNullOrEmpty(nullString))
@@ -308,7 +326,7 @@ public class KnowledgeManagerStrategyTests
 
         // Test invalid collection names
         var invalidNames = new[] { "", " ", ".", "..", null! };
-        
+
         foreach (var name in invalidNames.Where(n => n != null))
         {
             Assert.True(string.IsNullOrWhiteSpace(name) || name.StartsWith("."));

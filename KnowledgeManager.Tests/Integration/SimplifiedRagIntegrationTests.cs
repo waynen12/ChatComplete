@@ -31,10 +31,11 @@ namespace KnowledgeManager.Tests.Integration
         }
 
         [Fact]
-        public async Task RagPipeline_ChunkGeneration_ShouldCreateMultipleChunks()
+        public Task RagPipeline_ChunkGeneration_ShouldCreateMultipleChunks()
         {
             // Arrange
-            var testDocument = @"
+            var testDocument =
+                @"
 # RAG Pipeline Test Document
 
 ## Introduction
@@ -72,52 +73,67 @@ Each section should be processed as separate searchable chunks.
             // Assert
             Assert.NotEmpty(chunks);
             Assert.True(chunks.Count >= 4, $"Expected at least 4 chunks, got {chunks.Count}");
-            
+
             _output.WriteLine($"✓ Document chunked into {chunks.Count} pieces");
-            
+
             // Verify chunk content
-            var hasIntroduction = chunks.Any(c => c.Content.Contains("Introduction", StringComparison.OrdinalIgnoreCase));
-            var hasFeatures = chunks.Any(c => c.Content.Contains("features", StringComparison.OrdinalIgnoreCase));
-            var hasTechnical = chunks.Any(c => c.Content.Contains("Technical", StringComparison.OrdinalIgnoreCase));
-            var hasUseCases = chunks.Any(c => c.Content.Contains("Use Cases", StringComparison.OrdinalIgnoreCase));
-            
+            var hasIntroduction = chunks.Any(c =>
+                c.Content.Contains("Introduction", StringComparison.OrdinalIgnoreCase)
+            );
+            var hasFeatures = chunks.Any(c =>
+                c.Content.Contains("features", StringComparison.OrdinalIgnoreCase)
+            );
+            var hasTechnical = chunks.Any(c =>
+                c.Content.Contains("Technical", StringComparison.OrdinalIgnoreCase)
+            );
+            var hasUseCases = chunks.Any(c =>
+                c.Content.Contains("Use Cases", StringComparison.OrdinalIgnoreCase)
+            );
+
             Assert.True(hasIntroduction, "Should have Introduction section");
             Assert.True(hasFeatures, "Should have Features section");
             Assert.True(hasTechnical, "Should have Technical section");
             Assert.True(hasUseCases, "Should have Use Cases section");
-            
+
             _output.WriteLine("✓ All expected sections found in chunks");
-            
+
             // Verify chunk metadata
             foreach (var chunk in chunks.Take(3))
             {
                 Assert.NotEmpty(chunk.Content);
                 Assert.NotEmpty(chunk.Metadata.Source);
-                _output.WriteLine($"  Chunk {chunk.Id}: {chunk.Content.Length} chars from {chunk.Metadata.Source}");
+                _output.WriteLine(
+                    $"  Chunk {chunk.Id}: {chunk.Content.Length} chars from {chunk.Metadata.Source}"
+                );
             }
-            
+
             _output.WriteLine("✅ Document chunking test completed successfully");
+            return Task.CompletedTask;
         }
 
         [Theory]
         [InlineData("What features does the system have?")]
         [InlineData("Tell me about the technical architecture")]
         [InlineData("What are common use cases?")]
-        public async Task RagPipeline_QuestionPatterns_ShouldGenerateRelevantSearchTerms(string question)
+        public Task RagPipeline_QuestionPatterns_ShouldGenerateRelevantSearchTerms(string question)
         {
             // Arrange & Act - Test that questions can be processed for search
             var searchTerms = ExtractSearchTermsFromQuestion(question);
-            
+
             // Assert
             Assert.NotEmpty(searchTerms);
-            Assert.True(searchTerms.All(term => term.Length > 2), "Search terms should be meaningful");
-            
+            Assert.True(
+                searchTerms.All(term => term.Length > 2),
+                "Search terms should be meaningful"
+            );
+
             _output.WriteLine($"Question: '{question}'");
             _output.WriteLine($"✓ Search terms: {string.Join(", ", searchTerms)}");
+            return Task.CompletedTask;
         }
 
         [Fact]
-        public async Task RagPipeline_ConversationFlow_ShouldMaintainContext()
+        public Task RagPipeline_ConversationFlow_ShouldMaintainContext()
         {
             // Arrange - Simulate conversation context
             var conversationId = Guid.NewGuid().ToString();
@@ -126,10 +142,10 @@ Each section should be processed as separate searchable chunks.
             // Act - Simulate multi-turn conversation
             var turn1 = "What is the RAG pipeline?";
             conversationHistory.Add(turn1);
-            
+
             var turn2 = "What are its main features?";
             conversationHistory.Add(turn2);
-            
+
             var turn3 = "Can you elaborate on the architecture?";
             conversationHistory.Add(turn3);
 
@@ -138,22 +154,28 @@ Each section should be processed as separate searchable chunks.
             Assert.Contains("RAG pipeline", conversationHistory[0]);
             Assert.Contains("features", conversationHistory[1]);
             Assert.Contains("architecture", conversationHistory[2]);
-            
-            _output.WriteLine($"✓ Conversation {conversationId} maintained {conversationHistory.Count} turns");
+
+            _output.WriteLine(
+                $"✓ Conversation {conversationId} maintained {conversationHistory.Count} turns"
+            );
             foreach (var (turn, index) in conversationHistory.Select((t, i) => (t, i + 1)))
             {
                 _output.WriteLine($"  Turn {index}: {turn}");
             }
-            
+
             _output.WriteLine("✅ Conversation flow test completed successfully");
+            return Task.CompletedTask;
         }
 
         [Theory]
         [InlineData(AiProvider.OpenAi, "OpenAI GPT")]
-        [InlineData(AiProvider.Anthropic, "Claude")]  
+        [InlineData(AiProvider.Anthropic, "Claude")]
         [InlineData(AiProvider.Google, "Gemini")]
         [InlineData(AiProvider.Ollama, "Local LLM")]
-        public async Task RagPipeline_ProviderHandling_ShouldSupportAllProviders(AiProvider provider, string expectedModel)
+        public Task RagPipeline_ProviderHandling_ShouldSupportAllProviders(
+            AiProvider provider,
+            string expectedModel
+        )
         {
             // Arrange
             var chatRequest = new ChatRequestDto
@@ -161,7 +183,7 @@ Each section should be processed as separate searchable chunks.
                 KnowledgeId = "test-knowledge",
                 Message = "Test message for provider validation",
                 Provider = provider,
-                Temperature = 0.7
+                Temperature = 0.7,
             };
 
             // Act - Simulate provider routing logic
@@ -171,12 +193,13 @@ Each section should be processed as separate searchable chunks.
             // Assert
             Assert.NotEmpty(providerName);
             Assert.True(isSupported, $"Provider {provider} should be supported");
-            
+
             _output.WriteLine($"✓ Provider {provider} -> {providerName} ({expectedModel})");
+            return Task.CompletedTask;
         }
 
         [Fact]
-        public async Task RagPipeline_ErrorHandling_ShouldHandleGracefully()
+        public Task RagPipeline_ErrorHandling_ShouldHandleGracefully()
         {
             // Arrange - Test various error scenarios
             var errorScenarios = new[]
@@ -184,7 +207,7 @@ Each section should be processed as separate searchable chunks.
                 ("Empty knowledge ID", ""),
                 ("Invalid knowledge ID", "invalid-#-id"),
                 ("Empty message", "valid-id"),
-                ("Very long message", "valid-id")
+                ("Very long message", "valid-id"),
             };
 
             // Act & Assert
@@ -192,26 +215,57 @@ Each section should be processed as separate searchable chunks.
             {
                 try
                 {
-                    ValidateKnowledgeRequest(knowledgeId, scenarioName == "Empty message" ? "" : "Test message");
+                    ValidateKnowledgeRequest(
+                        knowledgeId,
+                        scenarioName == "Empty message" ? "" : "Test message"
+                    );
                     _output.WriteLine($"✓ {scenarioName}: Handled gracefully");
                 }
                 catch (ArgumentException ex)
                 {
-                    _output.WriteLine($"✓ {scenarioName}: Expected validation error - {ex.Message}");
+                    _output.WriteLine(
+                        $"✓ {scenarioName}: Expected validation error - {ex.Message}"
+                    );
                     Assert.NotEmpty(ex.Message); // Ensure error messages are meaningful
                 }
             }
-            
+
             _output.WriteLine("✅ Error handling test completed successfully");
+            return Task.CompletedTask;
         }
 
         // Helper methods for test logic
         private static List<string> ExtractSearchTermsFromQuestion(string question)
         {
-            var stopWords = new[] { "what", "how", "where", "when", "why", "the", "is", "are", "and", "or", "but", "to", "of", "in", "on", "at", "for", "with", "by" };
-            
-            return question.ToLower()
-                .Split(new[] { ' ', '?', '.', '!', ',', ';', ':', '-' }, StringSplitOptions.RemoveEmptyEntries)
+            var stopWords = new[]
+            {
+                "what",
+                "how",
+                "where",
+                "when",
+                "why",
+                "the",
+                "is",
+                "are",
+                "and",
+                "or",
+                "but",
+                "to",
+                "of",
+                "in",
+                "on",
+                "at",
+                "for",
+                "with",
+                "by",
+            };
+
+            return question
+                .ToLower()
+                .Split(
+                    new[] { ' ', '?', '.', '!', ',', ';', ':', '-' },
+                    StringSplitOptions.RemoveEmptyEntries
+                )
                 .Where(word => !stopWords.Contains(word) && word.Length > 2)
                 .Distinct()
                 .ToList();
@@ -225,7 +279,7 @@ Each section should be processed as separate searchable chunks.
                 AiProvider.Anthropic => "Anthropic",
                 AiProvider.Google => "Google",
                 AiProvider.Ollama => "Ollama",
-                _ => "Unknown"
+                _ => "Unknown",
             };
         }
 
@@ -238,13 +292,16 @@ Each section should be processed as separate searchable chunks.
         {
             if (string.IsNullOrWhiteSpace(knowledgeId))
                 throw new ArgumentException("Knowledge ID cannot be empty", nameof(knowledgeId));
-                
+
             if (knowledgeId.Contains("#"))
-                throw new ArgumentException("Knowledge ID contains invalid characters", nameof(knowledgeId));
-                
+                throw new ArgumentException(
+                    "Knowledge ID contains invalid characters",
+                    nameof(knowledgeId)
+                );
+
             if (string.IsNullOrWhiteSpace(message))
                 throw new ArgumentException("Message cannot be empty", nameof(message));
-                
+
             if (message.Length > 10000)
                 throw new ArgumentException("Message too long", nameof(message));
         }
