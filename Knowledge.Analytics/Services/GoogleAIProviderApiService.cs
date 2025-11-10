@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Knowledge.Analytics.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -18,22 +17,25 @@ public class GoogleAIProviderApiService : IProviderApiService
     public GoogleAIProviderApiService(
         HttpClient httpClient,
         IConfiguration configuration,
-        ILogger<GoogleAIProviderApiService> logger)
+        ILogger<GoogleAIProviderApiService> logger
+    )
     {
         _httpClient = httpClient;
         _configuration = configuration;
         _logger = logger;
-        
+
         _httpClient.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
         ConfigureHttpClient();
     }
 
-    public async Task<ProviderApiAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default)
+    public Task<ProviderApiAccountInfo?> GetAccountInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         if (!IsConfigured)
         {
             _logger.LogWarning("Google AI API key not configured");
-            return null;
+            return Task.FromResult<ProviderApiAccountInfo?>(null);
         }
 
         try
@@ -41,31 +43,36 @@ public class GoogleAIProviderApiService : IProviderApiService
             // Google AI Studio/Gemini API doesn't provide billing endpoints for individual API keys
             // This would require Google Cloud Console API integration
             _logger.LogInformation("Google AI billing information requires Cloud Console access");
-            
-            return new ProviderApiAccountInfo
+
+            var providerApiAccountInfo = new ProviderApiAccountInfo
             {
                 ProviderName = ProviderName,
                 AdditionalInfo = new()
                 {
                     ["status"] = "API configured",
                     ["note"] = "Billing information available through Google Cloud Console",
-                    ["quota_type"] = "Per-minute requests"
-                }
+                    ["quota_type"] = "Per-minute requests",
+                },
             };
+
+            return Task.FromResult(providerApiAccountInfo ?? null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving Google AI account information");
-            return null;
+            return Task.FromResult<ProviderApiAccountInfo?>(null);
         }
     }
 
-    public async Task<ProviderApiUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default)
+    public Task<ProviderApiUsageInfo?> GetUsageInfoAsync(
+        int days = 30,
+        CancellationToken cancellationToken = default
+    )
     {
         if (!IsConfigured)
         {
             _logger.LogWarning("Google AI API key not configured");
-            return null;
+            return Task.FromResult<ProviderApiUsageInfo?>(null);
         }
 
         try
@@ -73,12 +80,12 @@ public class GoogleAIProviderApiService : IProviderApiService
             // Google AI Studio API doesn't provide usage analytics endpoints
             // Usage data would need to come from Google Cloud Console APIs
             _logger.LogInformation("Google AI usage data requires Cloud Console API integration");
-            
+
             var endDate = DateTime.UtcNow.Date;
             var startDate = endDate.AddDays(-days);
 
             // For now, return a placeholder response indicating the limitation
-            return new ProviderApiUsageInfo
+            var providerApiUsageInfo = new ProviderApiUsageInfo
             {
                 ProviderName = ProviderName,
                 StartDate = startDate,
@@ -95,7 +102,7 @@ public class GoogleAIProviderApiService : IProviderApiService
                         Requests = 0,
                         InputTokens = 0,
                         OutputTokens = 0,
-                        Cost = 0m
+                        Cost = 0m,
                     },
                     new()
                     {
@@ -103,15 +110,16 @@ public class GoogleAIProviderApiService : IProviderApiService
                         Requests = 0,
                         InputTokens = 0,
                         OutputTokens = 0,
-                        Cost = 0m
-                    }
-                }
+                        Cost = 0m,
+                    },
+                },
             };
+            return Task.FromResult(providerApiUsageInfo ?? null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving Google AI usage information");
-            return null;
+            return Task.FromResult<ProviderApiUsageInfo?>(null);
         }
     }
 
@@ -127,14 +135,14 @@ public class GoogleAIProviderApiService : IProviderApiService
 
     private string? GetApiKey()
     {
-        return Environment.GetEnvironmentVariable("GEMINI_API_KEY") ?? 
-               _configuration["ChatCompleteSettings:GoogleApiKey"] ??
-               _configuration["ChatCompleteSettings:GeminiApiKey"];
+        return Environment.GetEnvironmentVariable("GEMINI_API_KEY")
+            ?? _configuration["ChatCompleteSettings:GoogleApiKey"]
+            ?? _configuration["ChatCompleteSettings:GeminiApiKey"];
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 }

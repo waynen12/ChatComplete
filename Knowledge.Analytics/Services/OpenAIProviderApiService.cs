@@ -18,17 +18,20 @@ public class OpenAIProviderApiService : IProviderApiService
     public OpenAIProviderApiService(
         HttpClient httpClient,
         IConfiguration configuration,
-        ILogger<OpenAIProviderApiService> logger)
+        ILogger<OpenAIProviderApiService> logger
+    )
     {
         _httpClient = httpClient;
         _configuration = configuration;
         _logger = logger;
-        
+
         _httpClient.BaseAddress = new Uri("https://api.openai.com/");
         ConfigureHttpClient();
     }
 
-    public async Task<ProviderApiAccountInfo?> GetAccountInfoAsync(CancellationToken cancellationToken = default)
+    public async Task<ProviderApiAccountInfo?> GetAccountInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         if (!IsConfigured)
         {
@@ -38,20 +41,29 @@ public class OpenAIProviderApiService : IProviderApiService
 
         try
         {
-            _logger.LogDebug("Attempting to connect to OpenAI API at {BaseAddress}", _httpClient.BaseAddress);
-            
+            _logger.LogDebug(
+                "Attempting to connect to OpenAI API at {BaseAddress}",
+                _httpClient.BaseAddress
+            );
+
             // Use the models endpoint to verify API key is working and get organization info
             var response = await _httpClient.GetAsync("v1/models", cancellationToken);
-            
+
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Failed to get OpenAI account info: {StatusCode} {Reason}", 
-                    response.StatusCode, response.ReasonPhrase);
+                _logger.LogWarning(
+                    "Failed to get OpenAI account info: {StatusCode} {Reason}",
+                    response.StatusCode,
+                    response.ReasonPhrase
+                );
                 return null;
             }
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            var modelsResponse = JsonSerializer.Deserialize<OpenAIModelsResponse>(content, JsonOptions);
+            var modelsResponse = JsonSerializer.Deserialize<OpenAIModelsResponse>(
+                content,
+                JsonOptions
+            );
 
             // Since we can't get billing info with regular API keys, provide basic account info
             return new ProviderApiAccountInfo
@@ -63,16 +75,19 @@ public class OpenAIProviderApiService : IProviderApiService
                 PlanType = "API", // Generic plan type
                 AdditionalInfo = new()
                 {
-                    ["models_available"] = modelsResponse?.Data?.Count ?? 0,
+                    ["models_available"] = modelsResponse?.Data.Count ?? 0,
                     ["api_status"] = "connected",
                     ["is_connected"] = true,
-                    ["note"] = "Balance information requires billing API access"
-                }
+                    ["note"] = "Balance information requires billing API access",
+                },
             };
         }
         catch (HttpRequestException httpEx)
         {
-            _logger.LogError(httpEx, "HTTP error when connecting to OpenAI API. This might be a network or SSL issue.");
+            _logger.LogError(
+                httpEx,
+                "HTTP error when connecting to OpenAI API. This might be a network or SSL issue."
+            );
             return new ProviderApiAccountInfo
             {
                 ProviderName = ProviderName,
@@ -86,8 +101,8 @@ public class OpenAIProviderApiService : IProviderApiService
                     ["detailed_error"] = httpEx.Message,
                     ["api_status"] = "connection_error",
                     ["is_connected"] = false,
-                    ["troubleshooting"] = "Check network connectivity and SSL configuration"
-                }
+                    ["troubleshooting"] = "Check network connectivity and SSL configuration",
+                },
             };
         }
         catch (TaskCanceledException taskEx) when (taskEx.InnerException is TimeoutException)
@@ -104,8 +119,8 @@ public class OpenAIProviderApiService : IProviderApiService
                 {
                     ["error"] = "Request timeout",
                     ["api_status"] = "timeout",
-                    ["is_connected"] = false
-                }
+                    ["is_connected"] = false,
+                },
             };
         }
         catch (Exception ex)
@@ -122,18 +137,21 @@ public class OpenAIProviderApiService : IProviderApiService
                 {
                     ["error"] = ex.Message,
                     ["api_status"] = "error",
-                    ["is_connected"] = false
-                }
+                    ["is_connected"] = false,
+                },
             };
         }
     }
 
-    public async Task<ProviderApiUsageInfo?> GetUsageInfoAsync(int days = 30, CancellationToken cancellationToken = default)
+    public Task<ProviderApiUsageInfo?> GetUsageInfoAsync(
+        int days = 30,
+        CancellationToken cancellationToken = default
+    )
     {
         if (!IsConfigured)
         {
             _logger.LogWarning("OpenAI API key not configured");
-            return null;
+            return Task.FromResult<ProviderApiUsageInfo?>(null);
         }
 
         try
@@ -143,10 +161,12 @@ public class OpenAIProviderApiService : IProviderApiService
 
             // OpenAI's billing endpoints require special access, so we'll simulate usage data
             // In a real scenario, you could track usage from your own application logs
-            _logger.LogInformation("OpenAI usage data not available - billing API requires special access");
+            _logger.LogInformation(
+                "OpenAI usage data not available - billing API requires special access"
+            );
 
             // Return a placeholder response indicating billing API limitations
-            return new ProviderApiUsageInfo
+            var providerApiUsageInfo = new ProviderApiUsageInfo
             {
                 ProviderName = ProviderName,
                 StartDate = startDate,
@@ -155,13 +175,14 @@ public class OpenAIProviderApiService : IProviderApiService
                 Currency = "USD",
                 TotalRequests = 0,
                 TotalTokens = 0,
-                ModelBreakdown = new List<ModelUsageInfo>()
+                ModelBreakdown = new List<ModelUsageInfo>(),
             };
+            return Task.FromResult(providerApiUsageInfo ?? null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving OpenAI usage information");
-            return null;
+            return Task.FromResult<ProviderApiUsageInfo?>(null);
         }
     }
 
@@ -170,21 +191,21 @@ public class OpenAIProviderApiService : IProviderApiService
         var apiKey = GetApiKey();
         if (!string.IsNullOrEmpty(apiKey))
         {
-            _httpClient.DefaultRequestHeaders.Authorization = 
+            _httpClient.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
         }
     }
 
     private string? GetApiKey()
     {
-        return Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? 
-               _configuration["ChatCompleteSettings:OpenAiApiKey"];
+        return Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+            ?? _configuration["ChatCompleteSettings:OpenAiApiKey"];
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 }
 

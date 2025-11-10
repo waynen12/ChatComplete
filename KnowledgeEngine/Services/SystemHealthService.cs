@@ -1,7 +1,7 @@
 using System.Diagnostics;
+using Knowledge.Analytics.Services;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Services.HealthCheckers;
-using Knowledge.Analytics.Services;
 using Microsoft.Extensions.Logging;
 
 namespace KnowledgeEngine.Services;
@@ -18,24 +18,24 @@ public class SystemHealthService : ISystemHealthService
     public SystemHealthService(
         IEnumerable<IComponentHealthChecker> healthCheckers,
         IUsageTrackingService usageTrackingService,
-        ILogger<SystemHealthService> logger)
+        ILogger<SystemHealthService> logger
+    )
     {
         _healthCheckers = healthCheckers;
         _usageTrackingService = usageTrackingService;
         _logger = logger;
     }
 
-    public async Task<SystemHealthStatus> GetSystemHealthAsync(CancellationToken cancellationToken = default)
+    public async Task<SystemHealthStatus> GetSystemHealthAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation("Starting comprehensive system health check");
         var stopwatch = Stopwatch.StartNew();
 
         try
         {
-            var systemHealth = new SystemHealthStatus
-            {
-                LastChecked = DateTime.UtcNow
-            };
+            var systemHealth = new SystemHealthStatus { LastChecked = DateTime.UtcNow };
 
             // Check all components in parallel
             var componentTasks = _healthCheckers
@@ -56,8 +56,11 @@ public class SystemHealthService : ISystemHealthService
             await GenerateAlertsAndRecommendationsAsync(systemHealth);
 
             stopwatch.Stop();
-            _logger.LogInformation("System health check completed in {Duration}ms. Status: {Status}",
-                stopwatch.ElapsedMilliseconds, systemHealth.OverallStatus);
+            _logger.LogInformation(
+                "System health check completed in {Duration}ms. Status: {Status}",
+                stopwatch.ElapsedMilliseconds,
+                systemHealth.OverallStatus
+            );
 
             return systemHealth;
         }
@@ -68,33 +71,45 @@ public class SystemHealthService : ISystemHealthService
         }
     }
 
-    public async Task<ComponentHealth> CheckComponentHealthAsync(string componentName, CancellationToken cancellationToken = default)
+    public async Task<ComponentHealth> CheckComponentHealthAsync(
+        string componentName,
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation("Checking health for component: {ComponentName}", componentName);
 
-        var healthChecker = _healthCheckers.FirstOrDefault(hc => 
-            string.Equals(hc.ComponentName, componentName, StringComparison.OrdinalIgnoreCase));
+        var healthChecker = _healthCheckers.FirstOrDefault(hc =>
+            string.Equals(hc.ComponentName, componentName, StringComparison.OrdinalIgnoreCase)
+        );
 
         if (healthChecker == null)
         {
-            _logger.LogWarning("No health checker found for component: {ComponentName}", componentName);
+            _logger.LogWarning(
+                "No health checker found for component: {ComponentName}",
+                componentName
+            );
             return new ComponentHealth
             {
                 ComponentName = componentName,
                 Status = "Unknown",
                 StatusMessage = "No health checker available for this component",
                 LastChecked = DateTime.UtcNow,
-                IsConnected = false
+                IsConnected = false,
             };
         }
 
-        return await CheckComponentSafelyAsync(healthChecker, cancellationToken) 
-               ?? CreateErrorComponentHealth(componentName, "Health check failed");
+        return await CheckComponentSafelyAsync(healthChecker, cancellationToken)
+            ?? CreateErrorComponentHealth(componentName, "Health check failed");
     }
 
-    public async Task<List<ComponentHealth>> CheckAllComponentsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<ComponentHealth>> CheckAllComponentsAsync(
+        CancellationToken cancellationToken = default
+    )
     {
-        _logger.LogInformation("Checking health for all {Count} components", _healthCheckers.Count());
+        _logger.LogInformation(
+            "Checking health for all {Count} components",
+            _healthCheckers.Count()
+        );
 
         var componentTasks = _healthCheckers
             .OrderBy(hc => hc.Priority)
@@ -105,7 +120,9 @@ public class SystemHealthService : ISystemHealthService
         return results.Where(c => c != null).ToList()!;
     }
 
-    public async Task<SystemMetrics> GetSystemMetricsAsync(CancellationToken cancellationToken = default)
+    public async Task<SystemMetrics> GetSystemMetricsAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogDebug("Gathering system metrics");
 
@@ -113,34 +130,45 @@ public class SystemHealthService : ISystemHealthService
         {
             var metrics = new SystemMetrics
             {
-                SystemStartTime = DateTime.UtcNow // For now, use current time as system start
+                SystemStartTime = DateTime.UtcNow, // For now, use current time as system start
             };
 
             // Get usage statistics from the last 30 days
-            var usageHistory = await _usageTrackingService.GetUsageHistoryAsync(30, cancellationToken);
+            var usageHistory = await _usageTrackingService.GetUsageHistoryAsync(
+                30,
+                cancellationToken
+            );
             var usageList = usageHistory.ToList();
 
             if (usageList.Any())
             {
-                var last24Hours = usageList.Where(u => u.Timestamp >= DateTime.UtcNow.AddDays(-1)).ToList();
+                var last24Hours = usageList
+                    .Where(u => u.Timestamp >= DateTime.UtcNow.AddDays(-1))
+                    .ToList();
                 var successful = usageList.Where(u => u.WasSuccessful).ToList();
 
                 metrics.TotalConversations = usageList.Count;
-                metrics.SuccessRate = usageList.Count > 0 ? (double)successful.Count / usageList.Count * 100 : 0;
+                metrics.SuccessRate =
+                    usageList.Count > 0 ? (double)successful.Count / usageList.Count * 100 : 0;
                 metrics.ErrorsLast24Hours = last24Hours.Count(u => !u.WasSuccessful);
                 metrics.TotalTokensUsed = usageList.Sum(u => u.InputTokens + u.OutputTokens);
 
                 if (successful.Any())
                 {
-                    metrics.AverageResponseTime = successful.Average(u => u.ResponseTime.TotalMilliseconds);
+                    metrics.AverageResponseTime = successful.Average(u =>
+                        u.ResponseTime.TotalMilliseconds
+                    );
                 }
             }
 
             // Get current database size estimate
             metrics.DatabaseSizeBytes = await EstimateDatabaseSizeAsync(cancellationToken);
-            
-            _logger.LogDebug("System metrics gathered: {Conversations} total conversations, {SuccessRate}% success rate",
-                metrics.TotalConversations, metrics.SuccessRate);
+
+            _logger.LogDebug(
+                "System metrics gathered: {Conversations} total conversations, {SuccessRate}% success rate",
+                metrics.TotalConversations,
+                metrics.SuccessRate
+            );
 
             return metrics;
         }
@@ -150,12 +178,12 @@ public class SystemHealthService : ISystemHealthService
             return new SystemMetrics
             {
                 SystemStartTime = DateTime.UtcNow,
-                ErrorsLast24Hours = 1 // Count this error
+                ErrorsLast24Hours = 1, // Count this error
             };
         }
     }
 
-    public async Task<List<string>> GetHealthRecommendationsAsync(SystemHealthStatus healthStatus)
+    public Task<List<string>> GetHealthRecommendationsAsync(SystemHealthStatus healthStatus)
     {
         var recommendations = new List<string>();
 
@@ -167,17 +195,26 @@ public class SystemHealthService : ISystemHealthService
             {
                 if (!sqliteHealth.IsConnected)
                 {
-                    recommendations.Add("Database is not accessible. Check file permissions and disk space.");
+                    recommendations.Add(
+                        "Database is not accessible. Check file permissions and disk space."
+                    );
                 }
                 else if (sqliteHealth.ResponseTime.TotalMilliseconds > 1000)
                 {
-                    recommendations.Add("Database response time is slow. Consider optimizing queries or checking disk I/O.");
+                    recommendations.Add(
+                        "Database response time is slow. Consider optimizing queries or checking disk I/O."
+                    );
                 }
 
-                if (sqliteHealth.Metrics.TryGetValue("DatabaseSizeBytes", out var sizeObj) 
-                    && sizeObj is long size && size > 1_000_000_000) // 1GB
+                if (
+                    sqliteHealth.Metrics.TryGetValue("DatabaseSizeBytes", out var sizeObj)
+                    && sizeObj is long size
+                    && size > 1_000_000_000
+                ) // 1GB
                 {
-                    recommendations.Add("Database size is large (>1GB). Consider archiving old data or implementing cleanup policies.");
+                    recommendations.Add(
+                        "Database size is large (>1GB). Consider archiving old data or implementing cleanup policies."
+                    );
                 }
             }
 
@@ -187,14 +224,21 @@ public class SystemHealthService : ISystemHealthService
             {
                 if (!qdrantHealth.IsConnected)
                 {
-                    recommendations.Add("Vector store is not accessible. Verify Qdrant service is running and configuration is correct.");
+                    recommendations.Add(
+                        "Vector store is not accessible. Verify Qdrant service is running and configuration is correct."
+                    );
                 }
-                else if (qdrantHealth.Status == "Warning" && qdrantHealth.Metrics.ContainsKey("CollectionCount"))
+                else if (
+                    qdrantHealth.Status == "Warning"
+                    && qdrantHealth.Metrics.ContainsKey("CollectionCount")
+                )
                 {
                     var collectionCount = (int)qdrantHealth.Metrics["CollectionCount"];
                     if (collectionCount == 0)
                     {
-                        recommendations.Add("No vector collections found. Upload some documents to enable semantic search.");
+                        recommendations.Add(
+                            "No vector collections found. Upload some documents to enable semantic search."
+                        );
                     }
                 }
             }
@@ -205,14 +249,21 @@ public class SystemHealthService : ISystemHealthService
             {
                 if (!ollamaHealth.IsConnected)
                 {
-                    recommendations.Add("Ollama service is not running. Start Ollama to enable local AI models.");
+                    recommendations.Add(
+                        "Ollama service is not running. Start Ollama to enable local AI models."
+                    );
                 }
-                else if (ollamaHealth.Status == "Warning" && ollamaHealth.Metrics.ContainsKey("ModelCount"))
+                else if (
+                    ollamaHealth.Status == "Warning"
+                    && ollamaHealth.Metrics.ContainsKey("ModelCount")
+                )
                 {
                     var modelCount = (int)ollamaHealth.Metrics["ModelCount"];
                     if (modelCount == 0)
                     {
-                        recommendations.Add("No Ollama models installed. Download models like 'llama3.2:3b' for local AI capabilities.");
+                        recommendations.Add(
+                            "No Ollama models installed. Download models like 'llama3.2:3b' for local AI capabilities."
+                        );
                     }
                 }
             }
@@ -220,47 +271,64 @@ public class SystemHealthService : ISystemHealthService
             // System-wide performance recommendations
             if (healthStatus.Metrics.SuccessRate < 95.0)
             {
-                recommendations.Add($"System success rate is {healthStatus.Metrics.SuccessRate:F1}%. Investigate error patterns and improve reliability.");
+                recommendations.Add(
+                    $"System success rate is {healthStatus.Metrics.SuccessRate:F1}%. Investigate error patterns and improve reliability."
+                );
             }
 
             if (healthStatus.Metrics.AverageResponseTime > 3000)
             {
-                recommendations.Add($"Average response time is {healthStatus.Metrics.AverageResponseTime:F0}ms. Consider optimizing queries or scaling resources.");
+                recommendations.Add(
+                    $"Average response time is {healthStatus.Metrics.AverageResponseTime:F0}ms. Consider optimizing queries or scaling resources."
+                );
             }
 
             if (healthStatus.Metrics.ErrorsLast24Hours > 10)
             {
-                recommendations.Add($"High error count in last 24 hours ({healthStatus.Metrics.ErrorsLast24Hours}). Review error logs and address common issues.");
+                recommendations.Add(
+                    $"High error count in last 24 hours ({healthStatus.Metrics.ErrorsLast24Hours}). Review error logs and address common issues."
+                );
             }
 
             // Overall system health recommendations
             if (healthStatus.CriticalComponents > 0)
             {
-                recommendations.Add("Critical components detected. Address critical issues immediately to restore full functionality.");
+                recommendations.Add(
+                    "Critical components detected. Address critical issues immediately to restore full functionality."
+                );
             }
 
             if (healthStatus.SystemHealthPercentage < 75.0)
             {
-                recommendations.Add("System health is below optimal. Review component status and address warnings before they become critical.");
+                recommendations.Add(
+                    "System health is below optimal. Review component status and address warnings before they become critical."
+                );
             }
 
             // Add general maintenance recommendations if system is healthy
             if (healthStatus.OverallStatus == "Healthy" && !recommendations.Any())
             {
-                recommendations.Add("System is healthy. Consider regular maintenance like updating models and optimizing knowledge bases.");
+                recommendations.Add(
+                    "System is healthy. Consider regular maintenance like updating models and optimizing knowledge bases."
+                );
             }
 
             _logger.LogDebug("Generated {Count} health recommendations", recommendations.Count);
-            return recommendations;
+            return Task.FromResult(recommendations);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating health recommendations");
-            return new List<string> { "Unable to generate recommendations due to an error. Check system logs." };
+            return Task.FromResult(
+                new List<string>
+                {
+                    "Unable to generate recommendations due to an error. Check system logs.",
+                }
+            );
         }
     }
 
-    public async Task<List<string>> GetAvailableComponentsAsync()
+    public Task<List<string>> GetAvailableComponentsAsync()
     {
         try
         {
@@ -270,26 +338,25 @@ public class SystemHealthService : ISystemHealthService
                 .ToList();
 
             _logger.LogDebug("Available components: {Components}", string.Join(", ", components));
-            return components;
+            return Task.FromResult(components);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting available components");
-            return new List<string>();
+            return Task.FromResult(new List<string>());
         }
     }
 
-    public async Task<SystemHealthStatus> GetQuickHealthCheckAsync(CancellationToken cancellationToken = default)
+    public async Task<SystemHealthStatus> GetQuickHealthCheckAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation("Starting quick system health check");
         var stopwatch = Stopwatch.StartNew();
 
         try
         {
-            var systemHealth = new SystemHealthStatus
-            {
-                LastChecked = DateTime.UtcNow
-            };
+            var systemHealth = new SystemHealthStatus { LastChecked = DateTime.UtcNow };
 
             // Only check critical components for quick check
             var criticalCheckers = _healthCheckers
@@ -311,8 +378,11 @@ public class SystemHealthService : ISystemHealthService
             systemHealth.UpdateOverallStatus();
 
             stopwatch.Stop();
-            _logger.LogInformation("Quick health check completed in {Duration}ms. Status: {Status}",
-                stopwatch.ElapsedMilliseconds, systemHealth.OverallStatus);
+            _logger.LogInformation(
+                "Quick health check completed in {Duration}ms. Status: {Status}",
+                stopwatch.ElapsedMilliseconds,
+                systemHealth.OverallStatus
+            );
 
             return systemHealth;
         }
@@ -325,46 +395,68 @@ public class SystemHealthService : ISystemHealthService
 
     #region Private Helper Methods
 
-    private async Task<ComponentHealth?> CheckComponentSafelyAsync(IComponentHealthChecker healthChecker, CancellationToken cancellationToken)
+    private async Task<ComponentHealth?> CheckComponentSafelyAsync(
+        IComponentHealthChecker healthChecker,
+        CancellationToken cancellationToken
+    )
     {
         try
         {
-            _logger.LogDebug("Checking health for component: {ComponentName}", healthChecker.ComponentName);
+            _logger.LogDebug(
+                "Checking health for component: {ComponentName}",
+                healthChecker.ComponentName
+            );
             return await healthChecker.CheckHealthAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking health for component: {ComponentName}", healthChecker.ComponentName);
+            _logger.LogError(
+                ex,
+                "Error checking health for component: {ComponentName}",
+                healthChecker.ComponentName
+            );
             return CreateErrorComponentHealth(healthChecker.ComponentName, ex.Message);
         }
     }
 
-    private async Task<ComponentHealth?> PerformQuickCheckSafelyAsync(IComponentHealthChecker healthChecker, CancellationToken cancellationToken)
+    private async Task<ComponentHealth?> PerformQuickCheckSafelyAsync(
+        IComponentHealthChecker healthChecker,
+        CancellationToken cancellationToken
+    )
     {
         try
         {
-            _logger.LogDebug("Quick check for component: {ComponentName}", healthChecker.ComponentName);
+            _logger.LogDebug(
+                "Quick check for component: {ComponentName}",
+                healthChecker.ComponentName
+            );
             return await healthChecker.QuickHealthCheckAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in quick check for component: {ComponentName}", healthChecker.ComponentName);
+            _logger.LogError(
+                ex,
+                "Error in quick check for component: {ComponentName}",
+                healthChecker.ComponentName
+            );
             return CreateErrorComponentHealth(healthChecker.ComponentName, ex.Message);
         }
     }
 
-    private async Task<SystemMetrics> GetQuickSystemMetricsAsync(CancellationToken cancellationToken)
+    private async Task<SystemMetrics> GetQuickSystemMetricsAsync(
+        CancellationToken cancellationToken
+    )
     {
         try
         {
             // Get only essential metrics for quick check
-            var metrics = new SystemMetrics
-            {
-                SystemStartTime = DateTime.UtcNow
-            };
+            var metrics = new SystemMetrics { SystemStartTime = DateTime.UtcNow };
 
             // Get recent usage (last 24 hours only)
-            var recentUsage = await _usageTrackingService.GetUsageHistoryAsync(1, cancellationToken);
+            var recentUsage = await _usageTrackingService.GetUsageHistoryAsync(
+                1,
+                cancellationToken
+            );
             var usageList = recentUsage.ToList();
 
             if (usageList.Any())
@@ -393,7 +485,10 @@ public class SystemHealthService : ISystemHealthService
             if (sqliteChecker != null)
             {
                 var metrics = await sqliteChecker.GetComponentMetricsAsync(cancellationToken);
-                if (metrics.TryGetValue("DatabaseSizeBytes", out var sizeObj) && sizeObj is long size)
+                if (
+                    metrics.TryGetValue("DatabaseSizeBytes", out var sizeObj)
+                    && sizeObj is long size
+                )
                 {
                     return size;
                 }
@@ -416,23 +511,31 @@ public class SystemHealthService : ISystemHealthService
             {
                 if (component.Status == "Critical")
                 {
-                    systemHealth.AddAlert($"CRITICAL: {component.ComponentName} - {component.StatusMessage}");
+                    systemHealth.AddAlert(
+                        $"CRITICAL: {component.ComponentName} - {component.StatusMessage}"
+                    );
                 }
                 else if (component.Status == "Warning")
                 {
-                    systemHealth.AddAlert($"WARNING: {component.ComponentName} - {component.StatusMessage}");
+                    systemHealth.AddAlert(
+                        $"WARNING: {component.ComponentName} - {component.StatusMessage}"
+                    );
                 }
             }
 
             // Generate system-level alerts
             if (systemHealth.Metrics.SuccessRate < 90.0)
             {
-                systemHealth.AddAlert($"Low system success rate: {systemHealth.Metrics.SuccessRate:F1}%");
+                systemHealth.AddAlert(
+                    $"Low system success rate: {systemHealth.Metrics.SuccessRate:F1}%"
+                );
             }
 
             if (systemHealth.Metrics.ErrorsLast24Hours > 20)
             {
-                systemHealth.AddAlert($"High error count: {systemHealth.Metrics.ErrorsLast24Hours} errors in last 24 hours");
+                systemHealth.AddAlert(
+                    $"High error count: {systemHealth.Metrics.ErrorsLast24Hours} errors in last 24 hours"
+                );
             }
 
             // Get recommendations
@@ -448,7 +551,10 @@ public class SystemHealthService : ISystemHealthService
         }
     }
 
-    private static ComponentHealth CreateErrorComponentHealth(string componentName, string errorMessage)
+    private static ComponentHealth CreateErrorComponentHealth(
+        string componentName,
+        string errorMessage
+    )
     {
         return new ComponentHealth
         {
@@ -457,7 +563,7 @@ public class SystemHealthService : ISystemHealthService
             StatusMessage = $"Health check failed: {errorMessage}",
             LastChecked = DateTime.UtcNow,
             IsConnected = false,
-            ErrorCount = 1
+            ErrorCount = 1,
         };
     }
 
@@ -470,12 +576,14 @@ public class SystemHealthService : ISystemHealthService
             Metrics = new SystemMetrics
             {
                 SystemStartTime = DateTime.UtcNow,
-                ErrorsLast24Hours = 1
-            }
+                ErrorsLast24Hours = 1,
+            },
         };
 
         systemHealth.AddAlert($"System health check failed: {errorMessage}");
-        systemHealth.AddRecommendation("Check system logs and resolve underlying issues preventing health monitoring.");
+        systemHealth.AddRecommendation(
+            "Check system logs and resolve underlying issues preventing health monitoring."
+        );
 
         return systemHealth;
     }

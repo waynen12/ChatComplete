@@ -227,19 +227,24 @@ public sealed class KnowledgeAnalyticsMcpTool
 
                 if (orphanedCollections.Any())
                 {
-                    healthWarnings.Add($"{orphanedCollections.Count} orphaned collections in Qdrant (no SQLite metadata)");
+                    healthWarnings.Add(
+                        $"{orphanedCollections.Count} orphaned collections in Qdrant (no SQLite metadata)"
+                    );
                 }
 
                 if (missingSqliteEntries.Any())
                 {
-                    healthWarnings.Add($"{missingSqliteEntries.Count} knowledge bases missing Qdrant collections");
+                    healthWarnings.Add(
+                        $"{missingSqliteEntries.Count} knowledge bases missing Qdrant collections"
+                    );
                 }
             }
 
             // Determine overall health status
-            var healthStatus = healthIssues.Any() ? "Critical" :
-                              healthWarnings.Any() ? "Warning" :
-                              "Healthy";
+            var healthStatus =
+                healthIssues.Any() ? "Critical"
+                : healthWarnings.Any() ? "Warning"
+                : "Healthy";
 
             var healthReport = new
             {
@@ -258,22 +263,31 @@ public sealed class KnowledgeAnalyticsMcpTool
                         Collections = vectorCollections.Count,
                     },
                 },
-                Synchronization = checkSynchronization ? new
-                {
-                    Checked = true,
-                    OrphanedCollections = (IEnumerable<string>)orphanedCollections,
-                    MissingCollections = (IEnumerable<string>)missingSqliteEntries,
-                    InSync = (bool?)(orphanedCollections.Count == 0 && missingSqliteEntries.Count == 0),
-                } : new
-                {
-                    Checked = false,
-                    OrphanedCollections = (IEnumerable<string>)Array.Empty<string>(),
-                    MissingCollections = (IEnumerable<string>)Array.Empty<string>(),
-                    InSync = (bool?)null,
-                },
+                Synchronization = checkSynchronization
+                    ? new
+                    {
+                        Checked = true,
+                        OrphanedCollections = (IEnumerable<string>)orphanedCollections,
+                        MissingCollections = (IEnumerable<string>)missingSqliteEntries,
+                        InSync = (bool?)(
+                            orphanedCollections.Count == 0 && missingSqliteEntries.Count == 0
+                        ),
+                    }
+                    : new
+                    {
+                        Checked = false,
+                        OrphanedCollections = (IEnumerable<string>)Array.Empty<string>(),
+                        MissingCollections = (IEnumerable<string>)Array.Empty<string>(),
+                        InSync = (bool?)null,
+                    },
                 Issues = healthIssues,
                 Warnings = healthWarnings,
-                Recommendations = GenerateHealthRecommendations(healthIssues, healthWarnings, orphanedCollections, missingSqliteEntries),
+                Recommendations = GenerateHealthRecommendations(
+                    healthIssues,
+                    healthWarnings,
+                    orphanedCollections,
+                    missingSqliteEntries
+                ),
             };
 
             Console.WriteLine(
@@ -314,32 +328,43 @@ public sealed class KnowledgeAnalyticsMcpTool
         List<string> issues,
         List<string> warnings,
         List<string> orphanedCollections,
-        List<string> missingSqliteEntries)
+        List<string> missingSqliteEntries
+    )
     {
         var recommendations = new List<string>();
 
         if (issues.Any(i => i.Contains("SQLite")))
         {
-            recommendations.Add("Check SQLite database file path and permissions in appsettings.json");
+            recommendations.Add(
+                "Check SQLite database file path and permissions in appsettings.json"
+            );
             recommendations.Add("Verify database file is not corrupted");
         }
 
         if (issues.Any(i => i.Contains("Qdrant")))
         {
             recommendations.Add("Verify Qdrant is running (check docker ps or systemctl status)");
-            recommendations.Add("Check Qdrant connection settings in appsettings.json (host, port)");
+            recommendations.Add(
+                "Check Qdrant connection settings in appsettings.json (host, port)"
+            );
             recommendations.Add("Ensure network connectivity to Qdrant server");
         }
 
         if (orphanedCollections.Any())
         {
-            recommendations.Add($"Consider deleting orphaned Qdrant collections: {string.Join(", ", orphanedCollections)}");
-            recommendations.Add("Use Qdrant dashboard or API to inspect orphaned collections before deletion");
+            recommendations.Add(
+                $"Consider deleting orphaned Qdrant collections: {string.Join(", ", orphanedCollections)}"
+            );
+            recommendations.Add(
+                "Use Qdrant dashboard or API to inspect orphaned collections before deletion"
+            );
         }
 
         if (missingSqliteEntries.Any())
         {
-            recommendations.Add($"Re-upload documents for knowledge bases missing Qdrant collections: {string.Join(", ", missingSqliteEntries)}");
+            recommendations.Add(
+                $"Re-upload documents for knowledge bases missing Qdrant collections: {string.Join(", ", missingSqliteEntries)}"
+            );
             recommendations.Add("Check logs for errors during document processing/embedding");
         }
 
@@ -370,7 +395,7 @@ public sealed class KnowledgeAnalyticsMcpTool
     [Description(
         "Get storage optimization recommendations and cleanup suggestions for knowledge bases"
     )]
-    public static async Task<string> GetStorageOptimizationRecommendationsAsync(
+    public static Task<string> GetStorageOptimizationRecommendationsAsync(
         [Description("Service provider for dependency injection")] IServiceProvider serviceProvider,
         [Description(
             "Minimum usage threshold for considering collections active (default: 30 days)"
@@ -417,21 +442,25 @@ public sealed class KnowledgeAnalyticsMcpTool
                 "🗄️ MCP StorageOptimization - Planned feature, providing workaround guidance"
             );
 
-            return JsonSerializer.Serialize(
-                optimizationReport,
-                new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                }
+            return Task.FromResult(
+                JsonSerializer.Serialize(
+                    optimizationReport,
+                    new JsonSerializerOptions
+                    {
+                        WriteIndented = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    }
+                )
             );
         }
         catch (Exception ex)
         {
             Console.WriteLine($"❌ MCP StorageOptimization error: {ex.Message}");
-            return CreateErrorResponse(
-                $"Failed to get storage optimization recommendations: {ex.Message}",
-                nameof(GetStorageOptimizationRecommendationsAsync)
+            return Task.FromResult(
+                CreateErrorResponse(
+                    $"Failed to get storage optimization recommendations: {ex.Message}",
+                    nameof(GetStorageOptimizationRecommendationsAsync)
+                )
             );
         }
     }
