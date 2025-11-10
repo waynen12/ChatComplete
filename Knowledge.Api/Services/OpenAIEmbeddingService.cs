@@ -36,7 +36,7 @@ public class OpenAiEmbeddingService : IEmbeddingGenerator<string, Embedding<floa
     /// <param name="values">The strings to generate embeddings for.</param>
     /// <param name="options">Options for generating the embeddings.</param>
     /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
-    /// <returns>A <see cref="GeneratedEmbeddings{Embedding{float}}"/> containing the generated embeddings.</returns>
+    /// <returns>A generated embeddings object containing the embeddings for each input string.</returns>
     public async Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
         IEnumerable<string> values,
         EmbeddingGenerationOptions? options = null,

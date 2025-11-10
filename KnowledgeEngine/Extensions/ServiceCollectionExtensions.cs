@@ -105,15 +105,18 @@ public static class ServiceCollectionExtensions
         }
 
         // Register OpenAI Embedding Service
+        // TODO: Migrate to Microsoft.Extensions.AI.IEmbeddingGenerator when moving to Agent Framework (Milestone #20+)
+#pragma warning disable CS0618 // Type or member is obsolete - will be replaced with Agent Framework
         services.AddSingleton<ITextEmbeddingGenerationService>(provider =>
         {
             var openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
                 ?? throw new InvalidOperationException("OPENAI_API_KEY missing");
-            
+
             return new OpenAITextEmbeddingGenerationService(
                 settings.TextEmbeddingModelName,
                 openAiKey);
         });
+#pragma warning restore CS0618
 
         // Register AtlasIndexManager only for MongoDB deployments
         if (vectorStoreProvider != "qdrant")
