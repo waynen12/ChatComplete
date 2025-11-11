@@ -52,9 +52,10 @@ jobs:
         sudo systemctl --no-pager status knowledge-api.service
 
     # ========== MCP Server Deployment ==========
-    # Note: /opt/knowledge-mcp/out must be created manually with:
-    #   sudo mkdir -p /opt/knowledge-mcp/out
-    #   sudo chown -R chatapi:chatapi /opt/knowledge-mcp
+    # Prerequisites (one-time manual setup on test machine):
+    #   1. sudo mkdir -p /opt/knowledge-mcp/out
+    #   2. sudo chown -R chatapi:chatapi /opt/knowledge-mcp
+    #   3. Create systemd service: knowledge-mcp.service
 
     # 5️⃣  Clean and publish MCP
     - name: Clean MCP publish folder
@@ -67,48 +68,14 @@ jobs:
                        --self-contained true \
                        -o /opt/knowledge-mcp/out
 
-    # 6️⃣  Setup MCP systemd service (one-time creation)
-    - name: Setup MCP systemd service
-      run: |
-        if [ ! -f /etc/systemd/system/knowledge-mcp.service ]; then
-          echo "Creating knowledge-mcp.service..."
-          sudo tee /etc/systemd/system/knowledge-mcp.service > /dev/null <<'EOF'
-        [Unit]
-        Description=Knowledge Manager MCP Server
-        After=network.target knowledge-api.service
-        Requires=knowledge-api.service
-
-        [Service]
-        Type=notify
-        User=chatapi
-        WorkingDirectory=/opt/knowledge-mcp/out
-        ExecStart=/opt/knowledge-mcp/out/Knowledge.Mcp --http
-        Restart=on-failure
-        RestartSec=10
-        KillMode=process
-
-        Environment="ASPNETCORE_ENVIRONMENT=Production"
-        Environment="ASPNETCORE_URLS=http://+:5001"
-        Environment="DOTNET_RUNNING_IN_CONTAINER=false"
-
-        [Install]
-        WantedBy=multi-user.target
-        EOF
-          sudo systemctl daemon-reload
-          sudo systemctl enable knowledge-mcp.service
-          echo "✅ Service created and enabled"
-        else
-          echo "ℹ️  Service already exists, will restart"
-        fi
-
-    # 7️⃣  Restart MCP service
+    # 6️⃣  Restart MCP service
     - name: Restart MCP service
       run: |
         sudo systemctl restart knowledge-mcp.service
         sleep 5
         sudo systemctl --no-pager status knowledge-mcp.service
 
-    # 8️⃣  Verify MCP health
+    # 7️⃣  Verify MCP health
     - name: Verify MCP health
       run: |
         echo "Waiting for MCP server to start..."
