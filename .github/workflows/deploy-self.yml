@@ -52,17 +52,14 @@ jobs:
         sudo systemctl --no-pager status knowledge-api.service
 
     # ========== MCP Server Deployment ==========
+    # Note: /opt/knowledge-mcp/out must be created manually with:
+    #   sudo mkdir -p /opt/knowledge-mcp/out
+    #   sudo chown -R chatapi:chatapi /opt/knowledge-mcp
 
-    # 5️⃣  Create MCP directories
-    - name: Create MCP directories
-      run: |
-        sudo mkdir -p /opt/knowledge-mcp/out
-        sudo chown -R chatapi:chatapi /opt/knowledge-mcp
-
+    # 5️⃣  Clean and publish MCP
     - name: Clean MCP publish folder
       run: rm -rf /opt/knowledge-mcp/out/*
 
-    # 6️⃣  Publish the MCP server (self-contained linux-x64)
     - name: Publish Knowledge.Mcp
       run: |
         cd Knowledge.Mcp
@@ -70,7 +67,7 @@ jobs:
                        --self-contained true \
                        -o /opt/knowledge-mcp/out
 
-    # 7️⃣  Setup MCP systemd service (one-time creation)
+    # 6️⃣  Setup MCP systemd service (one-time creation)
     - name: Setup MCP systemd service
       run: |
         if [ ! -f /etc/systemd/system/knowledge-mcp.service ]; then
@@ -104,14 +101,14 @@ jobs:
           echo "ℹ️  Service already exists, will restart"
         fi
 
-    # 8️⃣  Restart MCP service
+    # 7️⃣  Restart MCP service
     - name: Restart MCP service
       run: |
         sudo systemctl restart knowledge-mcp.service
         sleep 5
         sudo systemctl --no-pager status knowledge-mcp.service
 
-    # 9️⃣  Verify MCP health
+    # 8️⃣  Verify MCP health
     - name: Verify MCP health
       run: |
         echo "Waiting for MCP server to start..."
