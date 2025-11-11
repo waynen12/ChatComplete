@@ -58,8 +58,8 @@ jobs:
     # 4️⃣  Restart systemd service
     - name: Restart service
       run: |
-        sudo systemctl restart knowledge-api.service
-        sudo systemctl --no-pager status knowledge-api.service
+        sudo -n systemctl restart knowledge-api.service
+        sudo -n systemctl --no-pager status knowledge-api.service
 
     # ========== MCP Server Deployment ==========
     # Prerequisites (one-time manual setup on test machine):
@@ -81,9 +81,9 @@ jobs:
     # 6️⃣  Restart MCP service
     - name: Restart MCP service
       run: |
-        sudo systemctl restart knowledge-mcp.service
+        sudo -n systemctl restart knowledge-mcp.service
         sleep 5
-        sudo systemctl --no-pager status knowledge-mcp.service
+        sudo -n systemctl --no-pager status knowledge-mcp.service
 
     # 7️⃣  Verify MCP health
     - name: Verify MCP health
@@ -99,5 +99,5 @@ jobs:
         done
         echo "❌ MCP server failed health check"
         echo "Recent logs:"
-        sudo journalctl -u knowledge-mcp.service --no-pager -n 50
+        sudo -n journalctl -u knowledge-mcp.service --no-pager -n 50
         exit 1
