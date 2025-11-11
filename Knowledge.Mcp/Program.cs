@@ -713,6 +713,9 @@ class Program
             }
         );
 
+        // ⭐ Map health check endpoints (no auth required)
+        app.MapHealthEndpoints();
+
         // ⭐ Map MCP endpoints (creates /sse and /messages endpoints)
         // Require mcp:execute scope for all MCP operations (tool execution) - only if OAuth enabled
         if (auth0Enabled)
