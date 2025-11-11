@@ -17,6 +17,16 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    # 🐛 Debug: Verify runner user and sudo configuration
+    - name: Debug runner environment
+      run: |
+        echo "Current user: $(whoami)"
+        echo "User ID: $(id)"
+        echo "Sudoers configuration for current user:"
+        sudo grep -E "^$(whoami)|^%$(whoami)" /etc/sudoers /etc/sudoers.d/* 2>/dev/null || echo "No sudoers entries found"
+        echo "Testing sudo without password:"
+        sudo -n systemctl status knowledge-api.service || echo "Sudo requires password"
+
     # 2️⃣  Optional unit tests
     #- name: dotnet test
     #  run: |
