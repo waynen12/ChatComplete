@@ -1,4 +1,5 @@
 using ChatCompletion.Config;
+using Knowledge.Analytics.Services;
 using Knowledge.Data;
 using Knowledge.Data.Extensions;
 using KnowledgeEngine.Logging;
@@ -10,6 +11,7 @@ using KnowledgeEngine.Persistence.Sqlite.Repositories;
 using KnowledgeEngine.Persistence.Sqlite.Services;
 using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
@@ -22,6 +24,8 @@ namespace KnowledgeEngine.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    private static readonly ILogger<BackgroundSyncService> _logger;
+
     public static IServiceCollection AddKnowledgeServices(
         this IServiceCollection services,
         ChatCompleteSettings settings
@@ -206,7 +210,7 @@ public static class ServiceCollectionExtensions
                 // Development/Production - use app directory + data subfolder
                 var appDirectory = AppContext.BaseDirectory;
                 databasePath = Path.Combine(appDirectory, "data", "knowledge.db");
-                LoggerProvider.Logger.Information($"Database file path is {databasePath}");
+                _logger.LogInformation("Using database path: {DatabasePath}", databasePath);
             }
         }
 
