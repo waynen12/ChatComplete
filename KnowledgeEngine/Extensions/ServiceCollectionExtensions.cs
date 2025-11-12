@@ -1,17 +1,18 @@
 using ChatCompletion.Config;
+using Knowledge.Data;
+using Knowledge.Data.Extensions;
+using KnowledgeEngine.Logging;
 using KnowledgeEngine.Models;
 using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Persistence.Conversations;
 using KnowledgeEngine.Persistence.IndexManagers;
-using KnowledgeEngine.Persistence.VectorStores;
-using Knowledge.Data;
-using Knowledge.Data.Extensions;
 using KnowledgeEngine.Persistence.Sqlite.Repositories;
 using KnowledgeEngine.Persistence.Sqlite.Services;
+using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
-using Microsoft.SemanticKernel.Connectors.Qdrant;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.SemanticKernel.Connectors.Qdrant;
 using Microsoft.SemanticKernel.Embeddings;
 using MongoDB.Driver;
 using Qdrant.Client;
@@ -21,15 +22,22 @@ namespace KnowledgeEngine.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddKnowledgeServices(this IServiceCollection services, ChatCompleteSettings settings)
+    public static IServiceCollection AddKnowledgeServices(
+        this IServiceCollection services,
+        ChatCompleteSettings settings
+    )
     {
         // Register Vector Store Strategy based on configuration
         var vectorStoreProvider = settings.VectorStore?.Provider?.ToLower() ?? "mongodb";
-        
+
         if (vectorStoreProvider == "qdrant")
         {
             // Validate and get Qdrant settings
-            var qdrantSettings = settings.VectorStore?.Qdrant ?? throw new InvalidOperationException("Qdrant settings are required when VectorStore:Provider is set to 'qdrant'");
+            var qdrantSettings =
+                settings.VectorStore?.Qdrant
+                ?? throw new InvalidOperationException(
+                    "Qdrant settings are required when VectorStore:Provider is set to 'qdrant'"
+                );
 
             // Register QdrantSettings
             services.AddSingleton(qdrantSettings);
@@ -48,13 +56,13 @@ public static class ServiceCollectionExtensions
                     https: qdrantSettingsFromProvider.UseHttps,
                     apiKey: qdrantSettingsFromProvider.ApiKey
                 );
-                
+
                 return new QdrantVectorStore(qdrantClient, ownsClient: true);
             });
-            
+
             // Register Qdrant Index Manager
             services.AddScoped<IIndexManager, QdrantIndexManager>();
-            
+
             // Register Qdrant Vector Store Strategy with ChatCompleteSettings
             services.AddScoped<IVectorStoreStrategy, QdrantVectorStoreStrategy>(provider =>
             {
@@ -62,7 +70,12 @@ public static class ServiceCollectionExtensions
                 var qdrantSettings = provider.GetRequiredService<QdrantSettings>();
                 var indexManager = provider.GetRequiredService<IIndexManager>();
                 var chatSettings = provider.GetRequiredService<ChatCompleteSettings>();
-                return new QdrantVectorStoreStrategy(vectorStore, qdrantSettings, indexManager, chatSettings);
+                return new QdrantVectorStoreStrategy(
+                    vectorStore,
+                    qdrantSettings,
+                    indexManager,
+                    chatSettings
+                );
             });
         }
         else
@@ -70,7 +83,8 @@ public static class ServiceCollectionExtensions
             // Register MongoDB client and database
             services.AddSingleton<IMongoClient>(provider =>
             {
-                var connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
+                var connectionString =
+                    Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
                     ?? throw new InvalidOperationException("MONGODB_CONNECTION_STRING missing");
                 return new MongoClient(connectionString);
             });
@@ -80,20 +94,22 @@ public static class ServiceCollectionExtensions
                 var client = provider.GetRequiredService<IMongoClient>();
                 return client.GetDatabase(settings.Atlas.ClusterName);
             });
-            
+
             // Register MongoAtlasSettings
             services.AddSingleton(settings.Atlas);
-            
+
             // Register MongoDB services (default)
             services.AddSingleton<MongoVectorStore>(provider =>
             {
                 var database = provider.GetRequiredService<IMongoDatabase>();
                 return new MongoVectorStore(database);
             });
-            
+
             // Register MongoDB Index Manager (cast from singleton AtlasIndexManager)
-            services.AddScoped<IIndexManager>(provider => provider.GetRequiredService<AtlasIndexManager>());
-            
+            services.AddScoped<IIndexManager>(provider =>
+                provider.GetRequiredService<AtlasIndexManager>()
+            );
+
             // Register MongoDB Vector Store Strategy with ChatCompleteSettings
             services.AddScoped<IVectorStoreStrategy, MongoVectorStoreStrategy>(provider =>
             {
@@ -109,12 +125,14 @@ public static class ServiceCollectionExtensions
 #pragma warning disable CS0618 // Type or member is obsolete - will be replaced with Agent Framework
         services.AddSingleton<ITextEmbeddingGenerationService>(provider =>
         {
-            var openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+            var openAiKey =
+                Environment.GetEnvironmentVariable("OPENAI_API_KEY")
                 ?? throw new InvalidOperationException("OPENAI_API_KEY missing");
 
             return new OpenAITextEmbeddingGenerationService(
                 settings.TextEmbeddingModelName,
-                openAiKey);
+                openAiKey
+            );
         });
 #pragma warning restore CS0618
 
@@ -124,11 +142,15 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<AtlasIndexManager>(provider =>
             {
                 var atlasHttpClient = AtlasHttpClientFactory.CreateHttpClient();
-                var manager = new AtlasIndexManager(settings.Atlas, atlasHttpClient, ownsHttpClient: true);
-                
+                var manager = new AtlasIndexManager(
+                    settings.Atlas,
+                    atlasHttpClient,
+                    ownsHttpClient: true
+                );
+
                 // Initialize asynchronously in background - this is a compromise for DI registration
                 Task.Run(async () => await manager.InitializeAsync()).Wait();
-                
+
                 return manager;
             });
         }
@@ -157,7 +179,10 @@ public static class ServiceCollectionExtensions
     /// - Container: /app/data/knowledge.db (for volume mounts)
     /// - Development: {AppDirectory}/data/knowledge.db (reliable and portable)
     /// </summary>
-    public static IServiceCollection AddSqlitePersistence(this IServiceCollection services, ChatCompleteSettings settings)
+    public static IServiceCollection AddSqlitePersistence(
+        this IServiceCollection services,
+        ChatCompleteSettings settings
+    )
     {
         // Use configured path or smart default
         string databasePath;
@@ -168,8 +193,9 @@ public static class ServiceCollectionExtensions
         else
         {
             // Smart default based on environment
-            var isContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
-            
+            var isContainer =
+                Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+
             if (isContainer)
             {
                 // Container environment - use /app/data for volume mounts
@@ -180,6 +206,7 @@ public static class ServiceCollectionExtensions
                 // Development/Production - use app directory + data subfolder
                 var appDirectory = AppContext.BaseDirectory;
                 databasePath = Path.Combine(appDirectory, "data", "knowledge.db");
+                LoggerProvider.Logger.Information($"Database file path is {databasePath}");
             }
         }
 
@@ -187,8 +214,9 @@ public static class ServiceCollectionExtensions
         services.AddKnowledgeData(databasePath);
 
         // Register the old SqliteDbContext for legacy repositories (temporary during migration)
-        services.AddSingleton<KnowledgeEngine.Persistence.Sqlite.SqliteDbContext>(provider => 
-            new KnowledgeEngine.Persistence.Sqlite.SqliteDbContext(databasePath));
+        services.AddSingleton<KnowledgeEngine.Persistence.Sqlite.SqliteDbContext>(
+            provider => new KnowledgeEngine.Persistence.Sqlite.SqliteDbContext(databasePath)
+        );
 
         // Register encryption service (static methods, but good to have for DI)
         services.AddSingleton<EncryptionService>();
