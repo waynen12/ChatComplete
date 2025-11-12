@@ -104,7 +104,13 @@ else
 builder.Services.AddSingleton<KernelFactory>();
 
 // Add SQLite persistence for zero-dependency deployment
-builder.Services.AddSqlitePersistence(settings);
+// Pass ILoggerFactory for debugging database path resolution
+var loggerFactory = LoggerFactory.Create(logging =>
+{
+    logging.AddSerilog();
+    logging.SetMinimumLevel(LogLevel.Debug);
+});
+builder.Services.AddSqlitePersistence(settings, loggerFactory);
 
 // Add analytics services (uses existing DAL from AddSqlitePersistence)
 builder.Services.AddAnalyticsServices(builder.Configuration);

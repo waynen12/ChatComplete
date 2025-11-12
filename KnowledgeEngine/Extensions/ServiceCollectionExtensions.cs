@@ -24,11 +24,10 @@ namespace KnowledgeEngine.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    private static readonly ILogger<BackgroundSyncService> _logger;
-
     public static IServiceCollection AddKnowledgeServices(
         this IServiceCollection services,
-        ChatCompleteSettings settings
+        ChatCompleteSettings settings,
+        ILoggerFactory? loggerFactory = null
     )
     {
         // Register Vector Store Strategy based on configuration
@@ -185,14 +184,18 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddSqlitePersistence(
         this IServiceCollection services,
-        ChatCompleteSettings settings
+        ChatCompleteSettings settings,
+        ILoggerFactory? loggerFactory = null
     )
     {
+        var logger = loggerFactory?.CreateLogger("SqlitePersistence");
+
         // Use configured path or smart default
         string databasePath;
         if (!string.IsNullOrEmpty(settings.DatabasePath))
         {
             databasePath = settings.DatabasePath;
+            logger?.LogInformation("Using configured database path: {DatabasePath}", databasePath);
         }
         else
         {
@@ -204,15 +207,19 @@ public static class ServiceCollectionExtensions
             {
                 // Container environment - use /app/data for volume mounts
                 databasePath = "/app/data/knowledge.db";
+                logger?.LogInformation("Container detected - using database path: {DatabasePath}", databasePath);
             }
             else
             {
                 // Development/Production - use app directory + data subfolder
                 var appDirectory = AppContext.BaseDirectory;
                 databasePath = Path.Combine(appDirectory, "data", "knowledge.db");
-                //_logger.LogInformation("Using database path: {DatabasePath}", databasePath);
+                logger?.LogInformation("Non-container environment - AppDirectory: {AppDirectory}, DatabasePath: {DatabasePath}", appDirectory, databasePath);
             }
         }
+
+        logger?.LogInformation("Final database path resolved to: {DatabasePath}", databasePath);
+        logger?.LogInformation("Database file exists: {Exists}", File.Exists(databasePath));
 
         // Use the new Knowledge.Data layer
         services.AddKnowledgeData(databasePath);
