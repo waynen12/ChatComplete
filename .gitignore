@@ -92,3 +92,4 @@ fix-metadata.sql
 clear-database.sql
 .gitignore
 .vscode/mcp.json.alternative
+.vscode/mcp.json

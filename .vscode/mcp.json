@@ -15,6 +15,10 @@
 		"knowledge-oauth-test": {
 			"url": "http://localhost:5001",
 			"type": "http"
+		},
+		"Knowledge-remote": {
+			"url": "http://192.168.50.203:5001",
+			"type": "http"
 		}
 	},
 	"inputs": []
