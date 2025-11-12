@@ -210,7 +210,7 @@ public static class ServiceCollectionExtensions
                 // Development/Production - use app directory + data subfolder
                 var appDirectory = AppContext.BaseDirectory;
                 databasePath = Path.Combine(appDirectory, "data", "knowledge.db");
-                _logger.LogInformation("Using database path: {DatabasePath}", databasePath);
+                //_logger.LogInformation("Using database path: {DatabasePath}", databasePath);
             }
         }
 
