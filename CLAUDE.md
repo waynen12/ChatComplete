@@ -67,8 +67,10 @@ Current Milestones (✅ done, 🔄 in-progress, 🛠️ todo)
 20	Agent Implementation (Semantic Kernel plugins, cross-knowledge search)	✅ COMPLETE
 21	Ollama Model Management (UI + API + downloads)	✅ VERIFIED
 22	MCP Integration (Model Context Protocol servers and clients)	✅ COMPLETE
+22.5	MCP Server Deployment (test machine CI/CD integration)	✅ COMPLETE
 23	MCP OAuth 2.1 Authentication (secure remote MCP access)	🔄 IN PROGRESS (M2M working, PKCE blocked)
 24	MCP Client Development (separate repo, STDIO + HTTP transports)	🔄 IN PROGRESS
+25	UI Modernization (accessibility, performance, mobile, color scheme)	🔄 IN PROGRESS (Copilot-driven)
 
 Latest Sanity Checklist (quick smoke test)
 Step	Expectation	Tip
@@ -617,6 +619,204 @@ public class OAuthSettings
 - Scope permission matrix
 - Troubleshooting guide for common OAuth issues
 
+## MCP Server Deployment to Test Machine ✅ COMPLETED (November 2025)
+
+**Production Deployment** - MCP server deployed to test machine (192.168.50.203 - Mint Linux) via GitHub Actions CI/CD pipeline.
+
+### Deployment Architecture
+
+**Services on Test Machine:**
+- **Knowledge.Api** (Port 7040) - Main API server at `/opt/knowledge-api/out`
+- **Knowledge.Mcp** (Port 5001) - MCP server at `/opt/knowledge-mcp/out`
+- **Qdrant** (Port 6333) - Vector database
+- **Shared Database**: `/opt/knowledge-api/out/data/knowledge.db` (SQLite)
+
+Both services share the same SQLite database for configuration, chat history, and knowledge metadata.
+
+### GitHub Actions Workflow Integration
+
+**Workflow File:** `.github/workflows/deploy-self.yml`
+
+**MCP Deployment Steps:**
+1. Clean MCP publish folder: `rm -rf /opt/knowledge-mcp/out/*`
+2. Publish MCP server: `dotnet publish -c Release -r linux-x64 --self-contained true -o /opt/knowledge-mcp/out`
+3. Restart MCP service: `sudo -n systemctl restart knowledge-mcp.service`
+4. Verify health: `curl http://localhost:5001/health`
+
+**Key Requirements:**
+- Self-hosted GitHub Actions runner on test machine
+- Passwordless sudo access for systemctl commands
+- Systemd service file configured correctly
+
+### Systemd Service Configuration
+
+**File:** `/etc/systemd/system/knowledge-mcp.service`
+
+```ini
+[Unit]
+Description=Knowledge Manager MCP Server
+After=network.target knowledge-api.service
+Requires=knowledge-api.service
+
+[Service]
+Type=simple  # CRITICAL: Must be 'simple', not 'notify'
+User=chatapi
+WorkingDirectory=/opt/knowledge-mcp/out
+ExecStart=/opt/knowledge-mcp/out/Knowledge.Mcp --http
+Restart=on-failure
+RestartSec=10
+KillMode=process
+
+Environment="ASPNETCORE_ENVIRONMENT=Production"
+Environment="ASPNETCORE_URLS=http://+:5001"
+Environment="DOTNET_RUNNING_IN_CONTAINER=false"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Critical Configuration Notes:**
+- `Type=simple` is REQUIRED (not `Type=notify`) - app doesn't send systemd notifications
+- `After=knowledge-api.service` ensures API starts first
+- `Requires=knowledge-api.service` creates dependency relationship
+- User `chatapi` must have permissions to shared database
+
+### Sudoers Configuration
+
+**File:** `/etc/sudoers.d/chatapi` (mode 0440)
+
+```bash
+# Allow GitHub Actions runner to manage services without password
+chatapi ALL=(root) NOPASSWD: /usr/bin/systemctl restart knowledge-api.service, \
+                              /usr/bin/systemctl --no-pager status knowledge-api.service, \
+                              /usr/bin/systemctl restart knowledge-mcp.service, \
+                              /usr/bin/systemctl --no-pager status knowledge-mcp.service, \
+                              /usr/bin/journalctl
+```
+
+**Critical Requirements:**
+- File permissions MUST be `0440`: `sudo chmod 0440 /etc/sudoers.d/chatapi`
+- Commands must match EXACTLY including `--no-pager` flag
+- Use absolute paths: `/usr/bin/systemctl`, not `systemctl`
+- Validate syntax: `sudo visudo -c`
+
+**Common Pitfalls:**
+- ❌ Wrong permissions (755, 644) - file silently ignored
+- ❌ Missing `--no-pager` in sudoers but used in workflow - permission denied
+- ❌ `Type=notify` in service file - causes infinite timeout on restart
+- ❌ Relative command paths - won't match absolute paths in sudoers
+
+### MCP Configuration for Test Machine
+
+**File:** `Knowledge.Mcp/appsettings.json`
+
+**Critical Settings:**
+```json
+{
+  "ChatCompleteSettings": {
+    "DatabasePath": "/opt/knowledge-api/out/data/knowledge.db"  // Shared with API
+  },
+  "McpServerSettings": {
+    "HttpTransport": {
+      "Port": 5001,
+      "Host": "localhost",
+      "Cors": {
+        "AllowedOrigins": [
+          "http://localhost:3000",
+          "http://localhost:5173",
+          "http://192.168.50.203",        // Test machine IP
+          "http://192.168.50.203:7040",   // Test machine API port
+          "https://copilot.github.com"
+        ]
+      }
+    }
+  }
+}
+```
+
+**Database Path Resolution:**
+- Configured path: `/opt/knowledge-api/out/data/knowledge.db`
+- Production deployment uses actual binary output directory (`/out`)
+- Not the simpler `/opt/knowledge-api/data` path
+- Both API and MCP must point to same database file
+
+### Health Endpoints
+
+**MCP Health Check:**
+```bash
+curl http://localhost:5001/health
+# Returns: {"status":"healthy","service":"knowledge-mcp","timestamp":"...","version":"1.0.0"}
+```
+
+**API Health Check:**
+```bash
+curl http://localhost:7040/api/health
+# Returns: {"status":"healthy","timestamp":"...","checks":{...}}
+```
+
+### Deployment Verification
+
+**Manual Verification Steps:**
+1. Check API service: `sudo systemctl status knowledge-api.service`
+2. Check MCP service: `sudo systemctl status knowledge-mcp.service`
+3. Test API health: `curl http://localhost:7040/api/health`
+4. Test MCP health: `curl http://localhost:5001/health`
+5. Check logs: `sudo journalctl -u knowledge-mcp.service -n 50`
+6. Verify database: `ls -la /opt/knowledge-api/out/data/knowledge.db`
+
+**GitHub Actions Verification:**
+1. Trigger workflow via push to main or manual dispatch
+2. Monitor workflow: GitHub Actions → "Build & Deploy – self-hosted"
+3. Verify "Restart MCP service" step succeeds
+4. Verify "Verify MCP health" step passes
+
+### Troubleshooting Guide
+
+**Issue: "sudo: a password is required"**
+- **Cause:** Sudoers configuration incorrect or file permissions wrong
+- **Fix:**
+  1. Check file permissions: `ls -la /etc/sudoers.d/chatapi` (must be `-r--r-----`)
+  2. Fix permissions: `sudo chmod 0440 /etc/sudoers.d/chatapi`
+  3. Validate syntax: `sudo visudo -c`
+  4. Test manually: `sudo -u chatapi sudo -n systemctl restart knowledge-mcp.service`
+
+**Issue: "Job for knowledge-mcp.service failed because a timeout was exceeded"**
+- **Cause:** Service configured with `Type=notify` but app doesn't send notification
+- **Fix:** Change `Type=notify` to `Type=simple` in service file
+- **Verify:** Service should start immediately without hanging
+
+**Issue: "Orphaned collections" warning in MCP logs**
+- **Cause:** MCP server pointing to wrong database (collections in Qdrant but not in SQLite)
+- **Fix:** Update `DatabasePath` in MCP appsettings.json to match API database path
+- **Verify:** Both services should show same knowledge bases
+
+**Issue: MCP health check fails**
+- **Cause:** Service not running or port conflict
+- **Fix:**
+  1. Check service: `sudo systemctl status knowledge-mcp.service`
+  2. Check port: `sudo ss -tlnp | grep 5001`
+  3. Check logs: `sudo journalctl -u knowledge-mcp.service -n 50`
+
+### Success Metrics
+- ✅ MCP server deploys automatically via GitHub Actions
+- ✅ Both API and MCP services running on test machine
+- ✅ Health endpoints responding correctly
+- ✅ Shared database working (no orphaned collections)
+- ✅ CORS configured for external clients
+- ✅ Systemd service auto-restarts on failure
+
+### Documentation Created
+- ✅ `documentation/SUDOERS_SERVICE_USER_GUIDE.md` - Complete sudoers configuration guide
+- ✅ Workflow inline documentation with prerequisite steps
+- ✅ Service file configuration examples
+- ✅ Troubleshooting guide with common issues
+
+### Next Steps
+1. ✅ **Deployment complete** - MCP server operational on test machine
+2. 🔄 **Monitor production usage** - Verify stability and performance
+3. 🛠️ **Phase 2:** OAuth 2.1 authentication (Milestone #23)
+4. 🛠️ **Phase 3:** Docker integration (when needed)
+
 ## MCP Client Development (Milestone #24) 🔄 IN PROGRESS
 
 **Separate Repository** - Standalone C# MCP client for connecting to Knowledge Manager server.
@@ -797,3 +997,188 @@ McpClient Repository (/home/wayne/repos/McpClient)
 - `PHASE_CLARIFICATION.md` - Phase-specific details
 
 All documentation for this project is located in ./documentation
+
+---
+
+## UI Modernization (Milestone #25) 🔄 IN PROGRESS (November 2025)
+
+**GitHub Copilot Cloud Development** - Comprehensive UI/UX improvements driven by GitHub Copilot in separate branch.
+
+### Branch Strategy
+
+**UI Development Branch:** `copilot/review-ui-in-webclient`
+- Dedicated branch for UI improvements
+- GitHub Copilot Cloud performs autonomous UI development
+- Human developer focuses on backend work
+- Branches merge after review and testing
+
+### Copilot Guidance
+
+**Instructions File:** `.github/copilot-instructions.md` (660 lines)
+- Comprehensive guide for GitHub Copilot Cloud
+- Clear boundaries: UI work only, no backend changes
+- Week-by-week implementation plan
+- Testing requirements and PR standards
+- Design system and accessibility guidelines
+
+### Current UI State (Baseline)
+
+**Metrics:**
+- Bundle size: 1.15 MB (target: < 500 KB)
+- ESLint errors: 0 (clean ✅)
+- Overall UI score: 7/10
+- Accessibility score: 4/10 (needs work)
+- Performance score: 6/10 (needs optimization)
+
+**Review Documentation:**
+- `documentation/UI_REVIEW.md` (647 lines) - Detailed analysis
+- `documentation/UI_IMPROVEMENTS_ACTION_PLAN.md` (1,015 lines) - Implementation guide
+- `documentation/REVIEW_SUMMARY.md` (225 lines) - Executive summary
+
+### Implementation Priorities
+
+**Week 1: Critical Fixes (🔴 High Priority)**
+
+**1. Color Scheme Overhaul (Do First):**
+- Replace all blue-shaded colors with minimalist light palette
+- New primary: `oklch(0.86 0.01 262.85)` (light lavender-gray)
+- Darken button text for contrast
+- Ensure WCAG 2.1 AA compliance (4.5:1 contrast)
+- Test in both light and dark modes
+
+**2. Accessibility Basics:**
+- Add ARIA labels to all interactive elements
+- Implement keyboard navigation
+- Add skip navigation link
+- Fix form label associations
+
+**3. Performance Optimization:**
+- Implement code splitting (React.lazy)
+- Reduce bundle size by 50%
+- Add React.memo to expensive renders
+- Optimize asset loading
+
+**4. Mobile Responsiveness:**
+- Implement hamburger menu
+- Fix responsive breakpoints
+- Ensure 44px minimum touch targets
+
+**Week 2: High Priority UX**
+- Message actions (copy, edit, delete)
+- Conversation search/filter
+- Inline form validation
+- Helpful empty states
+
+**Week 3: Medium Priority Polish**
+- Conversation management sidebar
+- Keyboard shortcuts (Cmd+K search, etc.)
+- Settings organization
+
+**Week 4: Testing & Polish**
+- Cross-browser testing
+- Accessibility audit
+- Performance verification
+- Documentation updates
+
+### Key UI Changes
+
+**Target Improvements:**
+1. **Bundle Size:** 1.15 MB → < 500 KB (reduce by 57%)
+2. **Accessibility:** 4/10 → 10/10 (WCAG 2.1 AA compliance)
+3. **Performance:** 6/10 → 9/10 (Lighthouse score 90+)
+4. **Mobile UX:** Incomplete → Full feature parity
+5. **Color Scheme:** Blue-heavy → Minimalist light palette
+
+**New Components to Create:**
+- `<MessageActions />` - Copy/edit/delete buttons
+- `<ConversationList />` - Searchable sidebar
+- `<EmptyState />` - Reusable empty states
+- `<MobileMenu />` - Hamburger navigation
+- `<SkipNav />` - Accessibility skip link
+- `<KeyboardShortcuts />` - Shortcuts modal
+
+### Testing Requirements
+
+**Before Merging to Main:**
+- ✅ Desktop browsers (Chrome, Firefox, Safari)
+- ✅ Mobile responsive (375px, 768px, 1024px)
+- ✅ Dark mode compatibility
+- ✅ Keyboard navigation
+- ✅ Screen reader testing
+- ✅ Bundle size < 500 KB
+- ✅ Build succeeds without errors
+- ✅ 0 ESLint errors maintained
+
+### Success Criteria
+- [ ] Bundle size reduced to < 500 KB
+- [ ] WCAG 2.1 AA compliance achieved
+- [ ] Lighthouse score 90+ across all metrics
+- [ ] Full mobile feature parity
+- [ ] Minimalist color scheme implemented
+- [ ] All 35+ improvements from action plan completed
+- [ ] Zero regression in existing functionality
+
+### Collaboration Model
+
+**Human Developer (Backend):**
+- Focus on backend features and APIs
+- Review UI PRs from Copilot
+- Merge approved changes to main
+
+**GitHub Copilot Cloud (UI):**
+- Autonomous UI development in `copilot/review-ui-in-webclient`
+- Follow `.github/copilot-instructions.md` guidance
+- Submit PRs with screenshots and testing checklists
+- Document backend dependencies if needed
+
+### Documentation Created
+- ✅ `.github/copilot-instructions.md` - Copilot guidance (660 lines)
+- ✅ `documentation/UI_REVIEW.md` - Current state analysis
+- ✅ `documentation/UI_IMPROVEMENTS_ACTION_PLAN.md` - Implementation guide
+- ✅ `documentation/REVIEW_SUMMARY.md` - Executive summary
+
+### Timeline
+- **Estimated Effort:** 76 hours (~4 weeks with Copilot)
+- **Week 1 Focus:** Color scheme, accessibility, performance
+- **Week 2 Focus:** Chat UX, forms, empty states
+- **Week 3 Focus:** Conversation management, shortcuts
+- **Week 4 Focus:** Testing, audit, polish
+
+### Next Steps
+1. 🔄 **Copilot begins Week 1 work** - Color scheme overhaul
+2. 🔄 **Human monitors progress** - Review PRs as submitted
+3. 🛠️ **Iterative improvements** - Address feedback and refine
+4. 🛠️ **Final merge** - After all testing passes
+
+---
+
+## Current System Status (November 2025)
+
+### Production Deployments
+- ✅ **Test Machine (192.168.50.203):** API + MCP server running
+- ✅ **Docker Hub:** `waynen12/ai-knowledge-manager:latest` available
+- ✅ **Local Dev:** React UI connected to test machine API
+
+### Active Work Streams
+1. **UI Modernization** - GitHub Copilot Cloud (branch: `copilot/review-ui-in-webclient`)
+2. **MCP OAuth 2.1** - Blocked on PKCE/JWE issue
+3. **MCP Client** - STDIO transport complete, HTTP transport TODO
+
+### Critical Paths Resolved
+- ✅ Sudoers configuration for CI/CD deployment
+- ✅ Systemd service configuration (Type=simple)
+- ✅ Database path sharing between API and MCP
+- ✅ GitHub Actions MCP deployment integration
+
+### Known Issues
+1. **OAuth PKCE Flow** - Auth0 returns JWE tokens (blocked)
+2. **MCP Client Phase 2** - HTTP transport not yet implemented
+3. **UI Bundle Size** - 1.15 MB, needs optimization
+
+### Bootstrap Instructions for New Chat
+1. Read this CLAUDE.md file completely
+2. Check current branch: `git status`
+3. Review open PRs on GitHub (especially from `copilot/review-ui-in-webclient`)
+4. Check test machine status: `curl http://192.168.50.203:7040/api/health`
+5. Review recent commits: `git log --oneline -20`
+6. Check for active work: Review TODO items in code or issues
