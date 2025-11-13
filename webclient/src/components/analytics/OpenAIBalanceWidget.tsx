@@ -74,7 +74,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
       });
 
       // Listen for provider data updates (from direct requests)
-      newConnection.on('ProviderDataUpdate', (data: { Provider: string, Data: any, Timestamp: string }) => {
+      newConnection.on('ProviderDataUpdate', (data: { Provider: string; Data: { balance: number; balanceUnit: string; monthlyUsage: number; isConnected: boolean }; Timestamp: string }) => {
         if (data.Provider.toLowerCase() === 'openai') {
           console.log('Provider Data Update (OpenAI):', data);
           setBalanceData({
@@ -128,7 +128,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         }
         
         const accounts = await response.json();
-        const openAIAccount = accounts.find((acc: any) => 
+        const openAIAccount = accounts.find((acc: { provider?: string }) => 
           acc.provider?.toLowerCase() === 'openai'
         );
         
@@ -160,6 +160,8 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         connection.stop();
       }
     };
+    // Connection object is intentionally not in dependencies to avoid reconnection loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formatCurrency = (amount?: number, unit: string = 'USD') => {

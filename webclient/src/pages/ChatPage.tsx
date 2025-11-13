@@ -47,7 +47,7 @@ export default function ChatPage() {
           throw new Error(`Failed to fetch knowledge bases: ${res.status} ${res.statusText}`);
         }
         setCollections(await res.json());
-      } catch (error) {
+      } catch {
         notify.error("Failed to load knowledge bases. Please refresh the page.");
       }
     })();
@@ -75,7 +75,7 @@ export default function ChatPage() {
         notify.error(`Failed to fetch Ollama models: ${res.statusText}`);
         setAvailableOllamaModels([]);
       }
-    } catch (error) {
+    } catch {
       notify.error("Error connecting to Ollama. Please ensure Ollama is running.");
       setAvailableOllamaModels([]);
     } finally {
@@ -92,6 +92,8 @@ export default function ChatPage() {
       setAvailableOllamaModels([]);
       setOllamaModel("");
     }
+    // fetchOllamaModels is a stable function defined above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
 
   // Handle navigation from knowledge list page - start fresh conversation

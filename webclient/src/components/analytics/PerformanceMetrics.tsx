@@ -77,7 +77,22 @@ export function PerformanceMetrics({ data, loading }: PerformanceMetricsProps) {
 
   const averageResponseTime = chartData.reduce((sum, item) => sum + item.responseTime, 0) / chartData.length;
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      payload: {
+        model: string;
+        provider: string;
+        responseTime: number;
+        successRate: number;
+        requests: number;
+        color: string;
+      };
+    }>;
+    label?: string;
+  }
+
+  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (

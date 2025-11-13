@@ -152,6 +152,8 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
         connection.stop();
       }
     };
+    // Connection object is intentionally not in dependencies to avoid reconnection loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getConnectionIcon = () => {

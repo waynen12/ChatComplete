@@ -57,7 +57,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
       });
 
       // Listen for provider data updates (from direct requests)
-      newConnection.on('ProviderDataUpdate', (data: { Provider: string, Data: any, Timestamp: string }) => {
+      newConnection.on('ProviderDataUpdate', (data: { Provider: string; Data: { balance: number; balanceUnit: string; monthlyUsage: number; isConnected: boolean }; Timestamp: string }) => {
         if (data.Provider.toLowerCase().includes('google')) {
           console.log('Provider Data Update (Google AI):', data);
           setBalanceData({
@@ -111,7 +111,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
         }
         
         const accounts = await response.json();
-        const googleAIAccount = accounts.find((acc: any) => 
+        const googleAIAccount = accounts.find((acc: { provider?: string }) => 
           acc.provider?.toLowerCase().includes('google')
         );
         
@@ -143,6 +143,8 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
         connection.stop();
       }
     };
+    // Connection object is intentionally not in dependencies to avoid reconnection loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getConnectionIcon = () => {
