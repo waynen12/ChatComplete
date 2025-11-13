@@ -10,7 +10,7 @@ interface CostBreakdownChartProps {
 const PROVIDER_COLORS: Record<string, string> = {
   'OpenAi': '#10b981', // emerald-500
   'Anthropic': '#f97316', // orange-500
-  'Google': '#3b82f6', // blue-500
+  'Google': '#8b5cf6', // violet-500
   'Ollama': '#a855f7', // purple-500
 };
 

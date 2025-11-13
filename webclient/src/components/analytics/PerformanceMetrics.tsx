@@ -45,7 +45,7 @@ export function PerformanceMetrics({ data, loading }: PerformanceMetricsProps) {
           responseTime: 1.5, 
           successRate: 96.8, 
           requests: 67,
-          color: '#3b82f6'
+          color: '#8b5cf6'
         },
         { 
           model: 'llama3.1:8b', 
@@ -61,7 +61,7 @@ export function PerformanceMetrics({ data, loading }: PerformanceMetricsProps) {
     const providerColors: Record<string, string> = {
       'OpenAi': '#10b981',
       'Anthropic': '#f97316', 
-      'Google': '#3b82f6',
+      'Google': '#8b5cf6',
       'Ollama': '#a855f7'
     };
 

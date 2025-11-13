@@ -250,7 +250,7 @@ export const OllamaUsageWidget: React.FC<OllamaUsageWidgetProps> = ({ className 
             {/* Tool Support */}
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center space-x-1">
-                <Zap className="h-3 w-3 text-blue-500" />
+                <Zap className="h-3 w-3 text-primary" />
                 <span>{usageData.toolEnabledModels} tool-enabled</span>
               </div>
               {usageData.recentDownloads.pendingDownloads > 0 && (
@@ -263,7 +263,7 @@ export const OllamaUsageWidget: React.FC<OllamaUsageWidgetProps> = ({ className 
 
             {/* Top Model */}
             {topModel && (
-              <div className="p-2 bg-gray-50 rounded-md">
+              <div className="p-2 bg-muted rounded-md">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-medium">{topModel.modelName}</span>
                   <div className="flex space-x-1">
@@ -283,9 +283,9 @@ export const OllamaUsageWidget: React.FC<OllamaUsageWidgetProps> = ({ className 
 
             {/* Download Activity */}
             {(usageData.recentDownloads.completedToday > 0 || usageData.recentDownloads.failedToday > 0) && (
-              <div className="p-2 bg-blue-50 rounded-md">
-                <div className="text-xs font-medium text-blue-700 mb-1">Today's Downloads</div>
-                <div className="flex justify-between text-xs text-blue-600">
+              <div className="p-2 bg-muted border border-border rounded-md">
+                <div className="text-xs font-medium text-foreground mb-1">Today's Downloads</div>
+                <div className="flex justify-between text-xs text-muted-foreground">
                   <span>✓ {usageData.recentDownloads.completedToday} completed</span>
                   {usageData.recentDownloads.failedToday > 0 && (
                     <span>✗ {usageData.recentDownloads.failedToday} failed</span>
