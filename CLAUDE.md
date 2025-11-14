@@ -208,6 +208,27 @@ VectorStore__Qdrant__Port=6333
 
 **Result**: Complete containerized deployment with Qdrant + SQLite - no external database dependencies required.
 
+## Recent Progress (November 2025)
+
+### Database Path Fix ✅ COMPLETED (2025-11-14)
+
+**Critical Production Bug Fixed**:
+- 🔧 **Database path moved outside `/out` directory**: Changed from `/opt/knowledge-api/out/data/knowledge.db` to `/opt/knowledge-api/data/knowledge.db`
+- 🔧 **Survives deployments**: Database no longer deleted during GitHub Actions deployments (which wipe `/out` folder)
+- 🔧 **Configuration consistency**: Both Knowledge.Api and Knowledge.Mcp appsettings.json now explicitly configured with same path
+- 🔧 **No data loss**: Chat history, knowledge metadata, and configuration now persist across deployments
+
+**Root Cause**:
+- Knowledge.Api had `"DatabasePath": null` in appsettings.json
+- Fallback logic used `AppContext.BaseDirectory + "data"` → `/opt/knowledge-api/out/data/knowledge.db`
+- GitHub Actions workflow runs `rm -rf /opt/knowledge-api/out/*` before each deployment
+- Result: Database deleted on every deployment 💥
+
+**Fix Applied**:
+- Updated [Knowledge.Api/appsettings.json](Knowledge.Api/appsettings.json#L66): `"DatabasePath": "/opt/knowledge-api/data/knowledge.db"`
+- Updated [Knowledge.Mcp/appsettings.json](Knowledge.Mcp/appsettings.json#L18): Same path (was pointing to `/out` directory)
+- Both services now explicitly configured (no fallback logic in production)
+
 ## Recent Progress (September 2025)
 
 ### Analytics Dashboard Fixes ✅ COMPLETED (2025-09-10)
@@ -629,9 +650,11 @@ public class OAuthSettings
 - **Knowledge.Api** (Port 7040) - Main API server at `/opt/knowledge-api/out`
 - **Knowledge.Mcp** (Port 5001) - MCP server at `/opt/knowledge-mcp/out`
 - **Qdrant** (Port 6333) - Vector database
-- **Shared Database**: `/opt/knowledge-api/out/data/knowledge.db` (SQLite)
+- **Shared Database**: `/opt/knowledge-api/data/knowledge.db` (SQLite - OUTSIDE `/out` directory)
 
 Both services share the same SQLite database for configuration, chat history, and knowledge metadata.
+
+**CRITICAL**: The database path is `/opt/knowledge-api/data/knowledge.db` (NOT `/opt/knowledge-api/out/data/knowledge.db`). This ensures the database survives GitHub Actions deployments which delete the `/out` directory.
 
 ### GitHub Actions Workflow Integration
 
@@ -734,11 +757,12 @@ chatapi ALL=(root) NOPASSWD: /usr/bin/systemctl restart knowledge-api.service, \
 }
 ```
 
-**Database Path Resolution:**
-- Configured path: `/opt/knowledge-api/out/data/knowledge.db`
-- Production deployment uses actual binary output directory (`/out`)
-- Not the simpler `/opt/knowledge-api/data` path
-- Both API and MCP must point to same database file
+**Database Path Configuration:**
+- **Production Path**: `/opt/knowledge-api/data/knowledge.db` (OUTSIDE `/out` directory)
+- **Critical**: Database MUST be outside `/opt/knowledge-api/out/` to survive deployments
+- **Both Services**: API and MCP configured to use same database path in appsettings.json
+- **Why `/data`**: The `/out` folder is deleted during GitHub Actions deployments
+- **Shared Database**: Both services access same SQLite file for configuration, chat history, and knowledge metadata
 
 ### Health Endpoints
 
