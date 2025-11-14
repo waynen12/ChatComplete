@@ -79,57 +79,12 @@ The current UI uses blue-shaded colors extensively. **Your first task is to repl
 ```
 
 **Implementation Notes:**
-- Replace ALL instances of blue colors in components
-- Ensure 4.5:1 contrast ratio for text (WCAG 2.1 AA)
-- Darken button text to maintain readability on lighter backgrounds
-- Test thoroughly in both light and dark modes
-- Update `globals.css` and `tailwind.config.js`
-- Check for hardcoded blue values in component files
-
-**Component Library:**
-- Use **shadcn/ui** components (already installed)
-- Follow **Radix UI** patterns for accessibility
-- Extend with custom components in `src/components/`
-
-**Layout Patterns:**
-- Responsive: Mobile-first design (breakpoints: sm, md, lg, xl)
-- Dark mode: Full support via `next-themes` (don't break this!)
-- Spacing: Tailwind spacing scale (4px base unit)
-
-#### 3. **Current UI State (Baseline)**
-
-**✅ Strengths:**
-- Modern React 19 + Vite + TypeScript setup
-- Excellent OKLCH color system with full dark mode
-- Real-time updates via SignalR
-- Good component architecture
-- Smooth animations with Framer Motion
-
-**⚠️ Areas Needing Improvement (YOUR FOCUS):**
-
-| Priority | Area | Issues | Target |
-|----------|------|--------|--------|
-| 🔴 **Critical** | **Color Scheme** | Blue-shaded colors throughout UI | Minimalist light palette |
-| 🔴 **Critical** | **Accessibility** | Missing ARIA labels, keyboard nav | WCAG 2.1 AA |
-| 🔴 **Critical** | **Performance** | 1.15 MB bundle size | < 500 KB |
-| 🔴 **Critical** | **Mobile UX** | No hamburger menu, responsive issues | Full mobile support |
-| 🟠 **High** | **Chat UX** | No message actions (copy/edit/delete) | Rich chat experience |
-| 🟠 **High** | **Forms** | Missing labels, poor validation UX | Accessible forms |
-| 🟡 **Medium** | **Empty States** | Generic "no data" messages | Helpful empty states |
-| 🟡 **Medium** | **Keyboard Shortcuts** | Limited keyboard support | Power user shortcuts |
-
-#### 4. **Required Reading Before Making Changes**
-
-**MUST READ (in order):**
-1. `documentation/REVIEW_SUMMARY.md` - Quick overview of current UI state
-2. `documentation/UI_REVIEW.md` - Detailed UI/UX analysis (18 KB)
-3. `documentation/UI_IMPROVEMENTS_ACTION_PLAN.md` - Implementation guide (26 KB)
-4. `CLAUDE.md` - Project milestones and technical context
-
-**Key Sections to Focus On:**
-- UI_IMPROVEMENTS_ACTION_PLAN.md → Week 1-4 implementation timeline
-- UI_REVIEW.md → Accessibility findings (Section 4)
-- UI_REVIEW.md → Performance recommendations (Section 5)
+**Task**
+I want to make changes to the Analytics page. 
+It currently displays several widgets and kpis showing system health, model performance etc. 
+As a User I want to be able to perform the following:
+1. Move Kpis around the screen using the mouse
+2. Move AND resize the large widgets. 
 
 ---
 
