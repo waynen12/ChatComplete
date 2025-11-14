@@ -57,7 +57,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
       });
 
       // Listen for provider data updates (from direct requests)
-      newConnection.on('ProviderDataUpdate', (data: { Provider: string, Data: any, Timestamp: string }) => {
+      newConnection.on('ProviderDataUpdate', (data: { Provider: string; Data: { balance: number; balanceUnit: string; monthlyUsage: number; isConnected: boolean }; Timestamp: string }) => {
         if (data.Provider.toLowerCase().includes('google')) {
           console.log('Provider Data Update (Google AI):', data);
           setBalanceData({
@@ -111,7 +111,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
         }
         
         const accounts = await response.json();
-        const googleAIAccount = accounts.find((acc: any) => 
+        const googleAIAccount = accounts.find((acc: { provider?: string }) => 
           acc.provider?.toLowerCase().includes('google')
         );
         
@@ -143,6 +143,8 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
         connection.stop();
       }
     };
+    // Connection object is intentionally not in dependencies to avoid reconnection loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getConnectionIcon = () => {
@@ -239,19 +241,19 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
             </div>
 
             {/* Cloud Console Message */}
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-700">
+            <div className="p-3 bg-muted border border-border rounded-md">
+              <p className="text-sm text-foreground">
                 ✅ API Connected - Billing data not available via API
               </p>
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Google AI billing requires{' '}
                 <a href="https://cloud.google.com/billing/docs" target="_blank" rel="noopener noreferrer" 
-                   className="underline hover:text-blue-800">
+                   className="underline hover:text-primary">
                   Cloud Console access
                 </a>{' '}
                 and Cloud Billing API setup. Visit the{' '}
                 <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener noreferrer" 
-                   className="underline hover:text-blue-800">
+                   className="underline hover:text-primary">
                   Google Cloud Console
                 </a>{' '}
                 to view billing information.
@@ -263,7 +265,7 @@ export const GoogleAIBalanceWidget: React.FC<GoogleAIBalanceWidgetProps> = ({ cl
               <p className="text-xs text-muted-foreground">
                 Last updated: {new Date(balanceData.lastUpdated).toLocaleTimeString()}
               </p>
-              <div className={`w-2 h-2 rounded-full ${balanceData.isConnected ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
+              <div className={`w-2 h-2 rounded-full ${balanceData.isConnected ? 'bg-primary' : 'bg-muted-foreground'}`}></div>
             </div>
           </div>
         </CardContent>

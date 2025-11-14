@@ -46,12 +46,41 @@ interface KnowledgeUsageStats {
   totalFileSize: number;
 }
 
+interface UsageTrendData {
+  date: string;
+  totalRequests: number;
+  successfulRequests: number;
+  totalTokens: number;
+  uniqueConversations: number;
+}
+
+interface ProviderAccountData {
+  provider: string;
+  isConnected: boolean;
+  apiKeyConfigured: boolean;
+  lastSyncAt?: string;
+  balance?: number;
+  balanceUnit?: string;
+  monthlyUsage: number;
+  errorMessage?: string;
+}
+
+interface CostBreakdownData {
+  provider: string;
+  totalCost: number;
+  period: {
+    startDate: string;
+    endDate: string;
+    days: number;
+  };
+}
+
 export default function AnalyticsPage() {
   const [modelStats, setModelStats] = useState<ModelUsageStats[]>([]);
   const [knowledgeStats, setKnowledgeStats] = useState<KnowledgeUsageStats[]>([]);
-  const [usageTrends, setUsageTrends] = useState<any[]>([]);
-  const [costBreakdown, setCostBreakdown] = useState<any[]>([]);
-  const [providerAccounts, setProviderAccounts] = useState<any[]>([]);
+  const [usageTrends, setUsageTrends] = useState<UsageTrendData[]>([]);
+  const [costBreakdown, setCostBreakdown] = useState<CostBreakdownData[]>([]);
+  const [providerAccounts, setProviderAccounts] = useState<ProviderAccountData[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 

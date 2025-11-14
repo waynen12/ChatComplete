@@ -3,8 +3,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, subDays, startOfDay } from 'date-fns';
 
+interface UsageTrendData {
+  date: string;
+  totalRequests: number;
+  successfulRequests: number;
+  totalTokens: number;
+  uniqueConversations: number;
+}
+
 interface UsageTrendsChartProps {
-  data: any[];
+  data: UsageTrendData[];
   loading?: boolean;
 }
 

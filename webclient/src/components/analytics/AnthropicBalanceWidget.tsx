@@ -152,6 +152,8 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
         connection.stop();
       }
     };
+    // Connection object is intentionally not in dependencies to avoid reconnection loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getConnectionIcon = () => {
@@ -317,7 +319,7 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
             {/* Additional Stats */}
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div className="flex items-center space-x-1">
-                <Zap className="h-3 w-3 text-blue-500" />
+                <Zap className="h-3 w-3 text-primary" />
                 <span>{usageData.totalRequests || 0} requests</span>
               </div>
               {(usageData.webSearchRequests || 0) > 0 && (
@@ -330,7 +332,7 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
 
             {/* Top Model */}
             {topModel && (
-              <div className="p-2 bg-gray-50 rounded-md">
+              <div className="p-2 bg-muted rounded-md">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-medium">{topModel.modelName}</span>
                   <Badge variant="secondary" className="text-xs">
@@ -357,11 +359,11 @@ export const AnthropicBalanceWidget: React.FC<AnthropicBalanceWidgetProps> = ({ 
 
             {/* No Admin Key Message */}
             {!usageData.hasAdminKey && (
-              <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-xs text-blue-700">
+              <div className="p-2 bg-muted border border-border rounded-md">
+                <p className="text-xs text-foreground">
                   🔑 Limited data with regular API key
                 </p>
-                <p className="text-xs text-blue-600 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Use Admin API key (sk-ant-admin...) for detailed billing data
                 </p>
               </div>

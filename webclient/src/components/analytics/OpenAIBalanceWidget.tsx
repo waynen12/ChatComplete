@@ -74,7 +74,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
       });
 
       // Listen for provider data updates (from direct requests)
-      newConnection.on('ProviderDataUpdate', (data: { Provider: string, Data: any, Timestamp: string }) => {
+      newConnection.on('ProviderDataUpdate', (data: { Provider: string; Data: { balance: number; balanceUnit: string; monthlyUsage: number; isConnected: boolean }; Timestamp: string }) => {
         if (data.Provider.toLowerCase() === 'openai') {
           console.log('Provider Data Update (OpenAI):', data);
           setBalanceData({
@@ -128,7 +128,7 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         }
         
         const accounts = await response.json();
-        const openAIAccount = accounts.find((acc: any) => 
+        const openAIAccount = accounts.find((acc: { provider?: string }) => 
           acc.provider?.toLowerCase() === 'openai'
         );
         
@@ -160,6 +160,8 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
         connection.stop();
       }
     };
+    // Connection object is intentionally not in dependencies to avoid reconnection loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formatCurrency = (amount?: number, unit: string = 'USD') => {
@@ -177,8 +179,8 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
   };
 
   const getStatusColor = () => {
-    if (!balanceData?.isConnected) return 'bg-gray-500';
-    if (balanceData?.balance === null) return 'bg-blue-500'; // Blue for "API working but no billing access"
+    if (!balanceData?.isConnected) return 'bg-muted-foreground';
+    if (balanceData?.balance === null) return 'bg-primary'; // Primary for "API working but no billing access"
     const usage = getUsagePercentage();
     if (usage > 80) return 'bg-red-500';
     if (usage > 60) return 'bg-yellow-500';
@@ -299,14 +301,14 @@ export const OpenAIBalanceWidget: React.FC<OpenAIBalanceWidgetProps> = ({ classN
                 </p>
               </div>
             ) : (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-700">
+              <div className="p-3 bg-muted border border-border rounded-md">
+                <p className="text-sm text-foreground">
                   ✅ API Connected - Billing data not available via API
                 </p>
-                <p className="text-xs text-blue-600 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   OpenAI billing endpoints require session tokens, not API keys. Visit{' '}
                   <a href="https://platform.openai.com/account/usage" target="_blank" rel="noopener noreferrer" 
-                     className="underline hover:text-blue-800">
+                     className="underline hover:text-primary">
                     platform.openai.com
                   </a>{' '}
                   to view billing information.

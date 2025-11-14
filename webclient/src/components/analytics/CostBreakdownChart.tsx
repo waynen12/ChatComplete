@@ -10,9 +10,20 @@ interface CostBreakdownChartProps {
 const PROVIDER_COLORS: Record<string, string> = {
   'OpenAi': '#10b981', // emerald-500
   'Anthropic': '#f97316', // orange-500
-  'Google': '#3b82f6', // blue-500
+  'Google': '#8b5cf6', // violet-500
   'Ollama': '#a855f7', // purple-500
 };
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      provider: string;
+      totalCost: number;
+      color: string;
+    };
+  }>;
+}
 
 export function CostBreakdownChart({ data, loading }: CostBreakdownChartProps) {
   const chartData = useMemo(() => {
@@ -35,7 +46,7 @@ export function CostBreakdownChart({ data, loading }: CostBreakdownChartProps) {
 
   const totalCost = chartData.reduce((sum, item) => sum + item.totalCost, 0);
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: TooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -93,11 +104,7 @@ export function CostBreakdownChart({ data, loading }: CostBreakdownChartProps) {
                 <Legend 
                   verticalAlign="bottom" 
                   height={36}
-                  formatter={(value, entry: any) => (
-                    <span style={{ color: entry.color }}>
-                      {value}: ${entry.payload.totalCost.toFixed(2)}
-                    </span>
-                  )}
+                  formatter={(value: string) => value}
                 />
               </PieChart>
             </ResponsiveContainer>

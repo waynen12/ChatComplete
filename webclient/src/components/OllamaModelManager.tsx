@@ -72,13 +72,16 @@ export function OllamaModelManager({
       fetchModelDetails();
       fetchActiveDownloads();
     }
+    // fetchModelDetails and fetchActiveDownloads are stable functions defined below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Cleanup event sources on unmount
   useEffect(() => {
+    const eventSources = eventSourcesRef.current;
     return () => {
-      eventSourcesRef.current.forEach(source => source.close());
-      eventSourcesRef.current.clear();
+      eventSources.forEach(source => source.close());
+      eventSources.clear();
     };
   }, []);
 
@@ -91,7 +94,7 @@ export function OllamaModelManager({
       } else {
         notify.error('Failed to fetch model details');
       }
-    } catch (error) {
+    } catch {
       notify.error('Error fetching model details');
     }
   };
@@ -111,7 +114,7 @@ export function OllamaModelManager({
           }
         });
       }
-    } catch (error) {
+    } catch {
       notify.error('Error fetching active downloads');
     }
   };
