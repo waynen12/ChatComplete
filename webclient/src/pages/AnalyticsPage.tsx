@@ -17,6 +17,12 @@ import {
   GoogleAIIcon,
   OllamaIcon
 } from "@/components/icons";
+import { Responsive, WidthProvider } from "react-grid-layout";
+import type { Layout } from "react-grid-layout";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 interface ModelUsageStats {
   modelName: string;
@@ -75,6 +81,26 @@ interface CostBreakdownData {
   };
 }
 
+// Default layouts for KPI cards (6 cards in 2 rows)
+const defaultKpiLayout: Layout[] = [
+  { i: "kpi-0", x: 0, y: 0, w: 2, h: 1, minW: 2, minH: 1 },
+  { i: "kpi-1", x: 2, y: 0, w: 2, h: 1, minW: 2, minH: 1 },
+  { i: "kpi-2", x: 4, y: 0, w: 2, h: 1, minW: 2, minH: 1 },
+  { i: "kpi-3", x: 0, y: 1, w: 2, h: 1, minW: 2, minH: 1 },
+  { i: "kpi-4", x: 2, y: 1, w: 2, h: 1, minW: 2, minH: 1 },
+  { i: "kpi-5", x: 4, y: 1, w: 2, h: 1, minW: 2, minH: 1 },
+];
+
+// Default layouts for main widgets
+const defaultWidgetLayout: Layout[] = [
+  { i: "provider-analytics", x: 0, y: 0, w: 12, h: 3, minW: 6, minH: 2 },
+  { i: "provider-status", x: 0, y: 3, w: 12, h: 3, minW: 6, minH: 2 },
+  { i: "usage-trends", x: 0, y: 6, w: 12, h: 4, minW: 6, minH: 3 },
+  { i: "performance-metrics", x: 0, y: 10, w: 12, h: 4, minW: 6, minH: 3 },
+  { i: "model-performance", x: 0, y: 14, w: 12, h: 5, minW: 6, minH: 3 },
+  { i: "knowledge-activity", x: 0, y: 19, w: 12, h: 5, minW: 6, minH: 3 },
+];
+
 export default function AnalyticsPage() {
   const [modelStats, setModelStats] = useState<ModelUsageStats[]>([]);
   const [knowledgeStats, setKnowledgeStats] = useState<KnowledgeUsageStats[]>([]);
@@ -83,6 +109,36 @@ export default function AnalyticsPage() {
   const [providerAccounts, setProviderAccounts] = useState<ProviderAccountData[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  
+  // Layout state for KPIs and widgets
+  const [kpiLayout, setKpiLayout] = useState<Layout[]>(() => {
+    const saved = localStorage.getItem("analytics-kpi-layout");
+    return saved ? JSON.parse(saved) : defaultKpiLayout;
+  });
+  
+  const [widgetLayout, setWidgetLayout] = useState<Layout[]>(() => {
+    const saved = localStorage.getItem("analytics-widget-layout");
+    return saved ? JSON.parse(saved) : defaultWidgetLayout;
+  });
+
+  // Handle layout changes and persist to localStorage
+  const handleKpiLayoutChange = useCallback((newLayout: Layout[]) => {
+    setKpiLayout(newLayout);
+    localStorage.setItem("analytics-kpi-layout", JSON.stringify(newLayout));
+  }, []);
+
+  const handleWidgetLayoutChange = useCallback((newLayout: Layout[]) => {
+    setWidgetLayout(newLayout);
+    localStorage.setItem("analytics-widget-layout", JSON.stringify(newLayout));
+  }, []);
+
+  // Reset layouts to default
+  const handleResetLayout = useCallback(() => {
+    setKpiLayout(defaultKpiLayout);
+    setWidgetLayout(defaultWidgetLayout);
+    localStorage.removeItem("analytics-kpi-layout");
+    localStorage.removeItem("analytics-widget-layout");
+  }, []);
 
   const fetchWithRetry = useCallback(async (url: string, maxRetries = 3): Promise<Response> => {
     let lastError: Error = new Error('Unknown error');
@@ -265,6 +321,54 @@ export default function AnalyticsPage() {
     }
   };
 
+  // KPI cards data
+  const kpiCards = [
+    {
+      id: "kpi-0",
+      title: "Total Conversations",
+      icon: <ConversationIcon className="h-6 w-6 text-muted-foreground" />,
+      value: formatNumber(totalConversations),
+      description: "Across all models"
+    },
+    {
+      id: "kpi-1",
+      title: "Active Providers",
+      icon: <ProviderIcon className="h-6 w-6 text-muted-foreground" />,
+      value: activeProviders,
+      description: "AI providers in use"
+    },
+    {
+      id: "kpi-2",
+      title: "Total Tokens",
+      icon: <TokenIcon className="h-6 w-6 text-muted-foreground" />,
+      value: formatNumber(totalTokens),
+      description: "Tokens processed"
+    },
+    {
+      id: "kpi-3",
+      title: "Knowledge Bases",
+      icon: <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />,
+      value: totalKnowledgeBases,
+      description: "Active knowledge bases"
+    },
+    {
+      id: "kpi-4",
+      title: "Most Popular Model",
+      icon: <StarIcon className="h-6 w-6 text-muted-foreground" />,
+      value: mostPopularModel.modelName,
+      description: `${mostPopularModel.conversationCount} conversations`,
+      isText: true
+    },
+    {
+      id: "kpi-5",
+      title: "Most Popular KB",
+      icon: <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />,
+      value: mostPopularKnowledgeBase.knowledgeName || mostPopularKnowledgeBase.knowledgeId,
+      description: `${mostPopularKnowledgeBase.conversationCount} conversations`,
+      isText: true
+    }
+  ];
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -275,6 +379,14 @@ export default function AnalyticsPage() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleResetLayout}
+            title="Reset dashboard layout to default"
+          >
+            Reset Layout
+          </Button>
           <Button
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
@@ -288,219 +400,207 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Conversations</CardTitle>
-            <ConversationIcon className="h-6 w-6 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(totalConversations)}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all models
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Providers</CardTitle>
-            <ProviderIcon className="h-6 w-6 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeProviders}</div>
-            <p className="text-xs text-muted-foreground">
-              AI providers in use
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tokens</CardTitle>
-            <TokenIcon className="h-6 w-6 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(totalTokens)}</div>
-            <p className="text-xs text-muted-foreground">
-              Tokens processed
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Knowledge Bases</CardTitle>
-            <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalKnowledgeBases}</div>
-            <p className="text-xs text-muted-foreground">
-              Active knowledge bases
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Most Popular Model</CardTitle>
-            <StarIcon className="h-6 w-6 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm font-bold truncate" title={mostPopularModel.modelName}>
-              {mostPopularModel.modelName}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {mostPopularModel.conversationCount} conversations
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Most Popular KB</CardTitle>
-            <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm font-bold truncate" title={mostPopularKnowledgeBase.knowledgeName || mostPopularKnowledgeBase.knowledgeId}>
-              {mostPopularKnowledgeBase.knowledgeName || mostPopularKnowledgeBase.knowledgeId}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {mostPopularKnowledgeBase.conversationCount} conversations
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Provider Balance & Usage Widgets - Real-time updates */}
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Provider Analytics</CardTitle>
-            <CardDescription>
-              Real-time monitoring of your AI provider accounts with balance, usage, billing data, and local model analytics
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <OllamaUsageWidget />
-            </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              Ollama shows local model usage and requires no configuration. Cloud provider widgets can be added by configuring API keys in settings.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Provider Status Cards */}
-      <ProviderStatusCards 
-        accounts={providerAccounts}
-        usage={costBreakdown}
-        loading={loading}
-        onRefresh={fetchAnalytics}
-      />
-
-      {/* Charts Section */}
-      <div className="grid gap-6">
-        <UsageTrendsChart data={usageTrends} loading={loading} />
-      </div>
-
-      {/* Performance Metrics */}
-      <PerformanceMetrics data={modelStats} loading={loading} />
-
-      {/* Model Performance Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Model Performance</CardTitle>
-          <CardDescription>
-            Usage statistics and performance metrics for all AI models
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {modelStats.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No model usage data available yet. Start some conversations to see analytics.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {modelStats.map((model, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      {getProviderIcon(model.provider)}
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">{model.modelName}</span>
-                          <Badge variant="secondary">{model.provider}</Badge>
-                          {model.supportsTools && <Badge variant="outline">Tools</Badge>}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {model.conversationCount} conversations • {formatNumber(model.totalTokens)} tokens
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {model.successRate.toFixed(1)}% success
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Avg: {(model.averageResponseTime / 1000).toFixed(1)}s
-                      </div>
-                    </div>
+      {/* Quick Stats - Draggable KPI Cards */}
+      <div className="relative">
+        <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+          <span className="inline-block w-3 h-3 bg-muted rounded"></span>
+          <span>Drag KPI cards to reorder</span>
+        </div>
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={{ lg: kpiLayout }}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 6, md: 4, sm: 2, xs: 2, xxs: 1 }}
+          rowHeight={100}
+          onLayoutChange={handleKpiLayoutChange}
+          isDraggable={true}
+          isResizable={false}
+          compactType="horizontal"
+          preventCollision={false}
+        >
+          {kpiCards.map((kpi) => (
+            <div key={kpi.id} className="cursor-move">
+              <Card className="h-full hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
+                  {kpi.icon}
+                </CardHeader>
+                <CardContent>
+                  <div className={kpi.isText ? "text-sm font-bold truncate" : "text-2xl font-bold"} title={typeof kpi.value === 'string' ? kpi.value : undefined}>
+                    {kpi.value}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                  <p className="text-xs text-muted-foreground">
+                    {kpi.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
+        </ResponsiveGridLayout>
+      </div>
 
-      {/* Knowledge Base Usage */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Knowledge Base Activity</CardTitle>
-          <CardDescription>
-            Usage patterns and statistics for your knowledge bases
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {knowledgeStats.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No knowledge bases found. Create some knowledge bases to see analytics.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {knowledgeStats.map((kb, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">{kb.knowledgeName || kb.knowledgeId}</span>
-                          <Badge variant="outline">{kb.vectorStore}</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {kb.documentCount} docs • {kb.chunkCount} chunks • {formatFileSize(kb.totalFileSize)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {kb.conversationCount} conversations
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {kb.queryCount} queries total
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+      {/* Main Widgets - Draggable and Resizable */}
+      <div className="relative">
+        <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+          <span className="inline-block w-3 h-3 bg-muted rounded"></span>
+          <span>Drag to move widgets, drag corners to resize</span>
+        </div>
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={{ lg: widgetLayout }}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+          rowHeight={80}
+          onLayoutChange={handleWidgetLayoutChange}
+          isDraggable={true}
+          isResizable={true}
+          compactType="vertical"
+          preventCollision={false}
+        >
+          {/* Provider Balance & Usage Widgets */}
+          <div key="provider-analytics" className="cursor-move">
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Provider Analytics</CardTitle>
+                <CardDescription>
+                  Real-time monitoring of your AI provider accounts with balance, usage, billing data, and local model analytics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <OllamaUsageWidget />
+                </div>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Ollama shows local model usage and requires no configuration. Cloud provider widgets can be added by configuring API keys in settings.
+                </p>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Provider Status Cards */}
+          <div key="provider-status" className="cursor-move">
+            <div className="h-full">
+              <ProviderStatusCards 
+                accounts={providerAccounts}
+                usage={costBreakdown}
+                loading={loading}
+                onRefresh={fetchAnalytics}
+              />
+            </div>
+          </div>
+
+          {/* Charts Section */}
+          <div key="usage-trends" className="cursor-move">
+            <div className="h-full">
+              <UsageTrendsChart data={usageTrends} loading={loading} />
+            </div>
+          </div>
+
+          {/* Performance Metrics */}
+          <div key="performance-metrics" className="cursor-move">
+            <div className="h-full">
+              <PerformanceMetrics data={modelStats} loading={loading} />
+            </div>
+          </div>
+
+          {/* Model Performance Table */}
+          <div key="model-performance" className="cursor-move">
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Model Performance</CardTitle>
+                <CardDescription>
+                  Usage statistics and performance metrics for all AI models
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {modelStats.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      No model usage data available yet. Start some conversations to see analytics.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {modelStats.map((model, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center space-x-4">
+                            {getProviderIcon(model.provider)}
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">{model.modelName}</span>
+                                <Badge variant="secondary">{model.provider}</Badge>
+                                {model.supportsTools && <Badge variant="outline">Tools</Badge>}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {model.conversationCount} conversations • {formatNumber(model.totalTokens)} tokens
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium">
+                              {model.successRate.toFixed(1)}% success
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Avg: {(model.averageResponseTime / 1000).toFixed(1)}s
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Knowledge Base Usage */}
+          <div key="knowledge-activity" className="cursor-move">
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Knowledge Base Activity</CardTitle>
+                <CardDescription>
+                  Usage patterns and statistics for your knowledge bases
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {knowledgeStats.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      No knowledge bases found. Create some knowledge bases to see analytics.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {knowledgeStats.map((kb, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center space-x-4">
+                            <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">{kb.knowledgeName || kb.knowledgeId}</span>
+                                <Badge variant="outline">{kb.vectorStore}</Badge>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {kb.documentCount} docs • {kb.chunkCount} chunks • {formatFileSize(kb.totalFileSize)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium">
+                              {kb.conversationCount} conversations
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {kb.queryCount} queries total
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </ResponsiveGridLayout>
+      </div>
     </div>
   );
 }
