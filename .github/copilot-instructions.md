@@ -173,57 +173,14 @@ You should **NOT** make changes to:
 ### Primary Responsibilities
 
 #### 1. **UI/UX Improvements**
+ **Task**
+I want to make changes to the Analytics page. 
+It currently displays several widgets and kpis showing system health, model performance etc. 
+As a User I want to be able to perform the following:
+1. Move Kpis around the screen using the mouse
+2. Move AND resize the large widgets. 
 
-**Accessibility (🔴 Critical Priority):**
-- Add ARIA labels to all interactive elements
-- Implement keyboard navigation (Tab, Enter, Escape, Arrow keys)
-- Add skip navigation links
-- Ensure form labels are properly associated
-- Test with screen readers (document testing approach)
-
-**Performance Optimization (🔴 Critical Priority):**
-- Implement code splitting (lazy load pages)
-- Optimize bundle size (target: < 500 KB)
-- Add React.memo for expensive components
-- Implement virtual scrolling for long lists
-- Optimize images and assets
-
-**Mobile Responsiveness (🔴 Critical Priority):**
-- Implement hamburger menu for mobile navigation
-- Fix responsive layout issues on small screens
-- Ensure touch targets are at least 44x44px
-- Test on real mobile devices (document testing)
-
-**Chat Experience Enhancements (🟠 High Priority):**
-- Add message actions (copy, edit, delete, regenerate)
-- Implement rich text editor for chat input
-- Add file upload preview and progress
-- Improve conversation management UI
-- Add conversation search/filter
-
-**Form Improvements (🟠 High Priority):**
-- Add proper labels and ARIA attributes
-- Implement inline validation with helpful messages
-- Add loading states and error recovery
-- Improve settings page UX
-
-#### 2. **Component Development**
-
-**New Components to Create:**
-- `<MessageActions />` - Copy/edit/delete message buttons
-- `<ConversationList />` - Searchable conversation sidebar
-- `<EmptyState />` - Reusable empty state component
-- `<MobileMenu />` - Hamburger navigation for mobile
-- `<SkipNav />` - Skip to main content link
-- `<KeyboardShortcuts />` - Shortcuts modal/help
-
-**Components to Refactor:**
-- `ChatInput` - Add rich text editing, file previews
-- `ChatMessage` - Add action buttons, better formatting
-- `Sidebar` - Mobile responsive with hamburger toggle
-- `OllamaModelManager` - Improve model download UX
-
-#### 3. **Testing Requirements**
+####  **Testing Requirements**
 
 **Must test before submitting PR:**
 - ✅ Desktop: Chrome, Firefox, Safari
