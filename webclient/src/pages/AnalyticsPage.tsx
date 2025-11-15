@@ -17,7 +17,7 @@ import {
   GoogleAIIcon,
   OllamaIcon
 } from "@/components/icons";
-import { Maximize2, Minimize2, Table, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Maximize2, Minimize2, Table, ArrowUpDown, ArrowUp, ArrowDown, Edit, Lock } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import type { Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -142,6 +142,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [maximizedWidget, setMaximizedWidget] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
   
   // Layout state for KPIs and widgets
   const [kpiLayout, setKpiLayout] = useState<Layout[]>(() => {
@@ -489,6 +490,16 @@ export default function AnalyticsPage() {
         </div>
         <div className="flex items-center space-x-2">
           <Button
+            variant={editMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setEditMode(!editMode)}
+            title={editMode ? "Lock dashboard (disable moving/resizing)" : "Edit dashboard (enable moving/resizing)"}
+            className="gap-2"
+          >
+            {editMode ? <Edit className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+            {editMode ? 'Edit Mode' : 'Locked'}
+          </Button>
+          <Button
             variant="secondary"
             size="sm"
             onClick={handleResetLayout}
@@ -511,10 +522,12 @@ export default function AnalyticsPage() {
 
       {/* Quick Stats - Draggable KPI Cards */}
       <div className="relative">
-        <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
-          <span className="inline-block w-3 h-3 bg-muted rounded"></span>
-          <span>Drag KPI cards to reorder</span>
-        </div>
+        {editMode && (
+          <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+            <span className="inline-block w-3 h-3 bg-muted rounded"></span>
+            <span>Drag KPI cards to reorder</span>
+          </div>
+        )}
         <ResponsiveGridLayout
           className="layout"
           layouts={{ lg: kpiLayout }}
@@ -522,13 +535,13 @@ export default function AnalyticsPage() {
           cols={{ lg: 6, md: 4, sm: 2, xs: 2, xxs: 1 }}
           rowHeight={115}
           onLayoutChange={handleKpiLayoutChange}
-          isDraggable={true}
+          isDraggable={editMode}
           isResizable={false}
           compactType="horizontal"
           preventCollision={true}
         >
           {kpiCards.map((kpi) => (
-            <div key={kpi.id} className="cursor-move">
+            <div key={kpi.id} className={editMode ? "cursor-move" : ""}>
               <Card className="h-full hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
@@ -550,10 +563,12 @@ export default function AnalyticsPage() {
 
       {/* Main Widgets - Draggable and Resizable */}
       <div className="relative">
-        <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
-          <span className="inline-block w-3 h-3 bg-muted rounded"></span>
-          <span>Drag to move widgets, drag corners to resize</span>
-        </div>
+        {editMode && (
+          <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+            <span className="inline-block w-3 h-3 bg-muted rounded"></span>
+            <span>Drag to move widgets, drag corners to resize</span>
+          </div>
+        )}
         {maximizedWidget ? (
           // Maximized widget view
           <div className="fixed inset-0 z-50 bg-background p-6 overflow-auto">
@@ -943,14 +958,14 @@ export default function AnalyticsPage() {
           rowHeight={80}
           onLayoutChange={handleWidgetLayoutChange}
           onDrop={handleWidgetDrop}
-          isDraggable={true}
-          isResizable={true}
+          isDraggable={editMode}
+          isResizable={editMode}
           compactType={null}
           preventCollision={false}
           allowOverlap={false}
         >
           {/* Provider Balance & Usage Widgets */}
-          <div key="provider-analytics" className="cursor-move">
+          <div key="provider-analytics" className={editMode ? "cursor-move" : ""}>
             <Card className="h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1021,7 +1036,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Provider Status Cards */}
-          <div key="provider-status" className="cursor-move">
+          <div key="provider-status" className={editMode ? "cursor-move" : ""}>
             <div className="h-full relative">
               <div className="flex gap-1 absolute top-2 right-2 z-10">
                 <Button
@@ -1054,7 +1069,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Charts Section */}
-          <div key="usage-trends" className="cursor-move">
+          <div key="usage-trends" className={editMode ? "cursor-move" : ""}>
             <div className="h-full relative">
               <div className="flex gap-1 absolute top-2 right-2 z-10">
                 <Button
@@ -1081,7 +1096,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Performance Metrics */}
-          <div key="performance-metrics" className="cursor-move">
+          <div key="performance-metrics" className={editMode ? "cursor-move" : ""}>
             <div className="h-full relative">
               <div className="flex gap-1 absolute top-2 right-2 z-10">
                 <Button
@@ -1108,7 +1123,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Model Performance Table */}
-          <div key="model-performance" className="cursor-move">
+          <div key="model-performance" className={editMode ? "cursor-move" : ""}>
             <Card className="h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1240,7 +1255,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Knowledge Base Usage */}
-          <div key="knowledge-activity" className="cursor-move">
+          <div key="knowledge-activity" className={editMode ? "cursor-move" : ""}>
             <Card className="h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
