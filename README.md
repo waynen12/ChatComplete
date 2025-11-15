@@ -113,23 +113,30 @@ open http://localhost:8080
 **Prerequisites:**
 - Docker 20.10+ and Docker Compose 1.29+
 - 4GB RAM minimum (8GB recommended for Ollama)
-- 10GB disk space
+- 2GB disk space (base image ~541MB + data)
 
 **Full Stack Deployment:**
 ```bash
 # Download compose file
 curl -O https://raw.githubusercontent.com/waynen12/ChatComplete/main/docker-compose.dockerhub.yml
 
-# Set API keys (optional - Ollama works without keys)
-export OPENAI_API_KEY=your_key_here
-export ANTHROPIC_API_KEY=your_key_here
-export GEMINI_API_KEY=your_key_here
+# (Optional) Create .env file for API keys
+cat > .env << EOF
+OPENAI_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
+GEMINI_API_KEY=your_key_here
+EOF
 
 # Start all services
 docker-compose -f docker-compose.dockerhub.yml up -d
 
 # Check service health
 docker-compose -f docker-compose.dockerhub.yml ps
+```
+
+**Note**: You can also set API keys inline:
+```bash
+OPENAI_API_KEY=xxx docker-compose -f docker-compose.dockerhub.yml up -d
 ```
 
 **Minimal Deployment (Qdrant only):**

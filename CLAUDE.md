@@ -139,11 +139,39 @@ docker-compose -f docker-compose.dockerhub.yml up -d
 - `docker-compose.debug.yml` - Debug: Extended logging and health checks
 
 ### Architecture
-- **Multi-stage build**: Node.js frontend → .NET backend → Alpine runtime
+- **Multi-stage build**: Node.js frontend → .NET backend → Debian Slim runtime
 - **Container networking**: Services communicate via container names (qdrant, ollama)  
 - **Data persistence**: Named volumes for application data, Qdrant storage, and Ollama models
-- **Health monitoring**: TCP-based health checks for all services
-- **Security**: Non-root user, minimal attack surface
+- **Health monitoring**: TCP socket checks (no curl dependency)
+- **Security**: Non-root user, minimal attack surface, no unnecessary packages
+
+### Docker Image Specifications
+- **Final Size**: ~541MB (optimized)
+- **Base Image**: mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim
+- **Build Stages**: 3 (frontend → backend → runtime)
+- **Health Check**: TCP socket (port 7040) - no curl dependency
+- **User**: Non-root (appuser:appgroup, UID/GID 1001)
+- **Volumes**: /app/data (persistent storage)
+- **Port**: 7040 (HTTP)
+
+### Optimization Summary (November 2025)
+**Image Size Reduction:**
+- Before: ~630MB (standard aspnet:8.0 + curl)
+- After: ~541MB (bookworm-slim, no curl)
+- Savings: ~90MB (14% reduction)
+
+**Build Improvements:**
+- Enhanced .dockerignore (reduced build context)
+- Excluded test projects, documentation, .github workflows
+- Excluded SQLite databases and temporary files
+- Faster builds from smaller context transfer
+
+**Runtime Improvements:**
+- No curl dependency (TCP health checks)
+- Single-layer user/directory setup
+- Minimal runtime packages
+- Debian Slim base (vs full Debian)
+
 
 ### Fixed Issues
 **Latest (2025-08-17) - VERIFIED WORKING:**
