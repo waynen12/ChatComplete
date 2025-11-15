@@ -92,14 +92,14 @@ const defaultKpiLayout: Layout[] = [
   { i: "kpi-5", x: 4, y: 1, w: 2, h: 1, minW: 2, minH: 1 },
 ];
 
-// Default layouts for main widgets
+// Default layouts for main widgets - ensures no overlaps with proper spacing
 const defaultWidgetLayout: Layout[] = [
-  { i: "provider-analytics", x: 0, y: 0, w: 12, h: 3, minW: 6, minH: 2 },
-  { i: "provider-status", x: 0, y: 3, w: 12, h: 3, minW: 6, minH: 2 },
-  { i: "usage-trends", x: 0, y: 6, w: 12, h: 4, minW: 6, minH: 3 },
-  { i: "performance-metrics", x: 0, y: 10, w: 12, h: 4, minW: 6, minH: 3 },
-  { i: "model-performance", x: 0, y: 14, w: 12, h: 5, minW: 6, minH: 3 },
-  { i: "knowledge-activity", x: 0, y: 19, w: 12, h: 5, minW: 6, minH: 3 },
+  { i: "provider-analytics", x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 2 },
+  { i: "provider-status", x: 0, y: 4, w: 12, h: 4, minW: 6, minH: 2 },
+  { i: "usage-trends", x: 0, y: 8, w: 12, h: 5, minW: 6, minH: 3 },
+  { i: "performance-metrics", x: 0, y: 13, w: 12, h: 5, minW: 6, minH: 3 },
+  { i: "model-performance", x: 0, y: 18, w: 12, h: 6, minW: 6, minH: 3 },
+  { i: "knowledge-activity", x: 0, y: 24, w: 12, h: 6, minW: 6, minH: 3 },
 ];
 
 export default function AnalyticsPage() {
@@ -673,7 +673,7 @@ export default function AnalyticsPage() {
           onLayoutChange={handleWidgetLayoutChange}
           isDraggable={true}
           isResizable={true}
-          compactType="vertical"
+          compactType={null}
           preventCollision={true}
         >
           {/* Provider Balance & Usage Widgets */}
