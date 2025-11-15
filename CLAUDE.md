@@ -20,28 +20,61 @@ After completing any implementation work:
 **Never assume you can recreate complex implementations from memory - commit early, commit often!**
 
 **DO NOT USE HARDCODED VALUES!!!!!**
-Hardcoded values make the code difficult to adapt to changing requirements and can lead to bugs or unexpected behavior. 
-Always follow these rules instead of using hard coded values
+Hardcoded values make the code difficult to adapt to changing requirements and can lead to bugs or unexpected behavior.
+Always follow these rules instead of using hardcoded values:
 1. Add a parameter to the config file (appsettings.json)
-2. If you can't add a parameter to a config, use a constants file as a last resort. 
+2. If you can't add a parameter to a config, use a constants file as a last resort
 
-3. NO CODE DUPLICATION* - Extract repeated patterns into reusable classes or methods
-   - ❌ BAD: Creating new classes or methods with identical code blocks
-   - ✅ GOOD: Create a helper method, call it from multiple places
-4. *CHECK BEFORE MODIFYING* - When touching any file, verify:
-   - Uses Confiappsessting\config?
-   - No hardcoded values?
-   - No duplicated code blocks?
-   - If NO to any: Fix it while you're there
+**NO CODE DUPLICATION** - Extract repeated patterns into reusable classes or methods
+- ❌ BAD: Creating new classes or methods with identical code blocks
+- ✅ GOOD: Create a helper method, call it from multiple places
+
+**CHECK BEFORE MODIFYING** - When touching any file, verify:
+- Uses configuration/appsettings.json?
+- No hardcoded values?
+- No duplicated code blocks?
+- If NO to any: Fix it while you're there
+
 ## Testing & Validation
-- ALWAYS update or add tests for new/changed behavior:
-    - ALL features should have corresponding smoke tests in tests/smoke/ (quick validation)
-    - Unit tests for new components go in KnowledgeManger.Tests or KnowledgeMcp.Tests
-    Create a new document documentation/MASTER+TEST_Plan.md
 
-  - Integration tests for workflows go in tests/integration/ (end-to-end testing)
-    ALL patterns and features should have corresponding test cases in the MASTER_TEST_PLAN.md 
-    f an existing test case needs to be retested, please set the Pass/Fail/Retest status to "Retest". "Pass" and "Fail" should only be set after manual verification by Wayne.
+**ALWAYS update or add tests for new/changed behavior:**
+- ALL features should have corresponding smoke tests in `tests/smoke/` (quick validation)
+- Unit tests for new components go in `KnowledgeManager.Tests` or `Knowledge.Mcp.Tests`
+- Integration tests for workflows go in `tests/integration/` (end-to-end testing)
+- ALL patterns and features should have corresponding test cases in `documentation/MASTER_TEST_PLAN.md`
+- If an existing test case needs to be retested, set the Pass/Fail/Retest status to "Retest"
+- "Pass" and "Fail" should only be set after manual verification by Wayne
+
+## Documentation
+
+**All new documentation files MUST go in the `documentation/` directory:**
+- ✅ GOOD: `documentation/NEW_FEATURE.md`
+- ❌ BAD: `NEW_FEATURE.md` (root directory)
+- Exception: README.md, CLAUDE.md, DOCKER_HUB_README.md (user-facing, stay in root)
+
+## Docker Best Practices
+
+**CRITICAL: Database Path Configuration**
+- Database MUST be outside `/out` directory: `/opt/knowledge-api/data/knowledge.db`
+- The `/out` folder is deleted during GitHub Actions deployments
+- Both Knowledge.Api and Knowledge.Mcp must use the same database path in appsettings.json
+- **Never** hardcode database paths - always use configuration
+
+**Docker Image Optimization Checklist:**
+- ✅ Use slim base images (bookworm-slim, alpine) to reduce size
+- ✅ Combine RUN commands to reduce layers
+- ✅ Use TCP health checks instead of curl (avoids dependency)
+- ✅ Update .dockerignore when adding new file types to exclude
+- ✅ Multi-stage builds for separation of concerns
+- ✅ Non-root user for security (appuser:appgroup, UID/GID 1001)
+
+**docker-compose Best Practices:**
+- ✅ Use environment variables for API keys (never commit .env files)
+- ✅ Port 6334 = Qdrant gRPC (data operations), Port 6333 = REST (health checks)
+- ✅ TCP health checks: `timeout 5s bash -c '</dev/tcp/localhost/PORT'`
+- ✅ Named volumes for persistence (ai-knowledge-data, qdrant-data, ollama-data)
+- ✅ Container networking via service names (qdrant, ollama, not localhost)
+
 Tech stack:
 
 Layer	Tech
