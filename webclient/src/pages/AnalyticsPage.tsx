@@ -17,7 +17,7 @@ import {
   GoogleAIIcon,
   OllamaIcon
 } from "@/components/icons";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Table } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import type { Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -93,13 +93,14 @@ const defaultKpiLayout: Layout[] = [
 ];
 
 // Default layouts for main widgets - ensures no overlaps with proper spacing
+// Heights adjusted: provider-analytics +20%, others +5%
 const defaultWidgetLayout: Layout[] = [
-  { i: "provider-analytics", x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 2 },
-  { i: "provider-status", x: 0, y: 4, w: 12, h: 5, minW: 6, minH: 2 },
-  { i: "usage-trends", x: 0, y: 9, w: 12, h: 5, minW: 6, minH: 3 },
-  { i: "performance-metrics", x: 0, y: 14, w: 12, h: 5, minW: 6, minH: 3 },
-  { i: "model-performance", x: 0, y: 19, w: 12, h: 6, minW: 6, minH: 3 },
-  { i: "knowledge-activity", x: 0, y: 25, w: 12, h: 6, minW: 6, minH: 3 },
+  { i: "provider-analytics", x: 0, y: 0, w: 12, h: 5, minW: 6, minH: 2 },  // 4 -> 5 (20% increase)
+  { i: "provider-status", x: 0, y: 5, w: 12, h: 6, minW: 6, minH: 2 },     // 5 -> 6 (5% increase, rounded)
+  { i: "usage-trends", x: 0, y: 11, w: 12, h: 6, minW: 6, minH: 3 },       // 5 -> 6 (5% increase, rounded)
+  { i: "performance-metrics", x: 0, y: 17, w: 12, h: 6, minW: 6, minH: 3 }, // 5 -> 6 (5% increase, rounded)
+  { i: "model-performance", x: 0, y: 23, w: 12, h: 7, minW: 6, minH: 3 },  // 6 -> 7 (5% increase, rounded)
+  { i: "knowledge-activity", x: 0, y: 30, w: 12, h: 7, minW: 6, minH: 3 }, // 6 -> 7 (5% increase, rounded)
 ];
 
 export default function AnalyticsPage() {
@@ -146,6 +147,24 @@ export default function AnalyticsPage() {
   // Toggle maximize widget
   const handleToggleMaximize = useCallback((widgetId: string) => {
     setMaximizedWidget(prev => prev === widgetId ? null : widgetId);
+  }, []);
+
+  // Table view toggle state for each widget
+  const [tableViewEnabled, setTableViewEnabled] = useState<Record<string, boolean>>({});
+
+  // Toggle table view for a specific widget
+  const handleToggleTableView = useCallback((widgetId: string) => {
+    setTableViewEnabled(prev => ({
+      ...prev,
+      [widgetId]: !prev[widgetId]
+    }));
+  }, []);
+
+  // Handle drag over for widget swapping
+  const handleWidgetDrop = useCallback((layout: Layout[]) => {
+    // react-grid-layout handles the drop, we just need to update state
+    setWidgetLayout(layout);
+    localStorage.setItem("analytics-widget-layout", JSON.stringify(layout));
   }, []);
 
   const fetchWithRetry = useCallback(async (url: string, maxRetries = 3): Promise<Response> => {
@@ -419,7 +438,7 @@ export default function AnalyticsPage() {
           layouts={{ lg: kpiLayout }}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 6, md: 4, sm: 2, xs: 2, xxs: 1 }}
-          rowHeight={100}
+          rowHeight={115}
           onLayoutChange={handleKpiLayoutChange}
           isDraggable={true}
           isResizable={false}
@@ -671,10 +690,12 @@ export default function AnalyticsPage() {
           cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
           rowHeight={80}
           onLayoutChange={handleWidgetLayoutChange}
+          onDrop={handleWidgetDrop}
           isDraggable={true}
           isResizable={true}
           compactType={null}
-          preventCollision={true}
+          preventCollision={false}
+          allowOverlap={false}
         >
           {/* Provider Balance & Usage Widgets */}
           <div key="provider-analytics" className="cursor-move">
@@ -687,24 +708,62 @@ export default function AnalyticsPage() {
                       Real-time monitoring of your AI provider accounts with balance, usage, billing data, and local model analytics
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleToggleMaximize("provider-analytics")}
-                    className="ml-2 flex-shrink-0 h-8 w-8"
-                    title="Maximize widget"
-                  >
-                    <Maximize2 className="h-5 w-5" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleTableView("provider-analytics")}
+                      className="flex-shrink-0 h-8 w-8"
+                      title="Toggle table view"
+                    >
+                      <Table className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleMaximize("provider-analytics")}
+                      className="flex-shrink-0 h-8 w-8"
+                      title="Maximize widget"
+                    >
+                      <Maximize2 className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <OllamaUsageWidget />
-                </div>
-                <p className="text-sm text-muted-foreground mt-4">
-                  Ollama shows local model usage and requires no configuration. Cloud provider widgets can be added by configuring API keys in settings.
-                </p>
+                {tableViewEnabled["provider-analytics"] ? (
+                  <div className="overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-2">Provider</th>
+                          <th className="text-left p-2">Status</th>
+                          <th className="text-left p-2">Balance</th>
+                          <th className="text-left p-2">Monthly Usage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {providerAccounts.map((account, idx) => (
+                          <tr key={idx} className="border-b">
+                            <td className="p-2">{account.provider}</td>
+                            <td className="p-2">{account.isConnected ? "Connected" : "Disconnected"}</td>
+                            <td className="p-2">{account.balance ? `${account.balance} ${account.balanceUnit || ""}` : "N/A"}</td>
+                            <td className="p-2">${account.monthlyUsage.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      <OllamaUsageWidget />
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-4">
+                      Ollama shows local model usage and requires no configuration. Cloud provider widgets can be added by configuring API keys in settings.
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
