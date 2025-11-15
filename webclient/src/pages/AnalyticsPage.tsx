@@ -17,6 +17,7 @@ import {
   GoogleAIIcon,
   OllamaIcon
 } from "@/components/icons";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import type { Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -109,6 +110,7 @@ export default function AnalyticsPage() {
   const [providerAccounts, setProviderAccounts] = useState<ProviderAccountData[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [maximizedWidget, setMaximizedWidget] = useState<string | null>(null);
   
   // Layout state for KPIs and widgets
   const [kpiLayout, setKpiLayout] = useState<Layout[]>(() => {
@@ -138,6 +140,12 @@ export default function AnalyticsPage() {
     setWidgetLayout(defaultWidgetLayout);
     localStorage.removeItem("analytics-kpi-layout");
     localStorage.removeItem("analytics-widget-layout");
+    setMaximizedWidget(null);
+  }, []);
+
+  // Toggle maximize widget
+  const handleToggleMaximize = useCallback((widgetId: string) => {
+    setMaximizedWidget(prev => prev === widgetId ? null : widgetId);
   }, []);
 
   const fetchWithRetry = useCallback(async (url: string, maxRetries = 3): Promise<Response> => {
@@ -416,7 +424,7 @@ export default function AnalyticsPage() {
           isDraggable={true}
           isResizable={false}
           compactType="horizontal"
-          preventCollision={false}
+          preventCollision={true}
         >
           {kpiCards.map((kpi) => (
             <div key={kpi.id} className="cursor-move">
@@ -445,9 +453,217 @@ export default function AnalyticsPage() {
           <span className="inline-block w-3 h-3 bg-muted rounded"></span>
           <span>Drag to move widgets, drag corners to resize</span>
         </div>
-        <ResponsiveGridLayout
-          className="layout"
-          layouts={{ lg: widgetLayout }}
+        {maximizedWidget ? (
+          // Maximized widget view
+          <div className="fixed inset-0 z-50 bg-background p-6 overflow-auto">
+            <div className="h-full flex flex-col">
+              {maximizedWidget === "provider-analytics" && (
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Provider Analytics</CardTitle>
+                        <CardDescription>
+                          Real-time monitoring of your AI provider accounts with balance, usage, billing data, and local model analytics
+                        </CardDescription>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleMaximize("provider-analytics")}
+                        className="ml-2"
+                      >
+                        <Minimize2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-auto">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      <OllamaUsageWidget />
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-4">
+                      Ollama shows local model usage and requires no configuration. Cloud provider widgets can be added by configuring API keys in settings.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+              {maximizedWidget === "provider-status" && (
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center justify-end mb-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleMaximize("provider-status")}
+                    >
+                      <Minimize2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <ProviderStatusCards 
+                      accounts={providerAccounts}
+                      usage={costBreakdown}
+                      loading={loading}
+                      onRefresh={fetchAnalytics}
+                    />
+                  </div>
+                </div>
+              )}
+              {maximizedWidget === "usage-trends" && (
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center justify-end mb-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleMaximize("usage-trends")}
+                    >
+                      <Minimize2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <UsageTrendsChart data={usageTrends} loading={loading} />
+                  </div>
+                </div>
+              )}
+              {maximizedWidget === "performance-metrics" && (
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center justify-end mb-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleMaximize("performance-metrics")}
+                    >
+                      <Minimize2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <PerformanceMetrics data={modelStats} loading={loading} />
+                  </div>
+                </div>
+              )}
+              {maximizedWidget === "model-performance" && (
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Model Performance</CardTitle>
+                        <CardDescription>
+                          Usage statistics and performance metrics for all AI models
+                        </CardDescription>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleMaximize("model-performance")}
+                        className="ml-2"
+                      >
+                        <Minimize2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-auto">
+                    <div className="space-y-4">
+                      {modelStats.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">
+                          No model usage data available yet. Start some conversations to see analytics.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {modelStats.map((model, index) => (
+                            <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                              <div className="flex items-center space-x-4">
+                                {getProviderIcon(model.provider)}
+                                <div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="font-medium">{model.modelName}</span>
+                                    <Badge variant="secondary">{model.provider}</Badge>
+                                    {model.supportsTools && <Badge variant="outline">Tools</Badge>}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {model.conversationCount} conversations • {formatNumber(model.totalTokens)} tokens
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium">
+                                  {model.successRate.toFixed(1)}% success
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  Avg: {(model.averageResponseTime / 1000).toFixed(1)}s
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              {maximizedWidget === "knowledge-activity" && (
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Knowledge Base Activity</CardTitle>
+                        <CardDescription>
+                          Usage patterns and statistics for your knowledge bases
+                        </CardDescription>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleMaximize("knowledge-activity")}
+                        className="ml-2"
+                      >
+                        <Minimize2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-auto">
+                    <div className="space-y-4">
+                      {knowledgeStats.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">
+                          No knowledge bases found. Create some knowledge bases to see analytics.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {knowledgeStats.map((kb, index) => (
+                            <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                              <div className="flex items-center space-x-4">
+                                <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
+                                <div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="font-medium">{kb.knowledgeName || kb.knowledgeId}</span>
+                                    <Badge variant="outline">{kb.vectorStore}</Badge>
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {kb.documentCount} docs • {kb.chunkCount} chunks • {formatFileSize(kb.totalFileSize)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium">
+                                  {kb.conversationCount} conversations
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {kb.queryCount} queries total
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        ) : (
+          // Normal grid view
+          <ResponsiveGridLayout
+            className="layout"
+            layouts={{ lg: widgetLayout }}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
           rowHeight={80}
@@ -455,16 +671,29 @@ export default function AnalyticsPage() {
           isDraggable={true}
           isResizable={true}
           compactType="vertical"
-          preventCollision={false}
+          preventCollision={true}
         >
           {/* Provider Balance & Usage Widgets */}
           <div key="provider-analytics" className="cursor-move">
             <Card className="h-full">
               <CardHeader>
-                <CardTitle>Provider Analytics</CardTitle>
-                <CardDescription>
-                  Real-time monitoring of your AI provider accounts with balance, usage, billing data, and local model analytics
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <CardTitle>Provider Analytics</CardTitle>
+                    <CardDescription>
+                      Real-time monitoring of your AI provider accounts with balance, usage, billing data, and local model analytics
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleToggleMaximize("provider-analytics")}
+                    className="ml-2 flex-shrink-0"
+                    title="Maximize widget"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -479,7 +708,16 @@ export default function AnalyticsPage() {
 
           {/* Provider Status Cards */}
           <div key="provider-status" className="cursor-move">
-            <div className="h-full">
+            <div className="h-full relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleToggleMaximize("provider-status")}
+                className="absolute top-2 right-2 z-10"
+                title="Maximize widget"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
               <ProviderStatusCards 
                 accounts={providerAccounts}
                 usage={costBreakdown}
@@ -491,14 +729,32 @@ export default function AnalyticsPage() {
 
           {/* Charts Section */}
           <div key="usage-trends" className="cursor-move">
-            <div className="h-full">
+            <div className="h-full relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleToggleMaximize("usage-trends")}
+                className="absolute top-2 right-2 z-10"
+                title="Maximize widget"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
               <UsageTrendsChart data={usageTrends} loading={loading} />
             </div>
           </div>
 
           {/* Performance Metrics */}
           <div key="performance-metrics" className="cursor-move">
-            <div className="h-full">
+            <div className="h-full relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleToggleMaximize("performance-metrics")}
+                className="absolute top-2 right-2 z-10"
+                title="Maximize widget"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
               <PerformanceMetrics data={modelStats} loading={loading} />
             </div>
           </div>
@@ -507,10 +763,23 @@ export default function AnalyticsPage() {
           <div key="model-performance" className="cursor-move">
             <Card className="h-full">
               <CardHeader>
-                <CardTitle>Model Performance</CardTitle>
-                <CardDescription>
-                  Usage statistics and performance metrics for all AI models
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <CardTitle>Model Performance</CardTitle>
+                    <CardDescription>
+                      Usage statistics and performance metrics for all AI models
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleToggleMaximize("model-performance")}
+                    className="ml-2 flex-shrink-0"
+                    title="Maximize widget"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -556,10 +825,23 @@ export default function AnalyticsPage() {
           <div key="knowledge-activity" className="cursor-move">
             <Card className="h-full">
               <CardHeader>
-                <CardTitle>Knowledge Base Activity</CardTitle>
-                <CardDescription>
-                  Usage patterns and statistics for your knowledge bases
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <CardTitle>Knowledge Base Activity</CardTitle>
+                    <CardDescription>
+                      Usage patterns and statistics for your knowledge bases
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleToggleMaximize("knowledge-activity")}
+                    className="ml-2 flex-shrink-0"
+                    title="Maximize widget"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -600,6 +882,7 @@ export default function AnalyticsPage() {
             </Card>
           </div>
         </ResponsiveGridLayout>
+        )}
       </div>
     </div>
   );
