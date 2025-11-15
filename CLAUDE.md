@@ -25,6 +25,23 @@ Always follow these rules instead of using hard coded values
 1. Add a parameter to the config file (appsettings.json)
 2. If you can't add a parameter to a config, use a constants file as a last resort. 
 
+3. NO CODE DUPLICATION* - Extract repeated patterns into reusable classes or methods
+   - ❌ BAD: Creating new classes or methods with identical code blocks
+   - ✅ GOOD: Create a helper method, call it from multiple places
+4. *CHECK BEFORE MODIFYING* - When touching any file, verify:
+   - Uses Confiappsessting\config?
+   - No hardcoded values?
+   - No duplicated code blocks?
+   - If NO to any: Fix it while you're there
+## Testing & Validation
+- ALWAYS update or add tests for new/changed behavior:
+    - ALL features should have corresponding smoke tests in tests/smoke/ (quick validation)
+    - Unit tests for new components go in KnowledgeManger.Tests or KnowledgeMcp.Tests
+    Create a new document documentation/MASTER+TEST_Plan.md
+
+  - Integration tests for workflows go in tests/integration/ (end-to-end testing)
+    ALL patterns and features should have corresponding test cases in the MASTER_TEST_PLAN.md 
+    f an existing test case needs to be retested, please set the Pass/Fail/Retest status to "Retest". "Pass" and "Fail" should only be set after manual verification by Wayne.
 Tech stack:
 
 Layer	Tech
