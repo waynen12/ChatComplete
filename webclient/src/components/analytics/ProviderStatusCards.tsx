@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OpenAIIcon, AnthropicIcon, GoogleAIIcon, OllamaIcon, ProviderIcon } from "@/components/icons";
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface ProviderAccount {
   provider: string;
@@ -30,11 +31,13 @@ interface ProviderStatusCardsProps {
   usage: ProviderUsage[];
   loading?: boolean;
   onRefresh?: () => void;
+  tableView?: boolean;
 }
 
-export function ProviderStatusCards({ accounts, usage, loading, onRefresh }: ProviderStatusCardsProps) {
+export function ProviderStatusCards({ accounts, usage, loading, onRefresh, tableView = false }: ProviderStatusCardsProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -81,6 +84,79 @@ export function ProviderStatusCards({ accounts, usage, loading, onRefresh }: Pro
     return usage.find(u => u.provider === provider)?.totalCost || 0;
   };
 
+  // Prepare provider data for sorting
+  const providerData = useMemo(() => {
+    return ['OpenAi', 'Anthropic', 'Google', 'Ollama'].map(provider => {
+      const account = accounts.find(a => a.provider === provider);
+      const monthlyCost = getUsageForProvider(provider);
+      const isConnected = account?.isConnected ?? false;
+      const hasError = !!account?.errorMessage;
+      
+      return {
+        provider,
+        account,
+        monthlyCost,
+        isConnected,
+        hasError,
+        status: hasError ? 'Error' : isConnected ? 'Active' : 'Inactive',
+        type: provider === 'Ollama' ? 'Local Models' : 'Cloud',
+        balance: account?.balance || 0,
+        lastSync: account?.lastSyncAt || ''
+      };
+    });
+  }, [accounts, usage]);
+
+  const sortedProviders = useMemo(() => {
+    if (!sortConfig) return providerData;
+
+    return [...providerData].sort((a, b) => {
+      const aVal = a[sortConfig.column as keyof typeof a];
+      const bVal = b[sortConfig.column as keyof typeof b];
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      return 0;
+    });
+  }, [providerData, sortConfig]);
+
+  const handleSort = (column: string) => {
+    setSortConfig(current => {
+      if (current?.column === column) {
+        return { column, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const SortableHeader = ({ column, label }: { column: string; label: string }) => {
+    const isActive = sortConfig?.column === column;
+    const direction = sortConfig?.direction;
+
+    return (
+      <th className="text-left p-2">
+        <button
+          onClick={() => handleSort(column)}
+          className="flex items-center gap-1 hover:text-primary transition-colors w-full"
+        >
+          <span>{label}</span>
+          {isActive ? (
+            direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+          ) : (
+            <ArrowUpDown className="h-3 w-3 opacity-50" />
+          )}
+        </button>
+      </th>
+    );
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -117,81 +193,132 @@ export function ProviderStatusCards({ accounts, usage, loading, onRefresh }: Pro
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {['OpenAi', 'Anthropic', 'Google', 'Ollama'].map(provider => {
-          const account = accounts.find(a => a.provider === provider);
-          const monthlyCost = getUsageForProvider(provider);
-          const isConnected = account?.isConnected ?? false;
-          const hasError = !!account?.errorMessage;
-
-          return (
-            <Card key={provider}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-3 h-3 rounded-full ${
-                      hasError ? 'bg-red-500' : 
-                      isConnected ? 'bg-green-500' : 
-                      'bg-gray-400'
-                    }`}></div>
-                    <CardTitle className="text-base flex items-center space-x-2">
-                      {getProviderIcon(provider)}
-                      <span>{provider}</span>
-                    </CardTitle>
-                  </div>
-                  <Badge variant={isConnected ? "default" : "secondary"}>
-                    {hasError ? 'Error' : isConnected ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2 text-sm">
-                  {provider === 'Ollama' ? (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Type:</span>
-                        <span>Local Models</span>
+      {tableView ? (
+        <div className="overflow-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <SortableHeader column="provider" label="Provider" />
+                <SortableHeader column="status" label="Status" />
+                <SortableHeader column="type" label="Type" />
+                <SortableHeader column="balance" label="Balance" />
+                <SortableHeader column="monthlyCost" label="This Month" />
+                <SortableHeader column="lastSync" label="Last Sync" />
+              </tr>
+            </thead>
+            <tbody>
+              {sortedProviders.map(({ provider, account, monthlyCost, isConnected, hasError }) => {
+                return (
+                  <tr key={provider} className="border-b hover:bg-muted/50 transition-colors">
+                    <td className="p-2 font-medium">{provider}</td>
+                    <td className="p-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${
+                          hasError ? 'bg-red-500' : 
+                          isConnected ? 'bg-green-500' : 
+                          'bg-gray-400'
+                        }`}></div>
+                        <span>{hasError ? 'Error' : isConnected ? 'Active' : 'Inactive'}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Cost:</span>
+                    </td>
+                    <td className="p-2">{provider === 'Ollama' ? 'Local Models' : 'Cloud'}</td>
+                    <td className="p-2">
+                      {provider === 'Ollama' ? 'N/A' : 
+                        isConnected ? formatBalance(account?.balance, account?.balanceUnit) : 'Not connected'}
+                    </td>
+                    <td className="p-2">
+                      {provider === 'Ollama' ? (
                         <span className="text-green-600 font-medium">Free</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Balance:</span>
-                        <span className={!isConnected ? 'text-muted-foreground' : ''}>
-                          {isConnected ? formatBalance(account?.balance, account?.balanceUnit) : 'Not connected'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">This month:</span>
-                        <span className="font-medium">
-                          ${monthlyCost.toFixed(2)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {hasError && (
-                    <div className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded border">
-                      {account?.errorMessage}
+                      ) : (
+                        `$${monthlyCost.toFixed(2)}`
+                      )}
+                    </td>
+                    <td className="p-2 text-xs text-muted-foreground">
+                      {account?.lastSyncAt ? new Date(account.lastSyncAt).toLocaleDateString() : 'N/A'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {['OpenAi', 'Anthropic', 'Google', 'Ollama'].map(provider => {
+            const account = accounts.find(a => a.provider === provider);
+            const monthlyCost = getUsageForProvider(provider);
+            const isConnected = account?.isConnected ?? false;
+            const hasError = !!account?.errorMessage;
+
+            return (
+              <Card key={provider}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        hasError ? 'bg-red-500' : 
+                        isConnected ? 'bg-green-500' : 
+                        'bg-gray-400'
+                      }`}></div>
+                      <CardTitle className="text-base flex items-center space-x-2">
+                        {getProviderIcon(provider)}
+                        <span>{provider}</span>
+                      </CardTitle>
                     </div>
-                  )}
-                  
-                  {account?.lastSyncAt && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Last sync:</span>
-                      <span>{new Date(account.lastSyncAt).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                    <Badge variant={isConnected ? "default" : "secondary"}>
+                      {hasError ? 'Error' : isConnected ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2 text-sm">
+                    {provider === 'Ollama' ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Type:</span>
+                          <span>Local Models</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Cost:</span>
+                          <span className="text-green-600 font-medium">Free</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Balance:</span>
+                          <span className={!isConnected ? 'text-muted-foreground' : ''}>
+                            {isConnected ? formatBalance(account?.balance, account?.balanceUnit) : 'Not connected'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">This month:</span>
+                          <span className="font-medium">
+                            ${monthlyCost.toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {hasError && (
+                      <div className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded border">
+                        {account?.errorMessage}
+                      </div>
+                    )}
+                    
+                    {account?.lastSyncAt && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Last sync:</span>
+                        <span>{new Date(account.lastSyncAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
