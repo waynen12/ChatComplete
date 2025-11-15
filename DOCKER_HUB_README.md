@@ -40,7 +40,7 @@ open http://localhost:8080
 
 ### Environment Variables
 
-Set these via `.env` file or command line:
+Create a `.env` file or set via command line:
 
 ```env
 # Required for external LLM providers
@@ -48,9 +48,16 @@ OPENAI_API_KEY=your_openai_key
 ANTHROPIC_API_KEY=your_anthropic_key
 GEMINI_API_KEY=your_gemini_key
 
-# Optional: Customize vector store (defaults to Qdrant)
-VectorStore__Provider=Qdrant
+# Vector store configuration (pre-configured in compose)
+ChatCompleteSettings__VectorStore__Provider=Qdrant
+ChatCompleteSettings__VectorStore__Qdrant__Host=qdrant
+ChatCompleteSettings__VectorStore__Qdrant__Port=6334  # gRPC port
+
+# Ollama configuration (pre-configured in compose)
+ChatCompleteSettings__OllamaBaseUrl=http://ollama:11434
 ```
+
+**Note**: The `docker-compose.dockerhub.yml` file already includes these configurations. You only need to set the API keys.
 
 ### API Keys Setup
 
@@ -103,13 +110,25 @@ Check service status:
 ```bash
 # Main application
 curl http://localhost:8080/api/ping
+# Expected: {"status":"healthy"}
 
-# Qdrant vector database
+# Qdrant vector database (REST API)
 curl http://localhost:6333/health
+# Expected: {"status":"ok"}
 
 # Ollama LLM service
 curl http://localhost:11434/api/version
+# Expected: {"version":"..."}
+
+# Check all services via Docker
+docker-compose -f docker-compose.dockerhub.yml ps
 ```
+
+**Port Reference:**
+- `8080`: AI Knowledge Manager web UI and API
+- `6333`: Qdrant REST API (health checks)
+- `6334`: Qdrant gRPC API (data operations - used by app)
+- `11434`: Ollama API
 
 ## 📊 Supported File Types
 
@@ -130,11 +149,24 @@ curl http://localhost:11434/api/version
 - `v1.0.0` - Specific version releases
 - `main` - Latest from main branch
 
+## 💾 Data Persistence
+
+**Database Location:**
+- Container: `/app/data/knowledge.db` (mounted to Docker volume)
+- Self-hosted: `/opt/knowledge-api/data/knowledge.db` (outside `/out` directory)
+
+**Critical**: The database MUST be outside the `/out` directory to survive deployments. The `/out` folder is wiped during updates.
+
+**Volumes:**
+- `ai-knowledge-data`: Application database, configuration, chat history
+- `qdrant-data`: Vector embeddings storage
+- `ollama-data`: Downloaded LLM models
+
 ## 📖 Documentation
 
-- [Full Documentation](https://github.com/waynen12/ChatComplete)
-- [API Reference](https://github.com/waynen12/ChatComplete/blob/main/docs/api.md)
-- [Deployment Guide](https://github.com/waynen12/ChatComplete/blob/main/DOCKER_DEPLOYMENT.md)
+- [Full Documentation & README](https://github.com/waynen12/ChatComplete)
+- [CLAUDE.md - Development Guide](https://github.com/waynen12/ChatComplete/blob/main/CLAUDE.md)
+- [Swagger API Docs](http://localhost:8080/swagger) (when running)
 
 ## 🤝 Contributing
 
