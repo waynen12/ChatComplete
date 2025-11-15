@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OpenAIIcon, AnthropicIcon, GoogleAIIcon, OllamaIcon, ProviderIcon } from "@/components/icons";
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface ProviderAccount {
   provider: string;
@@ -36,6 +37,7 @@ interface ProviderStatusCardsProps {
 export function ProviderStatusCards({ accounts, usage, loading, onRefresh, tableView = false }: ProviderStatusCardsProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -82,6 +84,79 @@ export function ProviderStatusCards({ accounts, usage, loading, onRefresh, table
     return usage.find(u => u.provider === provider)?.totalCost || 0;
   };
 
+  // Prepare provider data for sorting
+  const providerData = useMemo(() => {
+    return ['OpenAi', 'Anthropic', 'Google', 'Ollama'].map(provider => {
+      const account = accounts.find(a => a.provider === provider);
+      const monthlyCost = getUsageForProvider(provider);
+      const isConnected = account?.isConnected ?? false;
+      const hasError = !!account?.errorMessage;
+      
+      return {
+        provider,
+        account,
+        monthlyCost,
+        isConnected,
+        hasError,
+        status: hasError ? 'Error' : isConnected ? 'Active' : 'Inactive',
+        type: provider === 'Ollama' ? 'Local Models' : 'Cloud',
+        balance: account?.balance || 0,
+        lastSync: account?.lastSyncAt || ''
+      };
+    });
+  }, [accounts, usage]);
+
+  const sortedProviders = useMemo(() => {
+    if (!sortConfig) return providerData;
+
+    return [...providerData].sort((a, b) => {
+      const aVal = a[sortConfig.column as keyof typeof a];
+      const bVal = b[sortConfig.column as keyof typeof b];
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      return 0;
+    });
+  }, [providerData, sortConfig]);
+
+  const handleSort = (column: string) => {
+    setSortConfig(current => {
+      if (current?.column === column) {
+        return { column, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const SortableHeader = ({ column, label }: { column: string; label: string }) => {
+    const isActive = sortConfig?.column === column;
+    const direction = sortConfig?.direction;
+
+    return (
+      <th className="text-left p-2">
+        <button
+          onClick={() => handleSort(column)}
+          className="flex items-center gap-1 hover:text-primary transition-colors w-full"
+        >
+          <span>{label}</span>
+          {isActive ? (
+            direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+          ) : (
+            <ArrowUpDown className="h-3 w-3 opacity-50" />
+          )}
+        </button>
+      </th>
+    );
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -123,23 +198,18 @@ export function ProviderStatusCards({ accounts, usage, loading, onRefresh, table
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
-                <th className="text-left p-2">Provider</th>
-                <th className="text-left p-2">Status</th>
-                <th className="text-left p-2">Type</th>
-                <th className="text-left p-2">Balance</th>
-                <th className="text-left p-2">This Month</th>
-                <th className="text-left p-2">Last Sync</th>
+                <SortableHeader column="provider" label="Provider" />
+                <SortableHeader column="status" label="Status" />
+                <SortableHeader column="type" label="Type" />
+                <SortableHeader column="balance" label="Balance" />
+                <SortableHeader column="monthlyCost" label="This Month" />
+                <SortableHeader column="lastSync" label="Last Sync" />
               </tr>
             </thead>
             <tbody>
-              {['OpenAi', 'Anthropic', 'Google', 'Ollama'].map(provider => {
-                const account = accounts.find(a => a.provider === provider);
-                const monthlyCost = getUsageForProvider(provider);
-                const isConnected = account?.isConnected ?? false;
-                const hasError = !!account?.errorMessage;
-
+              {sortedProviders.map(({ provider, account, monthlyCost, isConnected, hasError }) => {
                 return (
-                  <tr key={provider} className="border-b">
+                  <tr key={provider} className="border-b hover:bg-muted/50 transition-colors">
                     <td className="p-2 font-medium">{provider}</td>
                     <td className="p-2">
                       <div className="flex items-center gap-2">

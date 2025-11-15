@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, subDays, startOfDay } from 'date-fns';
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface UsageTrendData {
   date: string;
@@ -18,6 +19,8 @@ interface UsageTrendsChartProps {
 }
 
 export function UsageTrendsChart({ data, loading, tableView = false }: UsageTrendsChartProps) {
+  const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
+
   const chartData = useMemo(() => {
     if (!data || data.length === 0) {
       // Generate sample data for the last 7 days if no real data
@@ -43,6 +46,57 @@ export function UsageTrendsChart({ data, loading, tableView = false }: UsageTren
       uniqueConversations: item.uniqueConversations,
     }));
   }, [data]);
+
+  const sortedData = useMemo(() => {
+    if (!sortConfig) return chartData;
+
+    return [...chartData].sort((a, b) => {
+      const aVal = a[sortConfig.column as keyof typeof a];
+      const bVal = b[sortConfig.column as keyof typeof b];
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      return 0;
+    });
+  }, [chartData, sortConfig]);
+
+  const handleSort = (column: string) => {
+    setSortConfig(current => {
+      if (current?.column === column) {
+        return { column, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const SortableHeader = ({ column, label }: { column: string; label: string }) => {
+    const isActive = sortConfig?.column === column;
+    const direction = sortConfig?.direction;
+
+    return (
+      <th className="text-left p-2">
+        <button
+          onClick={() => handleSort(column)}
+          className="flex items-center gap-1 hover:text-primary transition-colors w-full"
+        >
+          <span>{label}</span>
+          {isActive ? (
+            direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+          ) : (
+            <ArrowUpDown className="h-3 w-3 opacity-50" />
+          )}
+        </button>
+      </th>
+    );
+  };
 
   if (loading) {
     return (
@@ -71,16 +125,16 @@ export function UsageTrendsChart({ data, loading, tableView = false }: UsageTren
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-2">Date</th>
-                  <th className="text-left p-2">Total Requests</th>
-                  <th className="text-left p-2">Successful</th>
-                  <th className="text-left p-2">Tokens (×100)</th>
-                  <th className="text-left p-2">Conversations</th>
+                  <SortableHeader column="date" label="Date" />
+                  <SortableHeader column="totalRequests" label="Total Requests" />
+                  <SortableHeader column="successfulRequests" label="Successful" />
+                  <SortableHeader column="totalTokens" label="Tokens (×100)" />
+                  <SortableHeader column="uniqueConversations" label="Conversations" />
                 </tr>
               </thead>
               <tbody>
-                {chartData.map((item, index) => (
-                  <tr key={index} className="border-b">
+                {sortedData.map((item, index) => (
+                  <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
                     <td className="p-2 font-medium">{item.date}</td>
                     <td className="p-2">{item.totalRequests}</td>
                     <td className="p-2">{item.successfulRequests}</td>

@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PerformanceIcon } from "@/components/icons";
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface ModelMetrics {
   modelName: string;
@@ -20,6 +21,8 @@ interface PerformanceMetricsProps {
 }
 
 export function PerformanceMetrics({ data, loading, tableView = false }: PerformanceMetricsProps) {
+  const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
+
   const chartData = useMemo(() => {
     if (!data || data.length === 0) {
       // Sample data for demonstration
@@ -77,6 +80,57 @@ export function PerformanceMetrics({ data, loading, tableView = false }: Perform
   }, [data]);
 
   const averageResponseTime = chartData.reduce((sum, item) => sum + item.responseTime, 0) / chartData.length;
+
+  const sortedData = useMemo(() => {
+    if (!sortConfig) return chartData;
+
+    return [...chartData].sort((a, b) => {
+      const aVal = a[sortConfig.column as keyof typeof a];
+      const bVal = b[sortConfig.column as keyof typeof b];
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      return 0;
+    });
+  }, [chartData, sortConfig]);
+
+  const handleSort = (column: string) => {
+    setSortConfig(current => {
+      if (current?.column === column) {
+        return { column, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const SortableHeader = ({ column, label }: { column: string; label: string }) => {
+    const isActive = sortConfig?.column === column;
+    const direction = sortConfig?.direction;
+
+    return (
+      <th className="text-left p-2">
+        <button
+          onClick={() => handleSort(column)}
+          className="flex items-center gap-1 hover:text-primary transition-colors w-full"
+        >
+          <span>{label}</span>
+          {isActive ? (
+            direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+          ) : (
+            <ArrowUpDown className="h-3 w-3 opacity-50" />
+          )}
+        </button>
+      </th>
+    );
+  };
 
   interface TooltipProps {
     active?: boolean;
@@ -152,17 +206,17 @@ export function PerformanceMetrics({ data, loading, tableView = false }: Perform
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-2">Model</th>
-                  <th className="text-left p-2">Provider</th>
-                  <th className="text-left p-2">Response Time (s)</th>
-                  <th className="text-left p-2">Success Rate (%)</th>
-                  <th className="text-left p-2">Total Requests</th>
+                  <SortableHeader column="model" label="Model" />
+                  <SortableHeader column="provider" label="Provider" />
+                  <SortableHeader column="responseTime" label="Response Time (s)" />
+                  <SortableHeader column="successRate" label="Success Rate (%)" />
+                  <SortableHeader column="requests" label="Total Requests" />
                   <th className="text-left p-2">Conversations</th>
                 </tr>
               </thead>
               <tbody>
-                {chartData.map((item, index) => (
-                  <tr key={index} className="border-b">
+                {sortedData.map((item, index) => (
+                  <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
                     <td className="p-2 font-medium">{item.model}</td>
                     <td className="p-2">{item.provider}</td>
                     <td className="p-2">{item.responseTime.toFixed(2)}</td>

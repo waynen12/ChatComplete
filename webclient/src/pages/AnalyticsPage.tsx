@@ -17,7 +17,7 @@ import {
   GoogleAIIcon,
   OllamaIcon
 } from "@/components/icons";
-import { Maximize2, Minimize2, Table } from "lucide-react";
+import { Maximize2, Minimize2, Table, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import type { Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -103,6 +103,36 @@ const defaultWidgetLayout: Layout[] = [
   { i: "knowledge-activity", x: 0, y: 30, w: 12, h: 7, minW: 6, minH: 3 }, // 6 -> 7 (5% increase, rounded)
 ];
 
+// Sortable table header component
+interface SortableHeaderProps {
+  column: string;
+  label: string;
+  currentSort?: { column: string; direction: 'asc' | 'desc' };
+  onSort: (column: string) => void;
+  className?: string;
+}
+
+function SortableHeader({ column, label, currentSort, onSort, className = "text-left p-2" }: SortableHeaderProps) {
+  const isActive = currentSort?.column === column;
+  const direction = currentSort?.direction;
+
+  return (
+    <th className={className}>
+      <button
+        onClick={() => onSort(column)}
+        className="flex items-center gap-1 hover:text-primary transition-colors w-full"
+      >
+        <span>{label}</span>
+        {isActive ? (
+          direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        )}
+      </button>
+    </th>
+  );
+}
+
 export default function AnalyticsPage() {
   const [modelStats, setModelStats] = useState<ModelUsageStats[]>([]);
   const [knowledgeStats, setKnowledgeStats] = useState<KnowledgeUsageStats[]>([]);
@@ -152,6 +182,9 @@ export default function AnalyticsPage() {
   // Table view toggle state for each widget
   const [tableViewEnabled, setTableViewEnabled] = useState<Record<string, boolean>>({});
 
+  // Sorting state for tables: { widgetId: { column: string, direction: 'asc' | 'desc' } }
+  const [tableSorting, setTableSorting] = useState<Record<string, { column: string; direction: 'asc' | 'desc' }>>({});
+
   // Toggle table view for a specific widget
   const handleToggleTableView = useCallback((widgetId: string) => {
     setTableViewEnabled(prev => ({
@@ -159,6 +192,55 @@ export default function AnalyticsPage() {
       [widgetId]: !prev[widgetId]
     }));
   }, []);
+
+  // Handle column sort
+  const handleSort = useCallback((widgetId: string, column: string) => {
+    setTableSorting(prev => {
+      const current = prev[widgetId];
+      if (current?.column === column) {
+        // Toggle direction
+        return {
+          ...prev,
+          [widgetId]: { column, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        };
+      }
+      // New column, default to ascending
+      return {
+        ...prev,
+        [widgetId]: { column, direction: 'asc' }
+      };
+    });
+  }, []);
+
+  // Sort array based on column and direction
+  const sortData = useCallback(<T extends Record<string, any>>(
+    data: T[],
+    widgetId: string,
+    columnKey: string
+  ): T[] => {
+    const sorting = tableSorting[widgetId];
+    if (!sorting || sorting.column !== columnKey) {
+      return data;
+    }
+
+    return [...data].sort((a, b) => {
+      const aVal = a[sorting.column];
+      const bVal = b[sorting.column];
+      
+      // Handle different data types
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sorting.direction === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sorting.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      return 0;
+    });
+  }, [tableSorting]);
 
   // Handle drag over for widget swapping
   const handleWidgetDrop = useCallback((layout: Layout[]) => {
@@ -511,19 +593,19 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-end mb-4 gap-2">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleTableView("provider-status")}
-                      className="h-8 w-8"
+                      className="h-9 px-3"
                     >
-                      <Table className="h-5 w-5" />
+                      <Table className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleMaximize("provider-status")}
-                      className="h-8 w-8"
+                      className="h-9 px-3"
                     >
-                      <Minimize2 className="h-5 w-5" />
+                      <Minimize2 className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="flex-1 overflow-auto">
@@ -542,19 +624,19 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-end mb-4 gap-2">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleTableView("usage-trends")}
-                      className="h-8 w-8"
+                      className="h-9 px-3"
                     >
-                      <Table className="h-5 w-5" />
+                      <Table className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleMaximize("usage-trends")}
-                      className="h-8 w-8"
+                      className="h-9 px-3"
                     >
-                      <Minimize2 className="h-5 w-5" />
+                      <Minimize2 className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="flex-1 overflow-auto">
@@ -567,19 +649,19 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-end mb-4 gap-2">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleTableView("performance-metrics")}
-                      className="h-8 w-8"
+                      className="h-9 px-3"
                     >
-                      <Table className="h-5 w-5" />
+                      <Table className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleMaximize("performance-metrics")}
-                      className="h-8 w-8"
+                      className="h-9 px-3"
                     >
-                      <Minimize2 className="h-5 w-5" />
+                      <Minimize2 className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="flex-1 overflow-auto">
@@ -600,20 +682,20 @@ export default function AnalyticsPage() {
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           onClick={() => handleToggleTableView("model-performance")}
-                          className="flex-shrink-0 h-8 w-8"
+                          className="flex-shrink-0 h-9 px-3"
                           title="Toggle table view"
                         >
-                          <Table className="h-5 w-5" />
+                          <Table className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           onClick={() => handleToggleMaximize("model-performance")}
-                          className="ml-2 h-8 w-8"
+                          className="ml-2 h-9 px-3"
                         >
-                          <Minimize2 className="h-5 w-5" />
+                          <Minimize2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -629,18 +711,48 @@ export default function AnalyticsPage() {
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b">
-                                <th className="text-left p-2">Model</th>
-                                <th className="text-left p-2">Provider</th>
-                                <th className="text-left p-2">Conversations</th>
-                                <th className="text-left p-2">Tokens</th>
-                                <th className="text-left p-2">Success Rate</th>
-                                <th className="text-left p-2">Avg Response</th>
+                                <SortableHeader
+                                  column="modelName"
+                                  label="Model"
+                                  currentSort={tableSorting["model-performance"]}
+                                  onSort={(col) => handleSort("model-performance", col)}
+                                />
+                                <SortableHeader
+                                  column="provider"
+                                  label="Provider"
+                                  currentSort={tableSorting["model-performance"]}
+                                  onSort={(col) => handleSort("model-performance", col)}
+                                />
+                                <SortableHeader
+                                  column="conversationCount"
+                                  label="Conversations"
+                                  currentSort={tableSorting["model-performance"]}
+                                  onSort={(col) => handleSort("model-performance", col)}
+                                />
+                                <SortableHeader
+                                  column="totalTokens"
+                                  label="Tokens"
+                                  currentSort={tableSorting["model-performance"]}
+                                  onSort={(col) => handleSort("model-performance", col)}
+                                />
+                                <SortableHeader
+                                  column="successRate"
+                                  label="Success Rate"
+                                  currentSort={tableSorting["model-performance"]}
+                                  onSort={(col) => handleSort("model-performance", col)}
+                                />
+                                <SortableHeader
+                                  column="averageResponseTime"
+                                  label="Avg Response"
+                                  currentSort={tableSorting["model-performance"]}
+                                  onSort={(col) => handleSort("model-performance", col)}
+                                />
                                 <th className="text-left p-2">Tools</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {modelStats.map((model, index) => (
-                                <tr key={index} className="border-b">
+                              {sortData(modelStats, "model-performance", tableSorting["model-performance"]?.column || "modelName").map((model, index) => (
+                                <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
                                   <td className="p-2 font-medium">{model.modelName}</td>
                                   <td className="p-2">{model.provider}</td>
                                   <td className="p-2">{model.conversationCount}</td>
@@ -699,20 +811,20 @@ export default function AnalyticsPage() {
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           onClick={() => handleToggleTableView("knowledge-activity")}
-                          className="flex-shrink-0 h-8 w-8"
+                          className="flex-shrink-0 h-9 px-3"
                           title="Toggle table view"
                         >
-                          <Table className="h-5 w-5" />
+                          <Table className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           onClick={() => handleToggleMaximize("knowledge-activity")}
-                          className="ml-2 h-8 w-8"
+                          className="ml-2 h-9 px-3"
                         >
-                          <Minimize2 className="h-5 w-5" />
+                          <Minimize2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -728,18 +840,53 @@ export default function AnalyticsPage() {
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b">
-                                <th className="text-left p-2">Knowledge Base</th>
-                                <th className="text-left p-2">Vector Store</th>
-                                <th className="text-left p-2">Documents</th>
-                                <th className="text-left p-2">Chunks</th>
-                                <th className="text-left p-2">Size</th>
-                                <th className="text-left p-2">Conversations</th>
-                                <th className="text-left p-2">Queries</th>
+                                <SortableHeader
+                                  column="knowledgeName"
+                                  label="Knowledge Base"
+                                  currentSort={tableSorting["knowledge-activity"]}
+                                  onSort={(col) => handleSort("knowledge-activity", col)}
+                                />
+                                <SortableHeader
+                                  column="vectorStore"
+                                  label="Vector Store"
+                                  currentSort={tableSorting["knowledge-activity"]}
+                                  onSort={(col) => handleSort("knowledge-activity", col)}
+                                />
+                                <SortableHeader
+                                  column="documentCount"
+                                  label="Documents"
+                                  currentSort={tableSorting["knowledge-activity"]}
+                                  onSort={(col) => handleSort("knowledge-activity", col)}
+                                />
+                                <SortableHeader
+                                  column="chunkCount"
+                                  label="Chunks"
+                                  currentSort={tableSorting["knowledge-activity"]}
+                                  onSort={(col) => handleSort("knowledge-activity", col)}
+                                />
+                                <SortableHeader
+                                  column="totalFileSize"
+                                  label="Size"
+                                  currentSort={tableSorting["knowledge-activity"]}
+                                  onSort={(col) => handleSort("knowledge-activity", col)}
+                                />
+                                <SortableHeader
+                                  column="conversationCount"
+                                  label="Conversations"
+                                  currentSort={tableSorting["knowledge-activity"]}
+                                  onSort={(col) => handleSort("knowledge-activity", col)}
+                                />
+                                <SortableHeader
+                                  column="queryCount"
+                                  label="Queries"
+                                  currentSort={tableSorting["knowledge-activity"]}
+                                  onSort={(col) => handleSort("knowledge-activity", col)}
+                                />
                               </tr>
                             </thead>
                             <tbody>
-                              {knowledgeStats.map((kb, index) => (
-                                <tr key={index} className="border-b">
+                              {sortData(knowledgeStats, "knowledge-activity", tableSorting["knowledge-activity"]?.column || "knowledgeName").map((kb, index) => (
+                                <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
                                   <td className="p-2 font-medium">{kb.knowledgeName || kb.knowledgeId}</td>
                                   <td className="p-2">{kb.vectorStore}</td>
                                   <td className="p-2">{kb.documentCount}</td>
@@ -816,21 +963,21 @@ export default function AnalyticsPage() {
                   <div className="flex gap-1">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleTableView("provider-analytics")}
-                      className="flex-shrink-0 h-8 w-8"
+                      className="flex-shrink-0 h-9 px-3"
                       title="Toggle table view"
                     >
-                      <Table className="h-5 w-5" />
+                      <Table className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleMaximize("provider-analytics")}
-                      className="flex-shrink-0 h-8 w-8"
+                      className="flex-shrink-0 h-9 px-3"
                       title="Maximize widget"
                     >
-                      <Maximize2 className="h-5 w-5" />
+                      <Maximize2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -879,21 +1026,21 @@ export default function AnalyticsPage() {
               <div className="flex gap-1 absolute top-2 right-2 z-10">
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={() => handleToggleTableView("provider-status")}
-                  className="h-8 w-8"
+                  className="h-9 px-3"
                   title="Toggle table view"
                 >
-                  <Table className="h-5 w-5" />
+                  <Table className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={() => handleToggleMaximize("provider-status")}
-                  className="h-8 w-8"
+                  className="h-9 px-3"
                   title="Maximize widget"
                 >
-                  <Maximize2 className="h-5 w-5" />
+                  <Maximize2 className="h-4 w-4" />
                 </Button>
               </div>
               <ProviderStatusCards 
@@ -912,21 +1059,21 @@ export default function AnalyticsPage() {
               <div className="flex gap-1 absolute top-2 right-2 z-10">
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={() => handleToggleTableView("usage-trends")}
-                  className="h-8 w-8"
+                  className="h-9 px-3"
                   title="Toggle table view"
                 >
-                  <Table className="h-5 w-5" />
+                  <Table className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={() => handleToggleMaximize("usage-trends")}
-                  className="h-8 w-8"
+                  className="h-9 px-3"
                   title="Maximize widget"
                 >
-                  <Maximize2 className="h-5 w-5" />
+                  <Maximize2 className="h-4 w-4" />
                 </Button>
               </div>
               <UsageTrendsChart data={usageTrends} loading={loading} tableView={tableViewEnabled["usage-trends"]} />
@@ -939,21 +1086,21 @@ export default function AnalyticsPage() {
               <div className="flex gap-1 absolute top-2 right-2 z-10">
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={() => handleToggleTableView("performance-metrics")}
-                  className="h-8 w-8"
+                  className="h-9 px-3"
                   title="Toggle table view"
                 >
-                  <Table className="h-5 w-5" />
+                  <Table className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   onClick={() => handleToggleMaximize("performance-metrics")}
-                  className="h-8 w-8"
+                  className="h-9 px-3"
                   title="Maximize widget"
                 >
-                  <Maximize2 className="h-5 w-5" />
+                  <Maximize2 className="h-4 w-4" />
                 </Button>
               </div>
               <PerformanceMetrics data={modelStats} loading={loading} tableView={tableViewEnabled["performance-metrics"]} />
@@ -974,21 +1121,21 @@ export default function AnalyticsPage() {
                   <div className="flex gap-1">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleTableView("model-performance")}
-                      className="flex-shrink-0 h-8 w-8"
+                      className="flex-shrink-0 h-9 px-3"
                       title="Toggle table view"
                     >
-                      <Table className="h-5 w-5" />
+                      <Table className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleMaximize("model-performance")}
-                      className="ml-2 flex-shrink-0 h-8 w-8"
+                      className="ml-2 flex-shrink-0 h-9 px-3"
                       title="Maximize widget"
                     >
-                      <Maximize2 className="h-5 w-5" />
+                      <Maximize2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -1004,18 +1151,48 @@ export default function AnalyticsPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b">
-                            <th className="text-left p-2">Model</th>
-                            <th className="text-left p-2">Provider</th>
-                            <th className="text-left p-2">Conversations</th>
-                            <th className="text-left p-2">Tokens</th>
-                            <th className="text-left p-2">Success Rate</th>
-                            <th className="text-left p-2">Avg Response</th>
+                            <SortableHeader
+                              column="modelName"
+                              label="Model"
+                              currentSort={tableSorting["model-performance"]}
+                              onSort={(col) => handleSort("model-performance", col)}
+                            />
+                            <SortableHeader
+                              column="provider"
+                              label="Provider"
+                              currentSort={tableSorting["model-performance"]}
+                              onSort={(col) => handleSort("model-performance", col)}
+                            />
+                            <SortableHeader
+                              column="conversationCount"
+                              label="Conversations"
+                              currentSort={tableSorting["model-performance"]}
+                              onSort={(col) => handleSort("model-performance", col)}
+                            />
+                            <SortableHeader
+                              column="totalTokens"
+                              label="Tokens"
+                              currentSort={tableSorting["model-performance"]}
+                              onSort={(col) => handleSort("model-performance", col)}
+                            />
+                            <SortableHeader
+                              column="successRate"
+                              label="Success Rate"
+                              currentSort={tableSorting["model-performance"]}
+                              onSort={(col) => handleSort("model-performance", col)}
+                            />
+                            <SortableHeader
+                              column="averageResponseTime"
+                              label="Avg Response"
+                              currentSort={tableSorting["model-performance"]}
+                              onSort={(col) => handleSort("model-performance", col)}
+                            />
                             <th className="text-left p-2">Tools</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {modelStats.map((model, index) => (
-                            <tr key={index} className="border-b">
+                          {sortData(modelStats, "model-performance", tableSorting["model-performance"]?.column || "modelName").map((model, index) => (
+                            <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
                               <td className="p-2 font-medium">{model.modelName}</td>
                               <td className="p-2">{model.provider}</td>
                               <td className="p-2">{model.conversationCount}</td>
@@ -1076,21 +1253,21 @@ export default function AnalyticsPage() {
                   <div className="flex gap-1">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleTableView("knowledge-activity")}
-                      className="flex-shrink-0 h-8 w-8"
+                      className="flex-shrink-0 h-9 px-3"
                       title="Toggle table view"
                     >
-                      <Table className="h-5 w-5" />
+                      <Table className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={() => handleToggleMaximize("knowledge-activity")}
-                      className="ml-2 flex-shrink-0 h-8 w-8"
+                      className="ml-2 flex-shrink-0 h-9 px-3"
                       title="Maximize widget"
                     >
-                      <Maximize2 className="h-5 w-5" />
+                      <Maximize2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -1106,18 +1283,53 @@ export default function AnalyticsPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b">
-                            <th className="text-left p-2">Knowledge Base</th>
-                            <th className="text-left p-2">Vector Store</th>
-                            <th className="text-left p-2">Documents</th>
-                            <th className="text-left p-2">Chunks</th>
-                            <th className="text-left p-2">Size</th>
-                            <th className="text-left p-2">Conversations</th>
-                            <th className="text-left p-2">Queries</th>
+                            <SortableHeader
+                              column="knowledgeName"
+                              label="Knowledge Base"
+                              currentSort={tableSorting["knowledge-activity"]}
+                              onSort={(col) => handleSort("knowledge-activity", col)}
+                            />
+                            <SortableHeader
+                              column="vectorStore"
+                              label="Vector Store"
+                              currentSort={tableSorting["knowledge-activity"]}
+                              onSort={(col) => handleSort("knowledge-activity", col)}
+                            />
+                            <SortableHeader
+                              column="documentCount"
+                              label="Documents"
+                              currentSort={tableSorting["knowledge-activity"]}
+                              onSort={(col) => handleSort("knowledge-activity", col)}
+                            />
+                            <SortableHeader
+                              column="chunkCount"
+                              label="Chunks"
+                              currentSort={tableSorting["knowledge-activity"]}
+                              onSort={(col) => handleSort("knowledge-activity", col)}
+                            />
+                            <SortableHeader
+                              column="totalFileSize"
+                              label="Size"
+                              currentSort={tableSorting["knowledge-activity"]}
+                              onSort={(col) => handleSort("knowledge-activity", col)}
+                            />
+                            <SortableHeader
+                              column="conversationCount"
+                              label="Conversations"
+                              currentSort={tableSorting["knowledge-activity"]}
+                              onSort={(col) => handleSort("knowledge-activity", col)}
+                            />
+                            <SortableHeader
+                              column="queryCount"
+                              label="Queries"
+                              currentSort={tableSorting["knowledge-activity"]}
+                              onSort={(col) => handleSort("knowledge-activity", col)}
+                            />
                           </tr>
                         </thead>
                         <tbody>
-                          {knowledgeStats.map((kb, index) => (
-                            <tr key={index} className="border-b">
+                          {sortData(knowledgeStats, "knowledge-activity", tableSorting["knowledge-activity"]?.column || "knowledgeName").map((kb, index) => (
+                            <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
                               <td className="p-2 font-medium">{kb.knowledgeName || kb.knowledgeId}</td>
                               <td className="p-2">{kb.vectorStore}</td>
                               <td className="p-2">{kb.documentCount}</td>
