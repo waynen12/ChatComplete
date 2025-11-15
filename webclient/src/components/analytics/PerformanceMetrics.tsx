@@ -16,9 +16,10 @@ interface ModelMetrics {
 interface PerformanceMetricsProps {
   data: ModelMetrics[];
   loading?: boolean;
+  tableView?: boolean;
 }
 
-export function PerformanceMetrics({ data, loading }: PerformanceMetricsProps) {
+export function PerformanceMetrics({ data, loading, tableView = false }: PerformanceMetricsProps) {
   const chartData = useMemo(() => {
     if (!data || data.length === 0) {
       // Sample data for demonstration
@@ -146,46 +147,75 @@ export function PerformanceMetrics({ data, loading }: PerformanceMetricsProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="model" 
-                  tick={{ fontSize: 11 }}
-                  interval={0}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis 
-                  tick={{ fontSize: 12 }}
-                  label={{ value: 'Response Time (s)', angle: -90, position: 'insideLeft' }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <ReferenceLine 
-                  y={averageResponseTime} 
-                  stroke="hsl(var(--muted-foreground))" 
-                  strokeDasharray="5 5" 
-                />
-                <Bar dataKey="responseTime" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Bar key={`bar-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center">
-                <PerformanceIcon className="h-16 w-16 mb-2 mx-auto text-muted-foreground" />
-                <p>No performance data available</p>
-                <p className="text-sm">Start conversations to see model performance metrics</p>
+        {tableView ? (
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Model</th>
+                  <th className="text-left p-2">Provider</th>
+                  <th className="text-left p-2">Response Time (s)</th>
+                  <th className="text-left p-2">Success Rate (%)</th>
+                  <th className="text-left p-2">Total Requests</th>
+                  <th className="text-left p-2">Conversations</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chartData.map((item, index) => (
+                  <tr key={index} className="border-b">
+                    <td className="p-2 font-medium">{item.model}</td>
+                    <td className="p-2">{item.provider}</td>
+                    <td className="p-2">{item.responseTime.toFixed(2)}</td>
+                    <td className="p-2">{item.successRate.toFixed(1)}</td>
+                    <td className="p-2">{item.requests}</td>
+                    <td className="p-2">{data.find(d => d.modelName === item.model)?.conversationCount || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="h-80">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="model" 
+                    tick={{ fontSize: 11 }}
+                    interval={0}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'Response Time (s)', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <ReferenceLine 
+                    y={averageResponseTime} 
+                    stroke="hsl(var(--muted-foreground))" 
+                    strokeDasharray="5 5" 
+                  />
+                  <Bar dataKey="responseTime" radius={[4, 4, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Bar key={`bar-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="text-center">
+                  <PerformanceIcon className="h-16 w-16 mb-2 mx-auto text-muted-foreground" />
+                  <p>No performance data available</p>
+                  <p className="text-sm">Start conversations to see model performance metrics</p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

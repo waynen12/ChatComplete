@@ -30,9 +30,10 @@ interface ProviderStatusCardsProps {
   usage: ProviderUsage[];
   loading?: boolean;
   onRefresh?: () => void;
+  tableView?: boolean;
 }
 
-export function ProviderStatusCards({ accounts, usage, loading, onRefresh }: ProviderStatusCardsProps) {
+export function ProviderStatusCards({ accounts, usage, loading, onRefresh, tableView = false }: ProviderStatusCardsProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
@@ -117,81 +118,137 @@ export function ProviderStatusCards({ accounts, usage, loading, onRefresh }: Pro
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {['OpenAi', 'Anthropic', 'Google', 'Ollama'].map(provider => {
-          const account = accounts.find(a => a.provider === provider);
-          const monthlyCost = getUsageForProvider(provider);
-          const isConnected = account?.isConnected ?? false;
-          const hasError = !!account?.errorMessage;
+      {tableView ? (
+        <div className="overflow-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left p-2">Provider</th>
+                <th className="text-left p-2">Status</th>
+                <th className="text-left p-2">Type</th>
+                <th className="text-left p-2">Balance</th>
+                <th className="text-left p-2">This Month</th>
+                <th className="text-left p-2">Last Sync</th>
+              </tr>
+            </thead>
+            <tbody>
+              {['OpenAi', 'Anthropic', 'Google', 'Ollama'].map(provider => {
+                const account = accounts.find(a => a.provider === provider);
+                const monthlyCost = getUsageForProvider(provider);
+                const isConnected = account?.isConnected ?? false;
+                const hasError = !!account?.errorMessage;
 
-          return (
-            <Card key={provider}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-3 h-3 rounded-full ${
-                      hasError ? 'bg-red-500' : 
-                      isConnected ? 'bg-green-500' : 
-                      'bg-gray-400'
-                    }`}></div>
-                    <CardTitle className="text-base flex items-center space-x-2">
-                      {getProviderIcon(provider)}
-                      <span>{provider}</span>
-                    </CardTitle>
-                  </div>
-                  <Badge variant={isConnected ? "default" : "secondary"}>
-                    {hasError ? 'Error' : isConnected ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2 text-sm">
-                  {provider === 'Ollama' ? (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Type:</span>
-                        <span>Local Models</span>
+                return (
+                  <tr key={provider} className="border-b">
+                    <td className="p-2 font-medium">{provider}</td>
+                    <td className="p-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${
+                          hasError ? 'bg-red-500' : 
+                          isConnected ? 'bg-green-500' : 
+                          'bg-gray-400'
+                        }`}></div>
+                        <span>{hasError ? 'Error' : isConnected ? 'Active' : 'Inactive'}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Cost:</span>
+                    </td>
+                    <td className="p-2">{provider === 'Ollama' ? 'Local Models' : 'Cloud'}</td>
+                    <td className="p-2">
+                      {provider === 'Ollama' ? 'N/A' : 
+                        isConnected ? formatBalance(account?.balance, account?.balanceUnit) : 'Not connected'}
+                    </td>
+                    <td className="p-2">
+                      {provider === 'Ollama' ? (
                         <span className="text-green-600 font-medium">Free</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Balance:</span>
-                        <span className={!isConnected ? 'text-muted-foreground' : ''}>
-                          {isConnected ? formatBalance(account?.balance, account?.balanceUnit) : 'Not connected'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">This month:</span>
-                        <span className="font-medium">
-                          ${monthlyCost.toFixed(2)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {hasError && (
-                    <div className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded border">
-                      {account?.errorMessage}
+                      ) : (
+                        `$${monthlyCost.toFixed(2)}`
+                      )}
+                    </td>
+                    <td className="p-2 text-xs text-muted-foreground">
+                      {account?.lastSyncAt ? new Date(account.lastSyncAt).toLocaleDateString() : 'N/A'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {['OpenAi', 'Anthropic', 'Google', 'Ollama'].map(provider => {
+            const account = accounts.find(a => a.provider === provider);
+            const monthlyCost = getUsageForProvider(provider);
+            const isConnected = account?.isConnected ?? false;
+            const hasError = !!account?.errorMessage;
+
+            return (
+              <Card key={provider}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        hasError ? 'bg-red-500' : 
+                        isConnected ? 'bg-green-500' : 
+                        'bg-gray-400'
+                      }`}></div>
+                      <CardTitle className="text-base flex items-center space-x-2">
+                        {getProviderIcon(provider)}
+                        <span>{provider}</span>
+                      </CardTitle>
                     </div>
-                  )}
-                  
-                  {account?.lastSyncAt && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Last sync:</span>
-                      <span>{new Date(account.lastSyncAt).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                    <Badge variant={isConnected ? "default" : "secondary"}>
+                      {hasError ? 'Error' : isConnected ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2 text-sm">
+                    {provider === 'Ollama' ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Type:</span>
+                          <span>Local Models</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Cost:</span>
+                          <span className="text-green-600 font-medium">Free</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Balance:</span>
+                          <span className={!isConnected ? 'text-muted-foreground' : ''}>
+                            {isConnected ? formatBalance(account?.balance, account?.balanceUnit) : 'Not connected'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">This month:</span>
+                          <span className="font-medium">
+                            ${monthlyCost.toFixed(2)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {hasError && (
+                      <div className="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded border">
+                        {account?.errorMessage}
+                      </div>
+                    )}
+                    
+                    {account?.lastSyncAt && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Last sync:</span>
+                        <span>{new Date(account.lastSyncAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

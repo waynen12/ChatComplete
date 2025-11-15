@@ -508,7 +508,15 @@ export default function AnalyticsPage() {
               )}
               {maximizedWidget === "provider-status" && (
                 <div className="h-full flex flex-col">
-                  <div className="flex items-center justify-end mb-4">
+                  <div className="flex items-center justify-end mb-4 gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleTableView("provider-status")}
+                      className="h-8 w-8"
+                    >
+                      <Table className="h-5 w-5" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -524,13 +532,22 @@ export default function AnalyticsPage() {
                       usage={costBreakdown}
                       loading={loading}
                       onRefresh={fetchAnalytics}
+                      tableView={tableViewEnabled["provider-status"]}
                     />
                   </div>
                 </div>
               )}
               {maximizedWidget === "usage-trends" && (
                 <div className="h-full flex flex-col">
-                  <div className="flex items-center justify-end mb-4">
+                  <div className="flex items-center justify-end mb-4 gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleTableView("usage-trends")}
+                      className="h-8 w-8"
+                    >
+                      <Table className="h-5 w-5" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -541,13 +558,21 @@ export default function AnalyticsPage() {
                     </Button>
                   </div>
                   <div className="flex-1 overflow-auto">
-                    <UsageTrendsChart data={usageTrends} loading={loading} />
+                    <UsageTrendsChart data={usageTrends} loading={loading} tableView={tableViewEnabled["usage-trends"]} />
                   </div>
                 </div>
               )}
               {maximizedWidget === "performance-metrics" && (
                 <div className="h-full flex flex-col">
-                  <div className="flex items-center justify-end mb-4">
+                  <div className="flex items-center justify-end mb-4 gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleTableView("performance-metrics")}
+                      className="h-8 w-8"
+                    >
+                      <Table className="h-5 w-5" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -558,7 +583,7 @@ export default function AnalyticsPage() {
                     </Button>
                   </div>
                   <div className="flex-1 overflow-auto">
-                    <PerformanceMetrics data={modelStats} loading={loading} />
+                    <PerformanceMetrics data={modelStats} loading={loading} tableView={tableViewEnabled["performance-metrics"]} />
                   </div>
                 </div>
               )}
@@ -572,14 +597,25 @@ export default function AnalyticsPage() {
                           Usage statistics and performance metrics for all AI models
                         </CardDescription>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleToggleMaximize("model-performance")}
-                        className="ml-2 h-8 w-8"
-                      >
-                        <Minimize2 className="h-5 w-5" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleTableView("model-performance")}
+                          className="flex-shrink-0 h-8 w-8"
+                          title="Toggle table view"
+                        >
+                          <Table className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleMaximize("model-performance")}
+                          className="ml-2 h-8 w-8"
+                        >
+                          <Minimize2 className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-auto">
@@ -588,6 +624,35 @@ export default function AnalyticsPage() {
                         <p className="text-center text-muted-foreground py-8">
                           No model usage data available yet. Start some conversations to see analytics.
                         </p>
+                      ) : tableViewEnabled["model-performance"] ? (
+                        <div className="overflow-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left p-2">Model</th>
+                                <th className="text-left p-2">Provider</th>
+                                <th className="text-left p-2">Conversations</th>
+                                <th className="text-left p-2">Tokens</th>
+                                <th className="text-left p-2">Success Rate</th>
+                                <th className="text-left p-2">Avg Response</th>
+                                <th className="text-left p-2">Tools</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {modelStats.map((model, index) => (
+                                <tr key={index} className="border-b">
+                                  <td className="p-2 font-medium">{model.modelName}</td>
+                                  <td className="p-2">{model.provider}</td>
+                                  <td className="p-2">{model.conversationCount}</td>
+                                  <td className="p-2">{formatNumber(model.totalTokens)}</td>
+                                  <td className="p-2">{model.successRate.toFixed(1)}%</td>
+                                  <td className="p-2">{(model.averageResponseTime / 1000).toFixed(1)}s</td>
+                                  <td className="p-2">{model.supportsTools ? "Yes" : "No"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       ) : (
                         <div className="space-y-3">
                           {modelStats.map((model, index) => (
@@ -631,14 +696,25 @@ export default function AnalyticsPage() {
                           Usage patterns and statistics for your knowledge bases
                         </CardDescription>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleToggleMaximize("knowledge-activity")}
-                        className="ml-2 h-8 w-8"
-                      >
-                        <Minimize2 className="h-5 w-5" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleTableView("knowledge-activity")}
+                          className="flex-shrink-0 h-8 w-8"
+                          title="Toggle table view"
+                        >
+                          <Table className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleMaximize("knowledge-activity")}
+                          className="ml-2 h-8 w-8"
+                        >
+                          <Minimize2 className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-auto">
@@ -647,6 +723,35 @@ export default function AnalyticsPage() {
                         <p className="text-center text-muted-foreground py-8">
                           No knowledge bases found. Create some knowledge bases to see analytics.
                         </p>
+                      ) : tableViewEnabled["knowledge-activity"] ? (
+                        <div className="overflow-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left p-2">Knowledge Base</th>
+                                <th className="text-left p-2">Vector Store</th>
+                                <th className="text-left p-2">Documents</th>
+                                <th className="text-left p-2">Chunks</th>
+                                <th className="text-left p-2">Size</th>
+                                <th className="text-left p-2">Conversations</th>
+                                <th className="text-left p-2">Queries</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {knowledgeStats.map((kb, index) => (
+                                <tr key={index} className="border-b">
+                                  <td className="p-2 font-medium">{kb.knowledgeName || kb.knowledgeId}</td>
+                                  <td className="p-2">{kb.vectorStore}</td>
+                                  <td className="p-2">{kb.documentCount}</td>
+                                  <td className="p-2">{kb.chunkCount}</td>
+                                  <td className="p-2">{formatFileSize(kb.totalFileSize)}</td>
+                                  <td className="p-2">{kb.conversationCount}</td>
+                                  <td className="p-2">{kb.queryCount}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       ) : (
                         <div className="space-y-3">
                           {knowledgeStats.map((kb, index) => (
@@ -771,20 +876,32 @@ export default function AnalyticsPage() {
           {/* Provider Status Cards */}
           <div key="provider-status" className="cursor-move">
             <div className="h-full relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleToggleMaximize("provider-status")}
-                className="absolute top-2 right-2 z-10 h-8 w-8"
-                title="Maximize widget"
-              >
-                <Maximize2 className="h-5 w-5" />
-              </Button>
+              <div className="flex gap-1 absolute top-2 right-2 z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleToggleTableView("provider-status")}
+                  className="h-8 w-8"
+                  title="Toggle table view"
+                >
+                  <Table className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleToggleMaximize("provider-status")}
+                  className="h-8 w-8"
+                  title="Maximize widget"
+                >
+                  <Maximize2 className="h-5 w-5" />
+                </Button>
+              </div>
               <ProviderStatusCards 
                 accounts={providerAccounts}
                 usage={costBreakdown}
                 loading={loading}
                 onRefresh={fetchAnalytics}
+                tableView={tableViewEnabled["provider-status"]}
               />
             </div>
           </div>
@@ -792,32 +909,54 @@ export default function AnalyticsPage() {
           {/* Charts Section */}
           <div key="usage-trends" className="cursor-move">
             <div className="h-full relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleToggleMaximize("usage-trends")}
-                className="absolute top-2 right-2 z-10 h-8 w-8"
-                title="Maximize widget"
-              >
-                <Maximize2 className="h-5 w-5" />
-              </Button>
-              <UsageTrendsChart data={usageTrends} loading={loading} />
+              <div className="flex gap-1 absolute top-2 right-2 z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleToggleTableView("usage-trends")}
+                  className="h-8 w-8"
+                  title="Toggle table view"
+                >
+                  <Table className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleToggleMaximize("usage-trends")}
+                  className="h-8 w-8"
+                  title="Maximize widget"
+                >
+                  <Maximize2 className="h-5 w-5" />
+                </Button>
+              </div>
+              <UsageTrendsChart data={usageTrends} loading={loading} tableView={tableViewEnabled["usage-trends"]} />
             </div>
           </div>
 
           {/* Performance Metrics */}
           <div key="performance-metrics" className="cursor-move">
             <div className="h-full relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleToggleMaximize("performance-metrics")}
-                className="absolute top-2 right-2 z-10 h-8 w-8"
-                title="Maximize widget"
-              >
-                <Maximize2 className="h-5 w-5" />
-              </Button>
-              <PerformanceMetrics data={modelStats} loading={loading} />
+              <div className="flex gap-1 absolute top-2 right-2 z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleToggleTableView("performance-metrics")}
+                  className="h-8 w-8"
+                  title="Toggle table view"
+                >
+                  <Table className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleToggleMaximize("performance-metrics")}
+                  className="h-8 w-8"
+                  title="Maximize widget"
+                >
+                  <Maximize2 className="h-5 w-5" />
+                </Button>
+              </div>
+              <PerformanceMetrics data={modelStats} loading={loading} tableView={tableViewEnabled["performance-metrics"]} />
             </div>
           </div>
 
@@ -832,15 +971,26 @@ export default function AnalyticsPage() {
                       Usage statistics and performance metrics for all AI models
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleToggleMaximize("model-performance")}
-                    className="ml-2 flex-shrink-0 h-8 w-8"
-                    title="Maximize widget"
-                  >
-                    <Maximize2 className="h-5 w-5" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleTableView("model-performance")}
+                      className="flex-shrink-0 h-8 w-8"
+                      title="Toggle table view"
+                    >
+                      <Table className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleMaximize("model-performance")}
+                      className="ml-2 flex-shrink-0 h-8 w-8"
+                      title="Maximize widget"
+                    >
+                      <Maximize2 className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -849,6 +999,35 @@ export default function AnalyticsPage() {
                     <p className="text-center text-muted-foreground py-8">
                       No model usage data available yet. Start some conversations to see analytics.
                     </p>
+                  ) : tableViewEnabled["model-performance"] ? (
+                    <div className="overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-2">Model</th>
+                            <th className="text-left p-2">Provider</th>
+                            <th className="text-left p-2">Conversations</th>
+                            <th className="text-left p-2">Tokens</th>
+                            <th className="text-left p-2">Success Rate</th>
+                            <th className="text-left p-2">Avg Response</th>
+                            <th className="text-left p-2">Tools</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {modelStats.map((model, index) => (
+                            <tr key={index} className="border-b">
+                              <td className="p-2 font-medium">{model.modelName}</td>
+                              <td className="p-2">{model.provider}</td>
+                              <td className="p-2">{model.conversationCount}</td>
+                              <td className="p-2">{formatNumber(model.totalTokens)}</td>
+                              <td className="p-2">{model.successRate.toFixed(1)}%</td>
+                              <td className="p-2">{(model.averageResponseTime / 1000).toFixed(1)}s</td>
+                              <td className="p-2">{model.supportsTools ? "Yes" : "No"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {modelStats.map((model, index) => (
@@ -894,15 +1073,26 @@ export default function AnalyticsPage() {
                       Usage patterns and statistics for your knowledge bases
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleToggleMaximize("knowledge-activity")}
-                    className="ml-2 flex-shrink-0 h-8 w-8"
-                    title="Maximize widget"
-                  >
-                    <Maximize2 className="h-5 w-5" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleTableView("knowledge-activity")}
+                      className="flex-shrink-0 h-8 w-8"
+                      title="Toggle table view"
+                    >
+                      <Table className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleMaximize("knowledge-activity")}
+                      className="ml-2 flex-shrink-0 h-8 w-8"
+                      title="Maximize widget"
+                    >
+                      <Maximize2 className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -911,6 +1101,35 @@ export default function AnalyticsPage() {
                     <p className="text-center text-muted-foreground py-8">
                       No knowledge bases found. Create some knowledge bases to see analytics.
                     </p>
+                  ) : tableViewEnabled["knowledge-activity"] ? (
+                    <div className="overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-2">Knowledge Base</th>
+                            <th className="text-left p-2">Vector Store</th>
+                            <th className="text-left p-2">Documents</th>
+                            <th className="text-left p-2">Chunks</th>
+                            <th className="text-left p-2">Size</th>
+                            <th className="text-left p-2">Conversations</th>
+                            <th className="text-left p-2">Queries</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {knowledgeStats.map((kb, index) => (
+                            <tr key={index} className="border-b">
+                              <td className="p-2 font-medium">{kb.knowledgeName || kb.knowledgeId}</td>
+                              <td className="p-2">{kb.vectorStore}</td>
+                              <td className="p-2">{kb.documentCount}</td>
+                              <td className="p-2">{kb.chunkCount}</td>
+                              <td className="p-2">{formatFileSize(kb.totalFileSize)}</td>
+                              <td className="p-2">{kb.conversationCount}</td>
+                              <td className="p-2">{kb.queryCount}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {knowledgeStats.map((kb, index) => (
