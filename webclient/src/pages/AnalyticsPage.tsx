@@ -469,11 +469,11 @@ export default function AnalyticsPage() {
                       </div>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleToggleMaximize("provider-analytics")}
-                        className="ml-2"
+                        className="ml-2 h-8 w-8"
                       >
-                        <Minimize2 className="h-4 w-4" />
+                        <Minimize2 className="h-5 w-5" />
                       </Button>
                     </div>
                   </CardHeader>
@@ -492,10 +492,11 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-end mb-4">
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => handleToggleMaximize("provider-status")}
+                      className="h-8 w-8"
                     >
-                      <Minimize2 className="h-4 w-4" />
+                      <Minimize2 className="h-5 w-5" />
                     </Button>
                   </div>
                   <div className="flex-1 overflow-auto">
@@ -513,10 +514,11 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-end mb-4">
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => handleToggleMaximize("usage-trends")}
+                      className="h-8 w-8"
                     >
-                      <Minimize2 className="h-4 w-4" />
+                      <Minimize2 className="h-5 w-5" />
                     </Button>
                   </div>
                   <div className="flex-1 overflow-auto">
@@ -529,10 +531,11 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-end mb-4">
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => handleToggleMaximize("performance-metrics")}
+                      className="h-8 w-8"
                     >
-                      <Minimize2 className="h-4 w-4" />
+                      <Minimize2 className="h-5 w-5" />
                     </Button>
                   </div>
                   <div className="flex-1 overflow-auto">
@@ -552,11 +555,11 @@ export default function AnalyticsPage() {
                       </div>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleToggleMaximize("model-performance")}
-                        className="ml-2"
+                        className="ml-2 h-8 w-8"
                       >
-                        <Minimize2 className="h-4 w-4" />
+                        <Minimize2 className="h-5 w-5" />
                       </Button>
                     </div>
                   </CardHeader>
@@ -611,11 +614,11 @@ export default function AnalyticsPage() {
                       </div>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleToggleMaximize("knowledge-activity")}
-                        className="ml-2"
+                        className="ml-2 h-8 w-8"
                       >
-                        <Minimize2 className="h-4 w-4" />
+                        <Minimize2 className="h-5 w-5" />
                       </Button>
                     </div>
                   </CardHeader>
@@ -686,12 +689,12 @@ export default function AnalyticsPage() {
                   </div>
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => handleToggleMaximize("provider-analytics")}
-                    className="ml-2 flex-shrink-0"
+                    className="ml-2 flex-shrink-0 h-8 w-8"
                     title="Maximize widget"
                   >
-                    <Maximize2 className="h-4 w-4" />
+                    <Maximize2 className="h-5 w-5" />
                   </Button>
                 </div>
               </CardHeader>
@@ -711,12 +714,12 @@ export default function AnalyticsPage() {
             <div className="h-full relative">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => handleToggleMaximize("provider-status")}
-                className="absolute top-2 right-2 z-10"
+                className="absolute top-2 right-2 z-10 h-8 w-8"
                 title="Maximize widget"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-5 w-5" />
               </Button>
               <ProviderStatusCards 
                 accounts={providerAccounts}
@@ -732,12 +735,12 @@ export default function AnalyticsPage() {
             <div className="h-full relative">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => handleToggleMaximize("usage-trends")}
-                className="absolute top-2 right-2 z-10"
+                className="absolute top-2 right-2 z-10 h-8 w-8"
                 title="Maximize widget"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-5 w-5" />
               </Button>
               <UsageTrendsChart data={usageTrends} loading={loading} />
             </div>
@@ -748,12 +751,12 @@ export default function AnalyticsPage() {
             <div className="h-full relative">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => handleToggleMaximize("performance-metrics")}
-                className="absolute top-2 right-2 z-10"
+                className="absolute top-2 right-2 z-10 h-8 w-8"
                 title="Maximize widget"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-5 w-5" />
               </Button>
               <PerformanceMetrics data={modelStats} loading={loading} />
             </div>
@@ -772,12 +775,12 @@ export default function AnalyticsPage() {
                   </div>
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => handleToggleMaximize("model-performance")}
-                    className="ml-2 flex-shrink-0"
+                    className="ml-2 flex-shrink-0 h-8 w-8"
                     title="Maximize widget"
                   >
-                    <Maximize2 className="h-4 w-4" />
+                    <Maximize2 className="h-5 w-5" />
                   </Button>
                 </div>
               </CardHeader>
@@ -834,12 +837,12 @@ export default function AnalyticsPage() {
                   </div>
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => handleToggleMaximize("knowledge-activity")}
-                    className="ml-2 flex-shrink-0"
+                    className="ml-2 flex-shrink-0 h-8 w-8"
                     title="Maximize widget"
                   >
-                    <Maximize2 className="h-4 w-4" />
+                    <Maximize2 className="h-5 w-5" />
                   </Button>
                 </div>
               </CardHeader>
