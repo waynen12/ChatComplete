@@ -18,7 +18,7 @@ services:
       - DOTNET_RUNNING_IN_CONTAINER=true
       - ChatCompleteSettings__VectorStore__Provider=Qdrant        # Use Qdrant when available
       - ChatCompleteSettings__VectorStore__Qdrant__Host=qdrant    # Reference Qdrant service
-      - ChatCompleteSettings__VectorStore__Qdrant__Port=6334      # REST API port
+      - ChatCompleteSettings__VectorStore__Qdrant__Port=6334      # gRPC API port (for performance)
       # API keys - set these via .env file or environment
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -27,7 +27,7 @@ services:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7040/api/ping"]
+      test: ["CMD-SHELL", "timeout 5s bash -c '</dev/tcp/localhost/7040' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -52,7 +52,7 @@ services:
     networks:
       - ai-services
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      test: ["CMD-SHELL", "timeout 5s bash -c '</dev/tcp/localhost/6333' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -8,11 +8,9 @@
 # Documentation
 *.md
 README.md
-QDRANT_IMPLEMENTATION_PLAN.md
-AGENT_IMPLEMENTATION_PLAN.md
-DOCKER_CONTAINERIZATION_MILESTONE.md
-LOCAL_CONFIG_DATABASE_MILESTONE.md
-PROJECT_SUMMARY.md
+DOCKER_HUB_README.md
+CLAUDE.md
+documentation/
 
 # Build artifacts
 **/bin/
@@ -50,7 +48,9 @@ Thumbs.db
 .env.production.local
 *.env
 
-# Test results
+# Tests and test results
+**/Tests/
+**/*.Tests/
 TestResults/
 coverage/
 *.trx
@@ -86,3 +86,12 @@ qdrant_storage/
 
 # WebUI secret key
 .webui_secret_key
+
+# SQLite databases (will be created in container)
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# GitHub Actions
+.github/

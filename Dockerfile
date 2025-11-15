@@ -37,10 +37,8 @@ RUN dotnet publish Knowledge.Api/Knowledge.Api.csproj \
     --no-restore
 
 # Stage 3: Runtime (Final container)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
-
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Using slim Debian variant (bookworm-slim) for smaller size (~75MB less than standard)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS runtime
 
 WORKDIR /app
 
@@ -50,13 +48,11 @@ COPY --from=backend-build /app/publish ./
 # Copy built frontend to wwwroot for static file serving
 COPY --from=frontend-build /app/frontend/dist ./wwwroot
 
-# Create data directory with proper permissions
-RUN mkdir -p /app/data /app/temp && \
-    chmod 755 /app/data /app/temp
-
-# Create non-root user for security
+# Create non-root user and set up directories in single layer (reduces image size)
 RUN groupadd --gid 1001 appgroup && \
     useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser && \
+    mkdir -p /app/data /app/temp && \
+    chmod 755 /app/data /app/temp && \
     chown -R appuser:appgroup /app
 
 USER appuser
@@ -64,9 +60,10 @@ USER appuser
 # Expose the application port
 EXPOSE 7040
 
-# Health check endpoint
+# Health check using TCP socket (no curl dependency needed - saves ~11MB)
+# This checks if port 7040 is accepting connections
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:7040/api/ping || exit 1
+    CMD timeout 5s bash -c '</dev/tcp/localhost/7040' || exit 1
 
 # Set environment variables for container
 ENV ASPNETCORE_ENVIRONMENT=Production \

@@ -18,7 +18,7 @@ services:
       - DOTNET_RUNNING_IN_CONTAINER=true
       - ChatCompleteSettings__VectorStore__Provider=Qdrant        # Use Qdrant
       - ChatCompleteSettings__VectorStore__Qdrant__Host=qdrant    # Reference Qdrant service
-      - ChatCompleteSettings__VectorStore__Qdrant__Port=6334      # REST API port
+      - ChatCompleteSettings__VectorStore__Qdrant__Port=6334      # gRPC API port (for performance)
       - ChatCompleteSettings__OllamaBaseUrl=http://ollama:11434   # Use Ollama service name
       # API keys - set these via .env file or environment
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -30,7 +30,7 @@ services:
       ollama:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7040/api/ping"]
+      test: ["CMD-SHELL", "timeout 5s bash -c '</dev/tcp/localhost/7040' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -55,7 +55,7 @@ services:
     networks:
       - ai-services
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      test: ["CMD-SHELL", "timeout 5s bash -c '</dev/tcp/localhost/6333' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -75,7 +75,7 @@ services:
     networks:
       - ai-services
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      test: ["CMD-SHELL", "timeout 5s bash -c '</dev/tcp/localhost/11434' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
