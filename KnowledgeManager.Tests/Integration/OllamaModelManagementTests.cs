@@ -83,6 +83,7 @@ public class OllamaModelManagementTests : IDisposable
         try
         {
             // Step 1: Ensure database is initialized
+            Thread.Sleep(20000);
             await InitializeDatabaseAsync();
             
             // Step 2: Check if Ollama is running
@@ -300,19 +301,42 @@ public class OllamaModelManagementTests : IDisposable
     private async Task VerifyModelInstallationAsync(string modelName)
     {
         _output.WriteLine($"Verifying model installation: {modelName}");
-        
-        // Check via Ollama API
-        var installedModels = await _ollamaService.GetInstalledModelsAsync(_cancellationTokenSource.Token);
-        var model = installedModels.FirstOrDefault(m => m.Name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
-        
+
+        // Retry logic to handle Ollama's eventual consistency
+        // When tests run in sequence, Ollama may need time to update its model registry
+        const int maxRetries = 5;
+        const int delayMs = 1000; // 1 second between retries
+
+        OllamaModelDto? model = null;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            // Check via Ollama API
+            var installedModels = await _ollamaService.GetInstalledModelsAsync(_cancellationTokenSource.Token);
+            model = installedModels.FirstOrDefault(m => m.Name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
+
+            if (model != null)
+            {
+                _output.WriteLine($"✅ Model found on attempt {attempt}/{maxRetries}");
+                break;
+            }
+
+            if (attempt < maxRetries)
+            {
+                _output.WriteLine($"⏳ Model not found yet, retrying in {delayMs}ms... (attempt {attempt}/{maxRetries})");
+                await Task.Delay(delayMs, _cancellationTokenSource.Token);
+            }
+        }
+
+        // Final assertion after all retries
         Assert.NotNull(model);
-        Assert.True(model.Size > 0, "Model size should be greater than 0");
+        Assert.True(model!.Size > 0, "Model size should be greater than 0");
         _output.WriteLine($"✅ Model verified via Ollama API. Size: {model.Size:N0} bytes");
-        
+
         // Check in local database
         var localModels = await _repository.GetInstalledModelsAsync(_cancellationTokenSource.Token);
         var localModel = localModels.FirstOrDefault(m => m.Name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
-        
+
         if (localModel != null)
         {
             _output.WriteLine($"✅ Model found in local database. Status: {localModel.Status}");

@@ -75,7 +75,7 @@ public class KnowledgeAnalyticsMcpToolTests
     }
 
     [Fact]
-    public async Task GetKnowledgeBaseHealth_ShouldReturnPlannedFeatureMessage()
+    public async Task GetKnowledgeBaseHealth_ShouldReturnServiceConfigurationError()
     {
         // Arrange
         var services = CreateTestServiceProvider();
@@ -85,8 +85,11 @@ public class KnowledgeAnalyticsMcpToolTests
             serviceProvider: services
         );
 
-        // Assert
-        result.Should().Contain("Partial Implementation", "because this feature is partially implemented");
+        // Assert - Should return error because required services are not registered
+        result.Should().Contain("\"error\": true",
+            "because required services are not registered in test service provider");
+        result.Should().Contain("Service configuration error",
+            "because IKnowledgeRepository is not available");
 
         // Verify it's valid JSON
         var json = JsonSerializer.Deserialize<JsonDocument>(result);
