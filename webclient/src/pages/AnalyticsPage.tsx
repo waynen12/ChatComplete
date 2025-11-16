@@ -1003,16 +1003,36 @@ export default function AnalyticsPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left p-2">Provider</th>
-                          <th className="text-left p-2">Status</th>
-                          <th className="text-left p-2">Balance</th>
-                          <th className="text-left p-2">Monthly Usage</th>
+                          <SortableHeader
+                            column="provider"
+                            label="Provider"
+                            currentSort={tableSorting["provider-analytics"]}
+                            onSort={(col) => handleSort("provider-analytics", col)}
+                          />
+                          <SortableHeader
+                            column="isConnected"
+                            label="Status"
+                            currentSort={tableSorting["provider-analytics"]}
+                            onSort={(col) => handleSort("provider-analytics", col)}
+                          />
+                          <SortableHeader
+                            column="balance"
+                            label="Balance"
+                            currentSort={tableSorting["provider-analytics"]}
+                            onSort={(col) => handleSort("provider-analytics", col)}
+                          />
+                          <SortableHeader
+                            column="monthlyUsage"
+                            label="Monthly Usage"
+                            currentSort={tableSorting["provider-analytics"]}
+                            onSort={(col) => handleSort("provider-analytics", col)}
+                          />
                         </tr>
                       </thead>
                       <tbody>
-                        {providerAccounts.map((account, idx) => (
-                          <tr key={idx} className="border-b">
-                            <td className="p-2">{account.provider}</td>
+                        {sortData(providerAccounts, "provider-analytics", tableSorting["provider-analytics"]?.column || "provider").map((account, idx) => (
+                          <tr key={idx} className="border-b hover:bg-muted/50 transition-colors">
+                            <td className="p-2 font-medium">{account.provider}</td>
                             <td className="p-2">{account.isConnected ? "Connected" : "Disconnected"}</td>
                             <td className="p-2">{account.balance ? `${account.balance} ${account.balanceUnit || ""}` : "N/A"}</td>
                             <td className="p-2">${account.monthlyUsage.toFixed(2)}</td>
