@@ -7,6 +7,7 @@ import { ProviderStatusCards } from "@/components/analytics/ProviderStatusCards"
 import { PerformanceMetrics } from "@/components/analytics/PerformanceMetrics";
 import { OllamaUsageWidget } from "@/components/analytics/OllamaUsageWidget";
 import { KpiCard } from "@/components/analytics/KpiCard";
+import { TableWidget } from "@/components/analytics/TableWidget";
 import {
   ConversationIcon,
   ProviderIcon,
@@ -1133,270 +1134,123 @@ export default function AnalyticsPage() {
 
           {/* Model Performance Table */}
           <div key="model-performance" className={editMode ? "cursor-move" : ""}>
-            <Card className="h-full">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <CardTitle>Model Performance</CardTitle>
-                    <CardDescription>
-                      Usage statistics and performance metrics for all AI models
-                    </CardDescription>
+            <TableWidget
+              id="model-performance"
+              title="Model Performance"
+              description="Usage statistics and performance metrics for all AI models"
+              columns={[
+                { key: "modelName", label: "Model" },
+                { key: "provider", label: "Provider" },
+                { key: "conversationCount", label: "Conversations" },
+                { key: "totalTokens", label: "Tokens" },
+                { key: "successRate", label: "Success Rate" },
+                { key: "averageResponseTime", label: "Avg Response" },
+                { key: "supportsTools", label: "Tools", sortable: false },
+              ]}
+              data={sortData(modelStats, "model-performance", tableSorting["model-performance"]?.column || "modelName")}
+              emptyMessage="No model usage data available yet. Start some conversations to see analytics."
+              tableView={tableViewEnabled["model-performance"]}
+              sortConfig={tableSorting["model-performance"]}
+              onSort={(col) => handleSort("model-performance", col)}
+              onMaximize={() => handleToggleMaximize("model-performance")}
+              onToggleTableView={() => handleToggleTableView("model-performance")}
+              renderTableRow={(model, index) => (
+                <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
+                  <td className="p-2 font-medium">{model.modelName}</td>
+                  <td className="p-2">{model.provider}</td>
+                  <td className="p-2">{model.conversationCount}</td>
+                  <td className="p-2">{formatNumber(model.totalTokens)}</td>
+                  <td className="p-2">{model.successRate.toFixed(1)}%</td>
+                  <td className="p-2">{(model.averageResponseTime / 1000).toFixed(1)}s</td>
+                  <td className="p-2">{model.supportsTools ? "Yes" : "No"}</td>
+                </tr>
+              )}
+              renderCardView={(model, index) => (
+                <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    {getProviderIcon(model.provider)}
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{model.modelName}</span>
+                        <Badge variant="secondary">{model.provider}</Badge>
+                        {model.supportsTools && <Badge variant="outline">Tools</Badge>}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {model.conversationCount} conversations • {formatNumber(model.totalTokens)} tokens
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleTableView("model-performance")}
-                      className="flex-shrink-0 h-9 px-3"
-                      title="Toggle table view"
-                    >
-                      <Table className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleMaximize("model-performance")}
-                      className="ml-2 flex-shrink-0 h-9 px-3"
-                      title="Maximize widget"
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </Button>
+                  <div className="text-right">
+                    <div className="text-sm font-medium">
+                      {model.successRate.toFixed(1)}% success
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Avg: {(model.averageResponseTime / 1000).toFixed(1)}s
+                    </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {modelStats.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No model usage data available yet. Start some conversations to see analytics.
-                    </p>
-                  ) : tableViewEnabled["model-performance"] ? (
-                    <div className="overflow-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b">
-                            <SortableHeader
-                              column="modelName"
-                              label="Model"
-                              currentSort={tableSorting["model-performance"]}
-                              onSort={(col) => handleSort("model-performance", col)}
-                            />
-                            <SortableHeader
-                              column="provider"
-                              label="Provider"
-                              currentSort={tableSorting["model-performance"]}
-                              onSort={(col) => handleSort("model-performance", col)}
-                            />
-                            <SortableHeader
-                              column="conversationCount"
-                              label="Conversations"
-                              currentSort={tableSorting["model-performance"]}
-                              onSort={(col) => handleSort("model-performance", col)}
-                            />
-                            <SortableHeader
-                              column="totalTokens"
-                              label="Tokens"
-                              currentSort={tableSorting["model-performance"]}
-                              onSort={(col) => handleSort("model-performance", col)}
-                            />
-                            <SortableHeader
-                              column="successRate"
-                              label="Success Rate"
-                              currentSort={tableSorting["model-performance"]}
-                              onSort={(col) => handleSort("model-performance", col)}
-                            />
-                            <SortableHeader
-                              column="averageResponseTime"
-                              label="Avg Response"
-                              currentSort={tableSorting["model-performance"]}
-                              onSort={(col) => handleSort("model-performance", col)}
-                            />
-                            <th className="text-left p-2">Tools</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sortData(modelStats, "model-performance", tableSorting["model-performance"]?.column || "modelName").map((model, index) => (
-                            <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
-                              <td className="p-2 font-medium">{model.modelName}</td>
-                              <td className="p-2">{model.provider}</td>
-                              <td className="p-2">{model.conversationCount}</td>
-                              <td className="p-2">{formatNumber(model.totalTokens)}</td>
-                              <td className="p-2">{model.successRate.toFixed(1)}%</td>
-                              <td className="p-2">{(model.averageResponseTime / 1000).toFixed(1)}s</td>
-                              <td className="p-2">{model.supportsTools ? "Yes" : "No"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {modelStats.map((model, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center space-x-4">
-                            {getProviderIcon(model.provider)}
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium">{model.modelName}</span>
-                                <Badge variant="secondary">{model.provider}</Badge>
-                                {model.supportsTools && <Badge variant="outline">Tools</Badge>}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {model.conversationCount} conversations • {formatNumber(model.totalTokens)} tokens
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">
-                              {model.successRate.toFixed(1)}% success
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Avg: {(model.averageResponseTime / 1000).toFixed(1)}s
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              )}
+            />
           </div>
 
           {/* Knowledge Base Usage */}
           <div key="knowledge-activity" className={editMode ? "cursor-move" : ""}>
-            <Card className="h-full">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <CardTitle>Knowledge Base Activity</CardTitle>
-                    <CardDescription>
-                      Usage patterns and statistics for your knowledge bases
-                    </CardDescription>
+            <TableWidget
+              id="knowledge-activity"
+              title="Knowledge Base Activity"
+              description="Usage patterns and statistics for your knowledge bases"
+              columns={[
+                { key: "knowledgeName", label: "Knowledge Base" },
+                { key: "vectorStore", label: "Vector Store" },
+                { key: "documentCount", label: "Documents" },
+                { key: "chunkCount", label: "Chunks" },
+                { key: "totalFileSize", label: "Size" },
+                { key: "conversationCount", label: "Conversations" },
+                { key: "queryCount", label: "Queries" },
+              ]}
+              data={sortData(knowledgeStats, "knowledge-activity", tableSorting["knowledge-activity"]?.column || "knowledgeName")}
+              emptyMessage="No knowledge bases found. Create some knowledge bases to see analytics."
+              tableView={tableViewEnabled["knowledge-activity"]}
+              sortConfig={tableSorting["knowledge-activity"]}
+              onSort={(col) => handleSort("knowledge-activity", col)}
+              onMaximize={() => handleToggleMaximize("knowledge-activity")}
+              onToggleTableView={() => handleToggleTableView("knowledge-activity")}
+              renderTableRow={(kb, index) => (
+                <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
+                  <td className="p-2 font-medium">{kb.knowledgeName || kb.knowledgeId}</td>
+                  <td className="p-2">{kb.vectorStore}</td>
+                  <td className="p-2">{kb.documentCount}</td>
+                  <td className="p-2">{kb.chunkCount}</td>
+                  <td className="p-2">{formatFileSize(kb.totalFileSize)}</td>
+                  <td className="p-2">{kb.conversationCount}</td>
+                  <td className="p-2">{kb.queryCount}</td>
+                </tr>
+              )}
+              renderCardView={(kb, index) => (
+                <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{kb.knowledgeName || kb.knowledgeId}</span>
+                        <Badge variant="outline">{kb.vectorStore}</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {kb.documentCount} docs • {kb.chunkCount} chunks • {formatFileSize(kb.totalFileSize)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleTableView("knowledge-activity")}
-                      className="flex-shrink-0 h-9 px-3"
-                      title="Toggle table view"
-                    >
-                      <Table className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleMaximize("knowledge-activity")}
-                      className="ml-2 flex-shrink-0 h-9 px-3"
-                      title="Maximize widget"
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </Button>
+                  <div className="text-right">
+                    <div className="text-sm font-medium">
+                      {kb.conversationCount} conversations
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {kb.queryCount} queries total
+                    </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {knowledgeStats.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No knowledge bases found. Create some knowledge bases to see analytics.
-                    </p>
-                  ) : tableViewEnabled["knowledge-activity"] ? (
-                    <div className="overflow-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b">
-                            <SortableHeader
-                              column="knowledgeName"
-                              label="Knowledge Base"
-                              currentSort={tableSorting["knowledge-activity"]}
-                              onSort={(col) => handleSort("knowledge-activity", col)}
-                            />
-                            <SortableHeader
-                              column="vectorStore"
-                              label="Vector Store"
-                              currentSort={tableSorting["knowledge-activity"]}
-                              onSort={(col) => handleSort("knowledge-activity", col)}
-                            />
-                            <SortableHeader
-                              column="documentCount"
-                              label="Documents"
-                              currentSort={tableSorting["knowledge-activity"]}
-                              onSort={(col) => handleSort("knowledge-activity", col)}
-                            />
-                            <SortableHeader
-                              column="chunkCount"
-                              label="Chunks"
-                              currentSort={tableSorting["knowledge-activity"]}
-                              onSort={(col) => handleSort("knowledge-activity", col)}
-                            />
-                            <SortableHeader
-                              column="totalFileSize"
-                              label="Size"
-                              currentSort={tableSorting["knowledge-activity"]}
-                              onSort={(col) => handleSort("knowledge-activity", col)}
-                            />
-                            <SortableHeader
-                              column="conversationCount"
-                              label="Conversations"
-                              currentSort={tableSorting["knowledge-activity"]}
-                              onSort={(col) => handleSort("knowledge-activity", col)}
-                            />
-                            <SortableHeader
-                              column="queryCount"
-                              label="Queries"
-                              currentSort={tableSorting["knowledge-activity"]}
-                              onSort={(col) => handleSort("knowledge-activity", col)}
-                            />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sortData(knowledgeStats, "knowledge-activity", tableSorting["knowledge-activity"]?.column || "knowledgeName").map((kb, index) => (
-                            <tr key={index} className="border-b hover:bg-muted/50 transition-colors">
-                              <td className="p-2 font-medium">{kb.knowledgeName || kb.knowledgeId}</td>
-                              <td className="p-2">{kb.vectorStore}</td>
-                              <td className="p-2">{kb.documentCount}</td>
-                              <td className="p-2">{kb.chunkCount}</td>
-                              <td className="p-2">{formatFileSize(kb.totalFileSize)}</td>
-                              <td className="p-2">{kb.conversationCount}</td>
-                              <td className="p-2">{kb.queryCount}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {knowledgeStats.map((kb, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center space-x-4">
-                            <KnowledgeIcon className="h-6 w-6 text-muted-foreground" />
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium">{kb.knowledgeName || kb.knowledgeId}</span>
-                                <Badge variant="outline">{kb.vectorStore}</Badge>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {kb.documentCount} docs • {kb.chunkCount} chunks • {formatFileSize(kb.totalFileSize)}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">
-                              {kb.conversationCount} conversations
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {kb.queryCount} queries total
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              )}
+            />
           </div>
         </ResponsiveGridLayout>
         )}
