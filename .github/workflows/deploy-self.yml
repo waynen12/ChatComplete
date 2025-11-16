@@ -27,21 +27,45 @@ jobs:
         echo "Testing sudo without password:"
         sudo -n systemctl status knowledge-api.service || echo "Sudo requires password"
 
-    # 2️⃣  Optional unit tests
-    #- name: dotnet test
-    #  run: |
-      #  dotnet test --configuration Release
-      # comment out if you have no tests yet
-
-    # 2️⃣  Ensure Qdrant is running via docker-compose
+    # 2️⃣  Ensure Qdrant is running (required for tests and deployment)
     - name: Start Qdrant if not running
       run: |
         if ! docker ps --format "table {{.Names}}" | grep -q "^qdrant-local$"; then
           echo "Qdrant not running, starting via docker-compose..."
           docker-compose -f docker-compose.qdrant.yml up -d
+          echo "Waiting for Qdrant to be ready..."
+          sleep 5
         else
           echo "Qdrant is already running"
         fi
+
+    # 3️⃣  Run Tests (FAIL FAST - stop deployment if tests fail)
+    - name: Run Tests
+      run: |
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "🧪 Running Test Suite (396 tests, excluding Ollama)"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+        dotnet test --configuration Release \
+                    --filter "RequiresOllama!=true" \
+                    --verbosity normal \
+                    --logger "console;verbosity=normal"
+
+        TEST_EXIT_CODE=$?
+
+        if [ $TEST_EXIT_CODE -ne 0 ]; then
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ TESTS FAILED - Deployment aborted"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          exit 1
+        fi
+
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "✅ All tests passed - Proceeding with deployment"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      continue-on-error: false  # Explicitly fail the workflow if tests fail
 
     - name: Clean publish folder
       run: rm -rf /opt/knowledge-api/out/*
