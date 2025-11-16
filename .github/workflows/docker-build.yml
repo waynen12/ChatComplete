@@ -26,7 +26,7 @@ jobs:
     - name: Start Qdrant for tests
       run: |
         echo "Starting Qdrant vector database for test execution..."
-        docker-compose -f docker-compose.qdrant.yml up -d
+        docker compose -f docker-compose.qdrant.yml up -d
         echo "Waiting for Qdrant to be ready..."
         sleep 5
 
