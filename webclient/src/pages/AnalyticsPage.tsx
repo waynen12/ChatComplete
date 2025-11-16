@@ -6,6 +6,7 @@ import { UsageTrendsChart } from "@/components/analytics/UsageTrendsChart";
 import { ProviderStatusCards } from "@/components/analytics/ProviderStatusCards";
 import { PerformanceMetrics } from "@/components/analytics/PerformanceMetrics";
 import { OllamaUsageWidget } from "@/components/analytics/OllamaUsageWidget";
+import { KpiCard } from "@/components/analytics/KpiCard";
 import {
   ConversationIcon,
   ProviderIcon,
@@ -214,7 +215,8 @@ export default function AnalyticsPage() {
   }, []);
 
   // Sort array based on column and direction
-  const sortData = useCallback(<T extends Record<string, any>>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sortData = <T extends Record<string, any>>(
     data: T[],
     widgetId: string,
     columnKey: string
@@ -241,7 +243,7 @@ export default function AnalyticsPage() {
       
       return 0;
     });
-  }, [tableSorting]);
+  };
 
   // Handle drag over for widget swapping
   const handleWidgetDrop = useCallback((layout: Layout[]) => {
@@ -542,20 +544,7 @@ export default function AnalyticsPage() {
         >
           {kpiCards.map((kpi) => (
             <div key={kpi.id} className={editMode ? "cursor-move" : ""}>
-              <Card className="h-full hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
-                  {kpi.icon}
-                </CardHeader>
-                <CardContent>
-                  <div className={kpi.isText ? "text-sm font-bold truncate" : "text-2xl font-bold"} title={typeof kpi.value === 'string' ? kpi.value : undefined}>
-                    {kpi.value}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {kpi.description}
-                  </p>
-                </CardContent>
-              </Card>
+              <KpiCard {...kpi} />
             </div>
           ))}
         </ResponsiveGridLayout>
