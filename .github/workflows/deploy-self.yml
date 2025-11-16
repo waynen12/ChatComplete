@@ -31,8 +31,8 @@ jobs:
     - name: Start Qdrant if not running
       run: |
         if ! docker ps --format "table {{.Names}}" | grep -q "^qdrant-local$"; then
-          echo "Qdrant not running, starting via docker-compose..."
-          docker-compose -f docker-compose.qdrant.yml up -d
+          echo "Qdrant not running, starting via docker compose..."
+          docker compose -f docker-compose.qdrant.yml up -d
           echo "Waiting for Qdrant to be ready..."
           sleep 5
         else
