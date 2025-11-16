@@ -11,6 +11,11 @@ namespace KnowledgeManager.Tests.KnowledgeEngine;
 internal sealed class SpyChatComplete : ChatComplete
 {
     public int? LastHistoryCount { get; private set; }
+    public string? LastKnowledgeId { get; private set; }
+    public double LastTemperature { get; private set; }
+    public AiProvider LastProvider { get; private set; }
+    public bool LastUseExtendedInstructions { get; private set; }
+    public string? LastOllamaModel { get; private set; }
 
     public SpyChatComplete()
         : base(
@@ -29,10 +34,15 @@ internal sealed class SpyChatComplete : ChatComplete
 
     public override Task<string> AskAsync(
         string userMessage, string? knowledgeId, ChatHistory chatHistory,
-        double apiTemperature, AiProvider provider, bool useExtendedInstructions = false, 
+        double apiTemperature, AiProvider provider, bool useExtendedInstructions = false,
         string? ollamaModel = null, CancellationToken ct = default)
     {
         LastHistoryCount = chatHistory.Count;
+        LastKnowledgeId = knowledgeId;
+        LastTemperature = apiTemperature;
+        LastProvider = provider;
+        LastUseExtendedInstructions = useExtendedInstructions;
+        LastOllamaModel = ollamaModel;
         return Task.FromResult("stub-reply");
     }
 
