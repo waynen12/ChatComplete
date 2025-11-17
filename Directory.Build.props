@@ -5,11 +5,11 @@
       .NET SDK 8.0 auto-detects Ubuntu 24.04 but the Microsoft.NETCore.App.Host packages
       for ubuntu.24.04-x64 don't exist on NuGet yet (as of Nov 2025).
 
-      Disable app host for all projects to prevent platform-specific runtime package lookups.
-      This makes builds portable and avoids the NU1101 restore error.
-
-      Publish operations can still specify -r linux-x64 explicitly to create self-contained builds.
+      Only disable app host when NOT doing a runtime-specific publish.
+      This allows:
+        - dotnet test/build (no RuntimeIdentifier) → UseAppHost=false, avoids Ubuntu 24.04 lookup
+        - dotnet publish -r linux-x64 (has RuntimeIdentifier) → UseAppHost=true (default), creates executable
     -->
-    <UseAppHost>false</UseAppHost>
+    <UseAppHost Condition="'$(RuntimeIdentifier)' == ''">false</UseAppHost>
   </PropertyGroup>
 </Project>
