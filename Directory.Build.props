@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Fix for Ubuntu 24.04 detection issue:
+      .NET SDK 8.0 auto-detects Ubuntu 24.04 but the Microsoft.NETCore.App.Host packages
+      for ubuntu.24.04-x64 don't exist on NuGet yet (as of Nov 2025).
+
+      Disable app host for all projects to prevent platform-specific runtime package lookups.
+      This makes builds portable and avoids the NU1101 restore error.
+
+      Publish operations can still specify -r linux-x64 explicitly to create self-contained builds.
+    -->
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+</Project>
