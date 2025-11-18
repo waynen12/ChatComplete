@@ -122,16 +122,6 @@ Current Milestones (✅ done, 🔄 in-progress, 🛠️ todo)
 24	MCP Client Development (separate repo, STDIO + HTTP transports)	🔄 IN PROGRESS
 25	UI Modernization (accessibility, performance, mobile, color scheme)	🔄 IN PROGRESS (Copilot-driven)
 
-Latest Sanity Checklist (quick smoke test)
-Step	Expectation	Tip
-Upload doc	201 Created, new Mongo collection	Check Atlas logs for $vectorSearch
-Index create	Search index READY	Log level Debug for AtlasIndexManager
-Chunk upsert	_id, vector[], Text in docs	Compass: preview similarity scores
-Vector search	Results ordered by score	Try nonsense query (<0.6) → empty
-Chat with knowledgeId	Context lines appear in prompt	Temporarily log contextBlock
-Provider switch	Replies OK on OpenAI, Gemini, Ollama; Anthropic falls back to non-stream	Anthropic streaming not yet in SK
-Conversation resume	Same CID continues context even after refresh	CID is kept in sessionStorage
-
 DTOs
 csharp
 Copy
@@ -222,21 +212,6 @@ docker-compose -f docker-compose.dockerhub.yml up -d
 - Minimal runtime packages
 - Debian Slim base (vs full Debian)
 
-
-### Fixed Issues
-**Latest (2025-08-17) - VERIFIED WORKING:**
-- ✅ **Ollama Docker networking**: Fixed container-to-container communication using service names
-- ✅ **Configuration path fix**: Corrected OllamaApiService to read from ChatCompleteSettings:OllamaBaseUrl
-- ✅ **Model management**: Ollama model downloads now work in Docker deployments (gemma3 verified)
-- ✅ **Real-time progress**: Server-Sent Events working correctly in containerized environment
-- ✅ **End-to-end RAG**: Complete workflow verified - upload documents, download Ollama models, chat with local AI
-
-**Previous (2025-01-08):**
-- ✅ **Alpine → Debian base image**: Fixed missing `ld-linux-x86-64.so.2` library
-- ✅ **Qdrant connection**: Fixed hardcoded localhost → container service names
-- ✅ **Port configuration**: REST API (6333) vs gRPC (6334) port clarification
-- ✅ **Health checks**: Replaced curl dependency with TCP connection tests
-- ✅ **User creation**: Fixed Alpine → Debian user/group commands
 
 ### Environment Variables
 ```bash

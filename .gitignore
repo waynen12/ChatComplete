@@ -93,3 +93,14 @@ clear-database.sql
 .gitignore
 .vscode/mcp.json.alternative
 .vscode/mcp.json
+webclient/test-results/analytics-page-Analytics-Page-displays-analytics-dashboard-chromium/trace.zip
+webclient/test-results/analytics-page-Analytics-Page-loads-analytics-page-chromium/trace.zip
+webclient/test-results/analytics-page-Analytics-Page-renders-without-console-errors-chromium/trace.zip
+webclient/test-results/chat-page-Chat-Page-displays-chat-interface-elements-chromium/trace.zip
+webclient/test-results/chat-page-Chat-Page-loads-chat-page-chromium/trace.zip
+webclient/test-results/chat-page-Chat-Page-renders-without-console-errors-chromium/trace.zip
+webclient/test-results/knowledge-list-Knowledge-L-51e17-ders-without-console-errors-chromium/trace.zip
+webclient/test-results/knowledge-list-Knowledge-List-Page-displays-page-heading-chromium/trace.zip
+webclient/test-results/knowledge-list-Knowledge-List-Page-loads-knowledge-list-page-chromium/trace.zip
+webclient/test-results/landing-page-Landing-Page--b5c24-navigates-to-knowledge-page-chromium/trace.zip
+webclient/test-results/landing-page-Landing-Page-loads-and-displays-main-heading-chromium/trace.zip
