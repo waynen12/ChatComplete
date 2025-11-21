@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockKnowledgeBases, mockOllamaModels } from './helpers/api-mocks';
 
 test.describe('Form Validation', () => {
   test.describe('Knowledge Form Validation', () => {
@@ -77,6 +78,9 @@ test.describe('Form Validation', () => {
 
   test.describe('Chat Input Validation', () => {
     test.beforeEach(async ({ page }) => {
+      // Mock API endpoints before navigation
+      await mockKnowledgeBases(page);
+      await mockOllamaModels(page);
       await page.goto('/chat');
       await page.waitForLoadState('networkidle');
     });
@@ -93,13 +97,31 @@ test.describe('Form Validation', () => {
     });
 
     test('enables send button with non-empty message', async ({ page }) => {
+      // Open settings panel to select a knowledge base
+      const settingsButton = page.getByRole('button', { name: /settings/i });
+      await settingsButton.click();
+      await page.waitForTimeout(500);
+      
+      // Click knowledge base selector to open dropdown
+      const knowledgeSelector = page.locator('[role="combobox"]').first();
+      await knowledgeSelector.click();
+      await page.waitForTimeout(300);
+      
+      // Select first knowledge base (not the "Please choose" option)
+      const options = page.locator('[role="option"]');
+      await options.nth(1).click();
+      await page.waitForTimeout(300);
+      
+      // Close settings panel
+      await settingsButton.click();
+      await page.waitForTimeout(300);
+      
+      // Fill chat input with a message
       const chatInput = page.getByRole('textbox').first();
       await chatInput.fill('Test message');
       
-      const sendButton = page.getByRole('button', { name: /send|submit/i });
-      if (await sendButton.count() > 0) {
-        await expect(sendButton).toBeEnabled();
-      }
+      const sendButton = page.getByRole('button', { name: /send/i });
+      await expect(sendButton).toBeEnabled();
     });
 
     test('trims whitespace-only messages', async ({ page }) => {

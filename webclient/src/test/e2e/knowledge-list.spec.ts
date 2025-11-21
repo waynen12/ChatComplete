@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { mockKnowledgeBases } from './helpers/api-mocks';
 
 test.describe('Knowledge List Page', () => {
   test('loads knowledge list page', async ({ page }) => {
+    await mockKnowledgeBases(page);
     await page.goto('/knowledge');
     
     // Check if the page loaded
@@ -9,6 +11,7 @@ test.describe('Knowledge List Page', () => {
   });
 
   test('displays page heading', async ({ page }) => {
+    await mockKnowledgeBases(page);
     await page.goto('/knowledge');
     
     // Check for heading or navigation element
@@ -25,6 +28,7 @@ test.describe('Knowledge List Page', () => {
       }
     });
     
+    await mockKnowledgeBases(page);
     await page.goto('/knowledge');
     
     // Wait a bit for any async operations

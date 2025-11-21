@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { mockAnalyticsEndpoints } from './helpers/api-mocks';
 
 test.describe('Analytics Page', () => {
   test('loads analytics page', async ({ page }) => {
+    await mockAnalyticsEndpoints(page);
     await page.goto('/analytics');
     
     // Check if the page loaded
@@ -9,6 +11,7 @@ test.describe('Analytics Page', () => {
   });
 
   test('displays analytics dashboard', async ({ page }) => {
+    await mockAnalyticsEndpoints(page);
     await page.goto('/analytics');
     
     // Wait for page to load
@@ -28,6 +31,7 @@ test.describe('Analytics Page', () => {
       }
     });
     
+    await mockAnalyticsEndpoints(page);
     await page.goto('/analytics');
     
     // Wait a bit for any async operations
