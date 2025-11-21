@@ -45,14 +45,27 @@ npm run preview
 
 ### Configuration
 
-The development server is configured to proxy API requests to the backend:
+The development server is configured to proxy API requests to the backend. By default, it proxies to `http://localhost:7040`.
+
+To use a different backend URL, set the `VITE_API_URL` environment variable:
+
+```bash
+# For local development with custom backend
+VITE_API_URL=http://192.168.1.100:7040 npm run dev
+
+# Or create a .env.local file
+echo "VITE_API_URL=http://192.168.1.100:7040" > .env.local
+npm run dev
+```
+
+The proxy configuration in `vite.config.ts`:
 
 ```typescript
 // vite.config.ts
 server: {
   proxy: {
     "/api": {
-      target: "http://192.168.50.91:7040", // Update with your API URL
+      target: process.env.VITE_API_URL || "http://localhost:7040",
       changeOrigin: true,
       secure: false
     }
@@ -133,6 +146,35 @@ src/
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
+- `npm run test:e2e` - Run Playwright E2E tests
+- `npm run test:e2e:ui` - Run E2E tests in UI mode
+- `npm run test:e2e:debug` - Debug E2E tests
+
+### Running E2E Tests
+
+The project includes Playwright end-to-end tests. Before running E2E tests:
+
+1. **Install Playwright browsers** (first time only):
+   ```bash
+   npx playwright install
+   ```
+
+2. **Start the backend API** or mock it:
+   ```bash
+   # Option 1: Use a running backend
+   VITE_API_URL=http://localhost:7040 npm run test:e2e
+   
+   # Option 2: Tests will use localhost:7040 by default
+   npm run test:e2e
+   ```
+
+3. **View test results**:
+   ```bash
+   # After tests run, view the HTML report
+   npx playwright show-report
+   ```
+
+**Note**: Some tests mock API responses and don't require a running backend. Tests that interact with real API endpoints will need the backend running.
 
 ### Key Features Implementation
 
