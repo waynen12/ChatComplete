@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { mockKnowledgeBases, mockOllamaModels } from './helpers/api-mocks';
 
 test.describe('Chat Page', () => {
   test('loads chat page', async ({ page }) => {
+    await mockKnowledgeBases(page);
+    await mockOllamaModels(page);
     await page.goto('/chat');
     
     // Check if the page loaded
@@ -9,6 +12,8 @@ test.describe('Chat Page', () => {
   });
 
   test('displays chat interface elements', async ({ page }) => {
+    await mockKnowledgeBases(page);
+    await mockOllamaModels(page);
     await page.goto('/chat');
     
     // Wait for page to load
@@ -28,6 +33,8 @@ test.describe('Chat Page', () => {
       }
     });
     
+    await mockKnowledgeBases(page);
+    await mockOllamaModels(page);
     await page.goto('/chat');
     
     // Wait a bit for any async operations
