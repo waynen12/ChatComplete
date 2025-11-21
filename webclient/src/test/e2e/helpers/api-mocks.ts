@@ -5,6 +5,13 @@ import { Page } from '@playwright/test';
  * These functions mock common API endpoints to avoid dependency on a running backend
  */
 
+interface KnowledgeItem {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+}
+
 /**
  * Mock an empty knowledge bases list
  */
@@ -21,7 +28,7 @@ export async function mockEmptyKnowledgeBases(page: Page) {
 /**
  * Mock a list of knowledge bases with sample data
  */
-export async function mockKnowledgeBases(page: Page, data?: any[]) {
+export async function mockKnowledgeBases(page: Page, data?: KnowledgeItem[]) {
   const defaultData = [
     {
       id: 'kb-1',

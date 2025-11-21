@@ -103,9 +103,7 @@ test.describe('Chat Functionality', () => {
   test('chat history area is present', async ({ page }) => {
     // There should be an area for displaying messages
     // This could be a div with specific class or role
-    const messagesArea = page.locator('.message, [data-testid="messages"], .chat-history').first();
-    
-    // If no messages yet, the container might still exist
+    // For now just verify the body is visible since messages area structure may vary
     const body = page.locator('body');
     await expect(body).toBeVisible();
   });
