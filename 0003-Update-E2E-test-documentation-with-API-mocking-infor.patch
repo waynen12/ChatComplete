@@ -1,0 +1,66 @@
+From 96589ecba42112b1479536ea79b19adc239ebacc Mon Sep 17 00:00:00 2001
+From: "copilot-swe-agent[bot]" <198982749+Copilot@users.noreply.github.com>
+Date: Fri, 21 Nov 2025 08:15:27 +0000
+Subject: [PATCH 3/3] Update E2E test documentation with API mocking
+ information
+
+- Document that tests don't require a backend server
+- Add examples of using API mocking helpers
+- List available mock functions and their purposes
+---
+ webclient/src/test/e2e/README.md | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+
+diff --git a/webclient/src/test/e2e/README.md b/webclient/src/test/e2e/README.md
+index a5d2c32..6117363 100644
+--- a/webclient/src/test/e2e/README.md
++++ b/webclient/src/test/e2e/README.md
+@@ -6,6 +6,8 @@ This directory contains end-to-end (E2E) tests using Playwright for the ChatComp
+ 
+ ## Running Tests
+ 
++**Important:** The tests are designed to run without requiring a backend server. API endpoints are mocked using Playwright's route mocking capabilities.
++
+ ### Run all tests
+ ```bash
+ npm run test:e2e
+@@ -31,6 +33,36 @@ npx playwright test chat-functionality
+ npm run test:e2e:report
+ ```
+ 
++## API Mocking
++
++Tests use the `api-mocks.ts` helper to mock API responses. This approach:
++- **Eliminates backend dependency** - Tests run independently
++- **Improves test speed** - No network latency
++- **Increases reliability** - No external service failures
++- **Simplifies CI/CD** - No need to spin up backend services
++
++### Using Mocks in Tests
++
++```typescript
++import { mockCommonEndpoints } from './helpers/api-mocks';
++
++test('my test', async ({ page }) => {
++  // Mock all common API endpoints
++  await mockCommonEndpoints(page);
++  
++  await page.goto('/knowledge');
++  // ... test assertions
++});
++```
++
++### Available Mock Functions
++
++- `mockEmptyKnowledgeBases(page)` - Returns empty knowledge list
++- `mockKnowledgeBases(page, data?)` - Returns sample knowledge bases
++- `mockOllamaModels(page, models?)` - Returns sample Ollama models
++- `mockAnalyticsEndpoints(page)` - Mocks all analytics endpoints
++- `mockCommonEndpoints(page)` - Mocks all common endpoints at once
++
+ ## Test Structure
+ 
+ ### Phase 1 Tests (Smoke Tests)
+-- 
+2.51.2
+

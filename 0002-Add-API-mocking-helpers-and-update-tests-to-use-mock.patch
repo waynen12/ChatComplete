@@ -1,0 +1,419 @@
+From 8f72fe8d3a640154060b835568f713b874fff419 Mon Sep 17 00:00:00 2001
+From: "copilot-swe-agent[bot]" <198982749+Copilot@users.noreply.github.com>
+Date: Fri, 21 Nov 2025 08:15:03 +0000
+Subject: [PATCH 2/3] Add API mocking helpers and update tests to use mocks
+
+- Create api-mocks.ts helper with reusable mock functions
+- Update tests to mock API endpoints instead of relying on backend
+- Add mocks for knowledge bases, models, and analytics endpoints
+- This ensures tests can run without a running backend server
+
+Tests updated:
+- analytics-page.spec.ts
+- chat-functionality.spec.ts
+- chat-page.spec.ts
+- knowledge-form.spec.ts
+- knowledge-list.spec.ts
+- navigation.spec.ts
+---
+ webclient/src/test/e2e/analytics-page.spec.ts |  10 ++
+ .../src/test/e2e/chat-functionality.spec.ts   |   3 +
+ webclient/src/test/e2e/chat-page.spec.ts      |  10 ++
+ webclient/src/test/e2e/helpers/api-mocks.ts   | 143 ++++++++++++++++++
+ webclient/src/test/e2e/knowledge-form.spec.ts |  10 ++
+ webclient/src/test/e2e/knowledge-list.spec.ts |  10 ++
+ webclient/src/test/e2e/navigation.spec.ts     |  22 +++
+ 7 files changed, 208 insertions(+)
+ create mode 100644 webclient/src/test/e2e/helpers/api-mocks.ts
+
+diff --git a/webclient/src/test/e2e/analytics-page.spec.ts b/webclient/src/test/e2e/analytics-page.spec.ts
+index 0f5935b..bf7d496 100644
+--- a/webclient/src/test/e2e/analytics-page.spec.ts
++++ b/webclient/src/test/e2e/analytics-page.spec.ts
+@@ -1,7 +1,11 @@
+ import { test, expect } from '@playwright/test';
++import { mockAnalyticsEndpoints } from './helpers/api-mocks';
+ 
+ test.describe('Analytics Page', () => {
+   test('loads analytics page', async ({ page }) => {
++    // Mock analytics API endpoints
++    await mockAnalyticsEndpoints(page);
++    
+     await page.goto('/analytics');
+     
+     // Check if the page loaded
+@@ -9,6 +13,9 @@ test.describe('Analytics Page', () => {
+   });
+ 
+   test('displays analytics dashboard', async ({ page }) => {
++    // Mock analytics API endpoints
++    await mockAnalyticsEndpoints(page);
++    
+     await page.goto('/analytics');
+     
+     // Wait for page to load
+@@ -28,6 +35,9 @@ test.describe('Analytics Page', () => {
+       }
+     });
+     
++    // Mock analytics API endpoints
++    await mockAnalyticsEndpoints(page);
++    
+     await page.goto('/analytics');
+     
+     // Wait a bit for any async operations
+diff --git a/webclient/src/test/e2e/chat-functionality.spec.ts b/webclient/src/test/e2e/chat-functionality.spec.ts
+index f039ce0..a1d0db2 100644
+--- a/webclient/src/test/e2e/chat-functionality.spec.ts
++++ b/webclient/src/test/e2e/chat-functionality.spec.ts
+@@ -1,7 +1,10 @@
+ import { test, expect } from '@playwright/test';
++import { mockCommonEndpoints } from './helpers/api-mocks';
+ 
+ test.describe('Chat Functionality', () => {
+   test.beforeEach(async ({ page }) => {
++    // Mock common API endpoints before each test
++    await mockCommonEndpoints(page);
+     await page.goto('/chat');
+   });
+ 
+diff --git a/webclient/src/test/e2e/chat-page.spec.ts b/webclient/src/test/e2e/chat-page.spec.ts
+index 067b2d1..1ab6494 100644
+--- a/webclient/src/test/e2e/chat-page.spec.ts
++++ b/webclient/src/test/e2e/chat-page.spec.ts
+@@ -1,7 +1,11 @@
+ import { test, expect } from '@playwright/test';
++import { mockCommonEndpoints } from './helpers/api-mocks';
+ 
+ test.describe('Chat Page', () => {
+   test('loads chat page', async ({ page }) => {
++    // Mock common API endpoints
++    await mockCommonEndpoints(page);
++    
+     await page.goto('/chat');
+     
+     // Check if the page loaded
+@@ -9,6 +13,9 @@ test.describe('Chat Page', () => {
+   });
+ 
+   test('displays chat interface elements', async ({ page }) => {
++    // Mock common API endpoints
++    await mockCommonEndpoints(page);
++    
+     await page.goto('/chat');
+     
+     // Wait for page to load
+@@ -28,6 +35,9 @@ test.describe('Chat Page', () => {
+       }
+     });
+     
++    // Mock common API endpoints
++    await mockCommonEndpoints(page);
++    
+     await page.goto('/chat');
+     
+     // Wait a bit for any async operations
+diff --git a/webclient/src/test/e2e/helpers/api-mocks.ts b/webclient/src/test/e2e/helpers/api-mocks.ts
+new file mode 100644
+index 0000000..2459f21
+--- /dev/null
++++ b/webclient/src/test/e2e/helpers/api-mocks.ts
+@@ -0,0 +1,143 @@
++import { Page } from '@playwright/test';
++
++/**
++ * Helper functions for mocking API responses in E2E tests
++ */
++
++export interface KnowledgeBase {
++  id: string;
++  name: string;
++  description?: string;
++  documentCount?: number;
++  createdAt?: string;
++}
++
++export interface Model {
++  id: string;
++  name: string;
++  provider: string;
++}
++
++/**
++ * Mock empty knowledge bases list
++ */
++export async function mockEmptyKnowledgeBases(page: Page) {
++  await page.route('/api/knowledge', async (route) => {
++    await route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify([]),
++    });
++  });
++}
++
++/**
++ * Mock knowledge bases list with sample data
++ */
++export async function mockKnowledgeBases(page: Page, knowledgeBases: KnowledgeBase[] = []) {
++  const defaultKnowledgeBases: KnowledgeBase[] = knowledgeBases.length > 0 
++    ? knowledgeBases 
++    : [
++        {
++          id: 'kb-1',
++          name: 'Test Knowledge Base',
++          description: 'A test knowledge base',
++          documentCount: 5,
++          createdAt: new Date().toISOString(),
++        },
++        {
++          id: 'kb-2',
++          name: 'Documentation',
++          description: 'Product documentation',
++          documentCount: 10,
++          createdAt: new Date().toISOString(),
++        },
++      ];
++
++  await page.route('/api/knowledge', async (route) => {
++    await route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify(defaultKnowledgeBases),
++    });
++  });
++}
++
++/**
++ * Mock Ollama models list
++ */
++export async function mockOllamaModels(page: Page, models: Model[] = []) {
++  const defaultModels: Model[] = models.length > 0
++    ? models
++    : [
++        { id: 'llama2', name: 'Llama 2', provider: 'Ollama' },
++        { id: 'mistral', name: 'Mistral', provider: 'Ollama' },
++      ];
++
++  await page.route('/api/ollama/models', async (route) => {
++    await route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify(defaultModels),
++    });
++  });
++}
++
++/**
++ * Mock analytics endpoints with empty data
++ */
++export async function mockAnalyticsEndpoints(page: Page) {
++  // Models analytics
++  await page.route('/api/analytics/models', async (route) => {
++    await route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify([]),
++    });
++  });
++
++  // Provider accounts
++  await page.route('/api/analytics/providers/accounts', async (route) => {
++    await route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify([]),
++    });
++  });
++
++  // Cost breakdown
++  await page.route('/api/analytics/cost-breakdown*', async (route) => {
++    await route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify({ total: 0, breakdown: [] }),
++    });
++  });
++
++  // Usage trends
++  await page.route('/api/analytics/usage-trends*', async (route) => {
++    await route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify([]),
++    });
++  });
++
++  // Knowledge bases analytics
++  await page.route('/api/analytics/knowledge-bases', async (route) => {
++    await route.fulfill({
++      status: 200,
++      contentType: 'application/json',
++      body: JSON.stringify([]),
++    });
++  });
++}
++
++/**
++ * Mock all common API endpoints for basic page loads
++ */
++export async function mockCommonEndpoints(page: Page) {
++  await mockEmptyKnowledgeBases(page);
++  await mockOllamaModels(page);
++  await mockAnalyticsEndpoints(page);
++}
+diff --git a/webclient/src/test/e2e/knowledge-form.spec.ts b/webclient/src/test/e2e/knowledge-form.spec.ts
+index 702af82..619ca03 100644
+--- a/webclient/src/test/e2e/knowledge-form.spec.ts
++++ b/webclient/src/test/e2e/knowledge-form.spec.ts
+@@ -1,7 +1,11 @@
+ import { test, expect } from '@playwright/test';
++import { mockEmptyKnowledgeBases } from './helpers/api-mocks';
+ 
+ test.describe('Knowledge Form Page', () => {
+   test('loads knowledge form page (new)', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockEmptyKnowledgeBases(page);
++    
+     await page.goto('/knowledge/new');
+     
+     // Check if the page loaded
+@@ -9,6 +13,9 @@ test.describe('Knowledge Form Page', () => {
+   });
+ 
+   test('displays form elements', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockEmptyKnowledgeBases(page);
++    
+     await page.goto('/knowledge/new');
+     
+     // Wait for page to load
+@@ -28,6 +35,9 @@ test.describe('Knowledge Form Page', () => {
+       }
+     });
+     
++    // Mock API to avoid dependency on backend
++    await mockEmptyKnowledgeBases(page);
++    
+     await page.goto('/knowledge/new');
+     
+     // Wait a bit for any async operations
+diff --git a/webclient/src/test/e2e/knowledge-list.spec.ts b/webclient/src/test/e2e/knowledge-list.spec.ts
+index ac843cd..e5b4f16 100644
+--- a/webclient/src/test/e2e/knowledge-list.spec.ts
++++ b/webclient/src/test/e2e/knowledge-list.spec.ts
+@@ -1,7 +1,11 @@
+ import { test, expect } from '@playwright/test';
++import { mockEmptyKnowledgeBases } from './helpers/api-mocks';
+ 
+ test.describe('Knowledge List Page', () => {
+   test('loads knowledge list page', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockEmptyKnowledgeBases(page);
++    
+     await page.goto('/knowledge');
+     
+     // Check if the page loaded
+@@ -9,6 +13,9 @@ test.describe('Knowledge List Page', () => {
+   });
+ 
+   test('displays page heading', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockEmptyKnowledgeBases(page);
++    
+     await page.goto('/knowledge');
+     
+     // Check for heading or navigation element
+@@ -25,6 +32,9 @@ test.describe('Knowledge List Page', () => {
+       }
+     });
+     
++    // Mock API to avoid dependency on backend
++    await mockEmptyKnowledgeBases(page);
++    
+     await page.goto('/knowledge');
+     
+     // Wait a bit for any async operations
+diff --git a/webclient/src/test/e2e/navigation.spec.ts b/webclient/src/test/e2e/navigation.spec.ts
+index 42f6eb0..4dd64c5 100644
+--- a/webclient/src/test/e2e/navigation.spec.ts
++++ b/webclient/src/test/e2e/navigation.spec.ts
+@@ -1,4 +1,5 @@
+ import { test, expect } from '@playwright/test';
++import { mockCommonEndpoints } from './helpers/api-mocks';
+ 
+ test.describe('Navigation Between Pages', () => {
+   test('can navigate from landing to knowledge list', async ({ page }) => {
+@@ -13,6 +14,9 @@ test.describe('Navigation Between Pages', () => {
+   });
+ 
+   test('can navigate from knowledge list to knowledge form', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockCommonEndpoints(page);
++    
+     await page.goto('/knowledge');
+     
+     // Look for "New" or "Create" button
+@@ -29,6 +33,9 @@ test.describe('Navigation Between Pages', () => {
+   });
+ 
+   test('can navigate from knowledge list to chat', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockCommonEndpoints(page);
++    
+     await page.goto('/knowledge');
+     
+     // Navigate to chat page (might be via header/nav)
+@@ -37,6 +44,9 @@ test.describe('Navigation Between Pages', () => {
+   });
+ 
+   test('navigation menu is present on all pages', async ({ page }) => {
++    // Mock API for pages that need it
++    await mockCommonEndpoints(page);
++    
+     const pages = ['/', '/knowledge', '/chat', '/analytics'];
+     
+     for (const pagePath of pages) {
+@@ -49,6 +59,9 @@ test.describe('Navigation Between Pages', () => {
+   });
+ 
+   test('can navigate to analytics page', async ({ page }) => {
++    // Mock API for analytics
++    await mockCommonEndpoints(page);
++    
+     await page.goto('/');
+     
+     // Navigate to analytics (might be in nav menu)
+@@ -57,6 +70,9 @@ test.describe('Navigation Between Pages', () => {
+   });
+ 
+   test('browser back button works correctly', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockCommonEndpoints(page);
++    
+     // Start at landing
+     await page.goto('/');
+     await expect(page).toHaveURL('/');
+@@ -71,6 +87,9 @@ test.describe('Navigation Between Pages', () => {
+   });
+ 
+   test('browser forward button works correctly', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockCommonEndpoints(page);
++    
+     // Start at landing
+     await page.goto('/');
+     
+@@ -87,6 +106,9 @@ test.describe('Navigation Between Pages', () => {
+   });
+ 
+   test('direct URL access works for all routes', async ({ page }) => {
++    // Mock API to avoid dependency on backend
++    await mockCommonEndpoints(page);
++    
+     const routes = [
+       { path: '/', expected: '/' },
+       { path: '/knowledge', expected: /\/knowledge/ },
+-- 
+2.51.2
+
