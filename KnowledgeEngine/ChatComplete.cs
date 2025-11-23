@@ -628,6 +628,17 @@ namespace KnowledgeEngine
                     enableAgentTools,
                     ct
                 );
+
+                // Disable tool calling for Anthropic due to third-party SK connector incompatibility
+                if (provider == AiProvider.Anthropic && shouldUseTools)
+                {
+                    Console.WriteLine(
+                        "⚠️ Disabling tool calling for Anthropic: Third-party SK connector (Lost.SemanticKernel.Connectors.Anthropic) " +
+                        "is incompatible with tool calling in SK 1.64. Tool support will be available after Agent Framework migration."
+                    );
+                    shouldUseTools = false;
+                }
+
                 Console.WriteLine($"🔧 Dynamic tool decision: shouldUseTools = {shouldUseTools}");
 
                 // Register agent plugins if enabled
