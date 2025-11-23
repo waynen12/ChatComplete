@@ -2,10 +2,13 @@ using System.ComponentModel;
 using System.Text;
 using ChatCompletion.Config;
 using KnowledgeEngine.Models;
-using Microsoft.SemanticKernel;
 
-namespace KnowledgeEngine.Agents.Plugins;
+namespace KnowledgeEngine.Agents.AgentFramework;
 
+/// <summary>
+/// Agent Framework version of CrossKnowledgeSearchPlugin.
+/// Provides cross-knowledge base search functionality for AI agents.
+/// </summary>
 public sealed class CrossKnowledgeSearchPlugin
 {
     private readonly KnowledgeManager _knowledgeManager;
@@ -17,24 +20,22 @@ public sealed class CrossKnowledgeSearchPlugin
         _settings = settings;
     }
 
-    [KernelFunction]
     [Description(
         "Search across ALL knowledge bases to find information from uploaded documents and files. Use this ONLY when the user asks about specific technical content, documentation, or information that would be stored in uploaded documents. DO NOT use for system health checks, component status, system metrics, model recommendations, usage statistics, or system monitoring. For system health queries, use SystemHealth functions instead."
     )]
-
     public async Task<string> SearchAllKnowledgeBasesAsync(
         [Description("The search query or question")] string query,
         [Description("Maximum results per knowledge base")] int limit = 5,
         [Description("Minimum relevance score (0.0-1.0), use -1 for provider default")] double minRelevance = -1.0
     )
     {
-        Console.WriteLine($"🔍 CrossKnowledgeSearchPlugin.SearchAllKnowledgeBasesAsync called with query: '{query}'");
+        Console.WriteLine($"🔍 [AF] CrossKnowledgeSearchPlugin.SearchAllKnowledgeBasesAsync called with query: '{query}'");
 
         // Use configured MinRelevanceScore from active embedding provider if -1 specified
         var effectiveMinRelevance = minRelevance < 0
             ? _settings.EmbeddingProviders.GetActiveProvider().MinRelevanceScore
             : minRelevance;
-        Console.WriteLine($"📊 Using minRelevance: {effectiveMinRelevance} (from {(minRelevance < 0 ? "config" : "parameter")})");
+        Console.WriteLine($"📊 [AF] Using minRelevance: {effectiveMinRelevance} (from {(minRelevance < 0 ? "config" : "parameter")})");
 
         try
         {

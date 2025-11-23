@@ -124,10 +124,11 @@ public sealed class CrossKnowledgeSearchMcpTool
             // Resolve required services from DI container
             // This ensures we use the same configured services as the main application
             var knowledgeManager = serviceProvider.GetRequiredService<KnowledgeManager>();
+            var chatSettings = serviceProvider.GetRequiredService<ChatCompletion.Config.ChatCompleteSettings>();
 
             // Create instance of existing search plugin to leverage proven search logic
             // This maintains consistency between internal agent mode and external MCP access
-            var searchPlugin = new CrossKnowledgeSearchPlugin(knowledgeManager);
+            var searchPlugin = new CrossKnowledgeSearchPlugin(knowledgeManager, chatSettings);
 
             // Execute search using existing implementation
             // The CrossKnowledgeSearchPlugin already handles:
