@@ -27,8 +27,11 @@ namespace ChatCompletion.Config
         public string SystemPromptWithCoding { get; set; } = string.Empty;
 
         public double Temperature { get; set; } = 0.7;
-        
+
         public int ChatMaxTurns { get; set; } = 12;   // assistant+user pairs ⇒ 24 msgs
+
+        // Agent Framework migration feature flag
+        public bool UseAgentFramework { get; set; } = false; // false = use Semantic Kernel (legacy), true = use Agent Framework
         
         // Code fence protection settings
         public int MaxCodeFenceSize { get; set; } = 10240; // 10KB max per code block
