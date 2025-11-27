@@ -49,28 +49,55 @@ public class AnthropicHealthChecker : IComponentHealthChecker
 
         try
         {
-            // Use KernelFactory to create Anthropic kernel and test connectivity
-            var kernel = new KernelFactory(_settings).Create(AiProvider.Anthropic);
-            var chatService = kernel.GetRequiredService<IChatCompletionService>();
+            // Direct API call without SK to avoid third-party connector incompatibility
+            // Note: Lost.SemanticKernel.Connectors.Anthropic v1.25.0-alpha3 is incompatible with SK 1.64.0
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
+            httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
-            // Make minimal test request
-            var testHistory = new ChatHistory();
-            testHistory.AddUserMessage("test");
+            var requestBody = new
+            {
+                model = _settings.Value.AnthropicModel,
+                max_tokens = 1,
+                messages = new[]
+                {
+                    new { role = "user", content = "test" }
+                }
+            };
 
-            var response = await chatService.GetChatMessageContentAsync(
-                testHistory,
-                new AnthropicPromptExecutionSettings() { MaxTokens = 1 },
-                kernel: null, // Kernel parameter not used for health check
-                cancellationToken: cancellationToken
+            var content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(requestBody),
+                System.Text.Encoding.UTF8,
+                "application/json"
             );
 
-            return new ComponentHealth
+            var response = await httpClient.PostAsync(
+                "https://api.anthropic.com/v1/messages",
+                content,
+                cancellationToken
+            );
+
+            if (response.IsSuccessStatusCode)
             {
-                ComponentName = ComponentName,
-                IsConnected = true,
-                Status = "Healthy",
-                StatusMessage = "Anthropic API accessible and responding"
-            };
+                return new ComponentHealth
+                {
+                    ComponentName = ComponentName,
+                    IsConnected = true,
+                    Status = "Healthy",
+                    StatusMessage = "Anthropic API accessible and responding"
+                };
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new ComponentHealth
+                {
+                    ComponentName = ComponentName,
+                    IsConnected = false,
+                    Status = "Failed",
+                    StatusMessage = $"Anthropic API returned status {response.StatusCode}: {errorContent}"
+                };
+            }
         }
         catch (Exception ex)
         {
