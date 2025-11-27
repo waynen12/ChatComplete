@@ -16,9 +16,13 @@ public static class SystemHealthPluginTest
 
         try
         {
-            // Get dependencies
-            var healthService = serviceProvider.GetRequiredService<ISystemHealthService>();
-            var logger = serviceProvider.GetRequiredService<ILogger<SystemHealthPlugin>>();
+            // Create a scope to resolve scoped services
+            using var scope = serviceProvider.CreateScope();
+            var scopedProvider = scope.ServiceProvider;
+
+            // Get dependencies from scoped provider
+            var healthService = scopedProvider.GetRequiredService<ISystemHealthService>();
+            var logger = scopedProvider.GetRequiredService<ILogger<SystemHealthPlugin>>();
 
             // Create plugin instance
             var plugin = new SystemHealthPlugin(healthService, logger);
