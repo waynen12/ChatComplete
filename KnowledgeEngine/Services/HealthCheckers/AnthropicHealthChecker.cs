@@ -60,6 +60,7 @@ public class AnthropicHealthChecker : IComponentHealthChecker
             var response = await chatService.GetChatMessageContentAsync(
                 testHistory,
                 new AnthropicPromptExecutionSettings() { MaxTokens = 1 },
+                kernel: null, // Kernel parameter not used for health check
                 cancellationToken: cancellationToken
             );
 
