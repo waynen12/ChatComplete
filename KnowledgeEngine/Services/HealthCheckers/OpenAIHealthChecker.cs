@@ -52,27 +52,53 @@ public class OpenAIHealthChecker : IComponentHealthChecker
 
         try
         {
-            // Use KernelFactory to create OpenAI kernel and test connectivity
-            var kernel = new KernelFactory(_settings).Create(AiProvider.OpenAi);
-            var chatService = kernel.GetRequiredService<IChatCompletionService>();
+            // Direct API call for health check - more reliable than SK connector
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
 
-            // Make minimal test request
-            var testHistory = new ChatHistory();
-            testHistory.AddUserMessage("test");
+            var requestBody = new
+            {
+                model = _settings.Value.OpenAIModel,
+                messages = new[]
+                {
+                    new { role = "user", content = "test" }
+                },
+                max_tokens = 10 // Minimum reasonable token count
+            };
 
-            var response = await chatService.GetChatMessageContentAsync(
-                testHistory,
-                new OpenAIPromptExecutionSettings { MaxTokens = 1 },
-                cancellationToken: cancellationToken
+            var content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(requestBody),
+                System.Text.Encoding.UTF8,
+                "application/json"
             );
 
-            return new ComponentHealth
+            var response = await httpClient.PostAsync(
+                "https://api.openai.com/v1/chat/completions",
+                content,
+                cancellationToken
+            );
+
+            if (response.IsSuccessStatusCode)
             {
-                ComponentName = ComponentName,
-                IsConnected = true,
-                Status = "Healthy",
-                StatusMessage = "OpenAI API accessible and responding"
-            };
+                return new ComponentHealth
+                {
+                    ComponentName = ComponentName,
+                    IsConnected = true,
+                    Status = "Healthy",
+                    StatusMessage = "OpenAI API accessible and responding"
+                };
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new ComponentHealth
+                {
+                    ComponentName = ComponentName,
+                    IsConnected = false,
+                    Status = "Failed",
+                    StatusMessage = $"OpenAI API returned status {response.StatusCode}: {errorContent}"
+                };
+            }
         }
         catch (Exception ex)
         {

@@ -19,7 +19,16 @@
 		"Knowledge-remote": {
 			"url": "http://192.168.50.203:5001",
 			"type": "http"
-		}
-	},
-	"inputs": []
-}
+		},
+		
+		"langchain-toolbox-dev": {
+				"type": "stdio",
+				"command": "npx",
+				"args": [
+					"ts-node",
+					"/home/wayne/repos/LangChainToolbox/src/mcp-server.ts"
+				]
+			}
+		},
+		"inputs": []
+	}
