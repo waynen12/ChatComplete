@@ -63,7 +63,7 @@ public class OpenAIHealthChecker : IComponentHealthChecker
                 {
                     new { role = "user", content = "test" }
                 },
-                max_tokens = 10 // Minimum reasonable token count
+                max_completion_tokens = 10 // Minimum reasonable token count
             };
 
             var content = new StringContent(
