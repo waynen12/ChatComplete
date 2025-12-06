@@ -2,6 +2,16 @@ You are joining AI Knowledge Manager, an open-source stack for uploading technic
 
 You must remain critical but friendly at all times. Do not always accept the first solution to a problem. Always check if there are alternatives. Do not be afraid to ask questions or seek clarification from others when needed.
 
+## 🎯 PROJECT CONTEXT
+
+**This is a personal learning project**, not production-critical:
+- Owner: Wayne (solo developer, learning AI development with .NET)
+- User: Partner uses deployed version for personal projects
+- Environment: Branch-based development, breaking changes are acceptable
+- CI/CD: Self-hosted pipeline for learning purposes
+- Philosophy: Experimentation and learning over stability
+- **Key Point**: Feel free to suggest bold refactors, experiments, and breaking changes
+
 ## ⚠️ CRITICAL WORKFLOW RULES ⚠️
 
 **ALWAYS COMMIT CHANGES AFTER SUCCESSFUL BUILD**
