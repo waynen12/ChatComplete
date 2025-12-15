@@ -135,7 +135,7 @@ builder.Services.AddKnowledgeServices(settings);
 // 3️⃣  Ingest service (scoped to match KnowledgeManager)
 builder.Services.AddScoped<IKnowledgeIngestService, KnowledgeIngestService>();
 
-// Register ChatComplete service for MongoChatService dependency (after KnowledgeManager)
+// Register ChatComplete service (Semantic Kernel version) for MongoChatService dependency (after KnowledgeManager)
 // Changed from Singleton to Scoped to match KnowledgeManager lifetime
 builder.Services.AddScoped<ChatComplete>(sp =>
 {
@@ -144,12 +144,26 @@ builder.Services.AddScoped<ChatComplete>(sp =>
     return new ChatComplete(knowledgeManager, cfg, sp);
 });
 
-// Register agent plugins for cross-knowledge search capabilities
+// Register ChatCompleteAF service (Agent Framework version) for feature flag routing
+builder.Services.AddScoped<ChatCompleteAF>(sp =>
+{
+    var knowledgeManager = sp.GetRequiredService<KnowledgeManager>();
+    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
+    return new ChatCompleteAF(knowledgeManager, cfg, sp);
+});
+
+// Register Semantic Kernel agent plugins (legacy - for ChatComplete SK version)
 builder.Services.AddScoped<CrossKnowledgeSearchPlugin>();
 builder.Services.AddScoped<ModelRecommendationAgent>();
 builder.Services.AddScoped<KnowledgeAnalyticsAgent>();
 builder.Services.AddScoped<ISystemHealthService, SystemHealthService>();
 builder.Services.AddScoped<SystemHealthAgent>();
+
+// Register Agent Framework plugins (for ChatCompleteAF)
+builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.CrossKnowledgeSearchPlugin>();
+builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.ModelRecommendationPlugin>();
+builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.KnowledgeAnalyticsPlugin>();
+builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.SystemHealthPlugin>();
   // All health checkers for SystemHealthService to discover
   builder.Services.AddScoped<IComponentHealthChecker, SqliteHealthChecker>();
   builder.Services.AddScoped<IComponentHealthChecker, QdrantHealthChecker>();

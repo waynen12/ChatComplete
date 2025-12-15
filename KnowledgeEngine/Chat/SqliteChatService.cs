@@ -5,6 +5,7 @@ using Knowledge.Contracts;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Persistence.Conversations;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -14,18 +15,28 @@ namespace KnowledgeEngine.Chat;
 /// <summary>
 /// SQLite-based chat service that replaces MongoDB dependency
 /// Provides persistent conversation history using local database
+/// Routes to either Semantic Kernel or Agent Framework based on UseAgentFramework flag
 /// </summary>
 public sealed class SqliteChatService : IChatService
 {
-    private readonly ChatComplete _chat;
+    private readonly ChatComplete _chatSK;
+    private readonly ChatCompleteAF _chatAF;
     private readonly IConversationRepository _convos;
+    private readonly ChatCompleteSettings _settings;
     private readonly int _maxTurns;
 
-    public SqliteChatService(ChatComplete chat, IConversationRepository convos, IOptions<ChatCompleteSettings> cfg)
+    public SqliteChatService(
+        ChatComplete chatSK,
+        ChatCompleteAF chatAF,
+        IConversationRepository convos,
+        IOptions<ChatCompleteSettings> cfg
+    )
     {
-        _chat = chat;
+        _chatSK = chatSK;
+        _chatAF = chatAF;
         _convos = convos;
-        _maxTurns = Math.Max(2, cfg.Value.ChatMaxTurns);   // never < 2
+        _settings = cfg.Value;
+        _maxTurns = Math.Max(2, _settings.ChatMaxTurns); // never < 2
     }
 
     [Experimental("SKEXP0001")]
@@ -36,7 +47,7 @@ public sealed class SqliteChatService : IChatService
             dto.ConversationId = await _convos.CreateAsync(dto.KnowledgeId, ct);
 
         // 2️⃣ Persist *this* user turn immediately
-        var userMsg = new ChatMessage
+        var userMsg = new Persistence.Conversations.ChatMessage
         {
             Role = "user",
             Content = dto.Message,
@@ -76,37 +87,87 @@ public sealed class SqliteChatService : IChatService
             historyForLLM.Insert(0, new ChatMessageContent(AuthorRole.System, $"ConversationId: {dto.ConversationId}"));
         }
         
-        // 4️⃣ Ask the model - route to agent or traditional based on UseAgent flag
+        // 4️⃣ Ask the model - route based on UseAgentFramework feature flag
         string replyText;
-        if (dto.UseAgent)
+        if (_settings.UseAgentFramework)
         {
-            var agentResponse = await _chat.AskWithAgentAsync(
-                dto.Message,
-                dto.KnowledgeId,
-                historyForLLM,
-                dto.Temperature,
-                provider,
-                dto.UseExtendedInstructions,
-                enableAgentTools: true,
-                dto.OllamaModel,
-                ct);
-            replyText = agentResponse.Response;
+            // Use Agent Framework version
+            Console.WriteLine("🔄 [API] Routing to ChatCompleteAF (Agent Framework)");
+
+            // Convert SK ChatHistory to AF List<ChatMessage>
+            var afMessages = historyForLLM
+                .Select(m => new Microsoft.Extensions.AI.ChatMessage(
+                    m.Role == AuthorRole.Assistant ? ChatRole.Assistant : ChatRole.User,
+                    m.Content
+                ))
+                .ToList();
+
+            if (dto.UseAgent)
+            {
+                var agentResponse = await _chatAF.AskWithAgentAsync(
+                    dto.Message,
+                    dto.KnowledgeId,
+                    afMessages,
+                    dto.Temperature,
+                    provider,
+                    dto.UseExtendedInstructions,
+                    enableAgentTools: true,
+                    dto.OllamaModel,
+                    ct
+                );
+                replyText = agentResponse.Response;
+            }
+            else
+            {
+                replyText = await _chatAF.AskAsync(
+                    dto.Message,
+                    dto.KnowledgeId,
+                    afMessages,
+                    dto.Temperature,
+                    provider,
+                    dto.UseExtendedInstructions,
+                    dto.OllamaModel,
+                    ct
+                );
+            }
         }
         else
         {
-            replyText = await _chat.AskAsync(
-                dto.Message,
-                dto.KnowledgeId,
-                historyForLLM,
-                dto.Temperature,
-                provider,
-                dto.UseExtendedInstructions,
-                dto.OllamaModel,
-                ct);
+            // Use Semantic Kernel version (existing code)
+            Console.WriteLine("🔄 [API] Routing to ChatComplete (Semantic Kernel)");
+
+            if (dto.UseAgent)
+            {
+                var agentResponse = await _chatSK.AskWithAgentAsync(
+                    dto.Message,
+                    dto.KnowledgeId,
+                    historyForLLM,
+                    dto.Temperature,
+                    provider,
+                    dto.UseExtendedInstructions,
+                    enableAgentTools: true,
+                    dto.OllamaModel,
+                    ct
+                );
+                replyText = agentResponse.Response;
+            }
+            else
+            {
+                replyText = await _chatSK.AskAsync(
+                    dto.Message,
+                    dto.KnowledgeId,
+                    historyForLLM,
+                    dto.Temperature,
+                    provider,
+                    dto.UseExtendedInstructions,
+                    dto.OllamaModel,
+                    ct
+                );
+            }
         }
 
         // 5️⃣ Persist assistant turn
-        await _convos.AppendMessageAsync(dto.ConversationId!, new ChatMessage
+        await _convos.AppendMessageAsync(dto.ConversationId!, new Persistence.Conversations.ChatMessage
         {
             Role = "assistant",
             Content = replyText,

@@ -20,6 +20,11 @@
 			"url": "http://192.168.50.203:5001",
 			"type": "http"
 		},
+
+		"af-toolbox": {
+			"url": "http://192.168.50.91:5000",
+			"type": "http"
+		},
 		
 		"langchain-toolbox-dev": {
 				"type": "stdio",
