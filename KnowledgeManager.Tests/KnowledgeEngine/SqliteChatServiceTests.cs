@@ -314,8 +314,9 @@ public class SqliteChatServiceTests
     {
         return new SqliteChatService(
             spy,
+            null!, // AF version not used when UseAgentFramework = false
             repo,
-            Options.Create(new ChatCompleteSettings { ChatMaxTurns = maxTurns })
+            Options.Create(new ChatCompleteSettings { ChatMaxTurns = maxTurns, UseAgentFramework = false })
         );
     }
 }

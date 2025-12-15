@@ -22,8 +22,9 @@ public class MongoChatServiceTests
 
         var svc  = new MongoChatService(
             spy,
+            null!, // AF version not used when UseAgentFramework = false
             repo,
-            Options.Create(new ChatCompleteSettings { ChatMaxTurns = MaxTurns }));
+            Options.Create(new ChatCompleteSettings { ChatMaxTurns = MaxTurns, UseAgentFramework = false }));
 
         var dto = new ChatRequestDto
         {
