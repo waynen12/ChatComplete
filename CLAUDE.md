@@ -65,7 +65,37 @@ You must remain critical but friendly at all times. Do not always accept the fir
 | Frontend | React + Vite · shadcn/ui (Radix + Tailwind) |
 | CI/Deploy | Self-hosted GitHub Actions on Mint Linux → /opt/knowledge-api/out |
 
-## Current Milestones
+## 🚀 CURRENT PRIORITY: Agent Framework Migration (Milestone #26)
+
+**Status:** 🟡 IN PROGRESS - 15% Complete
+**Estimated Remaining:** 54-81 hours (7-10 working days)
+**Documentation:** [AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md) ⭐ **READ THIS FIRST**
+
+### What's Done ✅
+- ChatCompleteAF.cs (590 lines, 54% code reduction vs SK)
+- 4 AF plugins migrated (CrossKnowledgeSearch, ModelRecommendation, KnowledgeAnalytics, SystemHealth)
+- AgentFactory.cs for agent creation
+- API integration with feature flag routing (`UseAgentFramework`)
+- Unit tests (6/7 passing)
+
+### Next Steps 🎯
+1. **Phase 1 (READY):** Delete obsolete SK files (2-3 hours)
+2. **Phase 2:** Add streaming support to ChatCompleteAF (4-6 hours)
+3. **Phase 3:** Deprecate SK ChatComplete and KernelFactory (8-10 hours)
+4. **Phase 4:** Refactor health checkers, TextChunker, Qdrant (12-20 hours)
+5. **Phase 5:** Update all tests (15-18 hours)
+6. **Phase 6:** Final cleanup and documentation (4-6 hours)
+
+### Critical Blockers 🔴
+- Streaming support needed in ChatCompleteAF before deprecating SK
+- TextChunker replacement decision (keep SK or migrate)
+- Qdrant connector investigation (standalone or migrate)
+
+**📖 For complete details, see [documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md)**
+
+---
+
+## All Milestones
 
 | # | Milestone | Status |
 |---|-----------|--------|
@@ -79,7 +109,7 @@ You must remain critical but friendly at all times. Do not always accept the fir
 | 23 | MCP OAuth 2.1 | 🔄 M2M working, PKCE blocked |
 | 24 | MCP Client Development | 🔄 STDIO done, HTTP TODO |
 | 25 | UI Modernization | 🔄 Copilot-driven |
-| 26 | Agent Framework Migration | 🛠️ Planning complete |
+| **26** | **Agent Framework Migration** | **🟡 IN PROGRESS - 15%** |
 
 ## Quick Reference - API & DTOs
 
