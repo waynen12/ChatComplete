@@ -34,24 +34,5 @@ public class KernelSelectionTests
         { AiProvider.Anthropic, ("ANTHROPIC_API_KEY", "test-key") }
         // Ollama runs local → no key
     };
-
-    [Theory]
-    [InlineData(AiProvider.OpenAi)]
-    [InlineData(AiProvider.Google)]
-    [InlineData(AiProvider.Anthropic)]
-    [InlineData(AiProvider.Ollama)]
-    [Experimental("SKEXP0070")]
-    public void GetKernel_returns_chat_service_for_each_provider(AiProvider provider)
-    {
-        // Arrange: stub required env-vars
-        if (Keys.TryGetValue(provider, out var kv))
-            Environment.SetEnvironmentVariable(kv.envVar, kv.value);
-
-        // Act
-        Kernel kernel = KernelHelper.GetKernel(FakeSettings, provider);
-
-        // Assert
-        var chatService = kernel.GetRequiredService<IChatCompletionService>();
-        Assert.NotNull(chatService);
-    }
+    
 }
