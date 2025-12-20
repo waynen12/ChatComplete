@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 using ChatCompletion.Config;
 using Knowledge.Analytics.Models;
@@ -151,6 +152,74 @@ public class ChatCompleteAF
 
         // Clean up extra whitespace that may be left behind
         return result.Trim();
+    }
+
+    private async Task<(
+        string withContextInstruction,
+        string withoutContextInstruction
+    )> GetContextInstructionsAsync()
+    {
+        // Try to extract instruction strings from prompt templates
+        try
+        {
+            var promptsDirectory = Path.Combine(
+                AppContext.BaseDirectory,
+                "Prompts",
+                "ContextualChat"
+            );
+
+            // Get WithContext template
+            string withContextInstruction = "";
+            var withContextPath = Path.Combine(promptsDirectory, "WithContext", "skprompt.txt");
+            if (File.Exists(withContextPath))
+            {
+                var template = await File.ReadAllTextAsync(withContextPath);
+                // Process template with empty values to get instruction text
+                var processedTemplate = template
+                    .Replace("{{$userMessage}}", "")
+                    .Replace("{{$context}}", "");
+                var lines = processedTemplate.Split('\n');
+                withContextInstruction =
+                    lines.LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim()
+                    ?? "";
+            }
+
+            // Get WithoutContext template
+            string withoutContextInstruction = "";
+            var withoutContextPath = Path.Combine(
+                promptsDirectory,
+                "WithoutContext",
+                "skprompt.txt"
+            );
+            if (File.Exists(withoutContextPath))
+            {
+                var template = await File.ReadAllTextAsync(withoutContextPath);
+                // Process template with empty values to get instruction text
+                var processedTemplate = template.Replace("{{$userMessage}}", "");
+                var lines = processedTemplate.Split('\n');
+                withoutContextInstruction =
+                    lines.LastOrDefault(l => l.Contains("SearchAllKnowledgeBasesAsync"))?.Trim()
+                    ?? "";
+            }
+
+            if (
+                !string.IsNullOrEmpty(withContextInstruction)
+                && !string.IsNullOrEmpty(withoutContextInstruction)
+            )
+            {
+                return (withContextInstruction, withoutContextInstruction);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ [AF] Failed to get context instructions from prompts: {ex.Message}");
+        }
+
+        // Fallback to hardcoded instructions
+        return (
+            "If you need to search across all knowledge bases or find information from other documentation, use the SearchAllKnowledgeBasesAsync function.",
+            "If you need to search across all knowledge bases or find information from other documentation, use the SearchAllKnowledgeBasesAsync function."
+        );
     }
 
     #endregion
@@ -523,6 +592,319 @@ public class ChatCompleteAF
                     apiTemperature,
                     response.UsedAgentCapabilities,
                     response.ToolExecutions?.Count ?? 0,
+                    ct
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Simple RAG chat with streaming support using Agent Framework.
+    /// </summary>
+    public virtual async IAsyncEnumerable<string> AskStreamingAsync(
+        string userMessage,
+        string? knowledgeId,
+        List<ChatMessage> chatHistory,
+        double apiTemperature,
+        AiProvider provider,
+        bool useExtendedInstructions = false,
+        string? ollamaModel = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default
+    )
+    {
+        var startTime = DateTime.UtcNow;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        bool wasSuccessful = false;
+        string? conversationId = Guid.NewGuid().ToString();
+        int totalTokens = 0;
+        var fullResponse = new StringBuilder();
+
+        try
+        {
+            Console.WriteLine(
+                $"💬📡 [AF] AskStreamingAsync called - Provider: {provider}, Model: {ollamaModel}"
+            );
+
+            // Create agent without tools
+            var systemMessage = await GetSystemPromptAsync(useExtendedInstructions, false);
+            var agent = _agentFactory.CreateAgent(provider, systemMessage, ollamaModel);
+
+            // Build chat history for Agent Framework
+            var messages = new List<ChatMessage> { new(ChatRole.System, systemMessage) };
+            messages.AddRange(chatHistory);
+
+            // Perform vector search if knowledge base is specified
+            var searchResults = new List<KnowledgeSearchResult>();
+            if (!string.IsNullOrEmpty(knowledgeId))
+            {
+                Console.WriteLine($"🔍 [AF] Searching knowledge base: {knowledgeId}");
+                searchResults = await _knowledgeManager.SearchAsync(
+                    knowledgeId,
+                    userMessage,
+                    limit: 10,
+                    minRelevanceScore: 0.3,
+                    cancellationToken: ct
+                );
+            }
+
+            // Build context from search results
+            var contextChunks = searchResults
+                .OrderBy(r => r.ChunkOrder)
+                .Select(r => r.Text)
+                .Distinct()
+                .ToList();
+
+            var contextBlock = contextChunks.Any()
+                ? string.Join("\n---\n", contextChunks)
+                : null;
+
+            // Build user prompt with context
+            var userPrompt = await GetUserPromptFromTemplateAsync(
+                userMessage,
+                contextChunks.Any() ? contextBlock : null
+            );
+            messages.Add(new ChatMessage(ChatRole.User, userPrompt));
+
+            Console.WriteLine("🚀📡 [AF] Starting streaming chat completion...");
+
+            // Execute streaming chat using Agent Framework
+            var lastUserMessage = messages.LastOrDefault(m => m.Role == ChatRole.User);
+            var promptText = lastUserMessage?.Text ?? userMessage;
+
+            // Note: Temperature configuration is handled at ChatClient level in AgentFactory
+            // Agent Framework doesn't support per-request temperature in RunStreamingAsync
+
+            // Stream the response
+            await foreach (var update in agent.RunStreamingAsync(promptText, cancellationToken: ct))
+            {
+                var textChunk = update?.Text ?? string.Empty;
+                if (!string.IsNullOrEmpty(textChunk))
+                {
+                    fullResponse.Append(textChunk);
+                    yield return textChunk;
+                }
+            }
+
+            var responseText = fullResponse.ToString();
+            wasSuccessful = !string.IsNullOrEmpty(responseText);
+
+            // Estimate token usage (rough approximation)
+            var inputContent = userMessage + systemMessage + (contextBlock ?? "");
+            totalTokens = (inputContent.Length + responseText.Length) / 4;
+
+            Console.WriteLine(
+                $"✅📡 [AF] AskStreamingAsync completed - {totalTokens} tokens, {stopwatch.ElapsedMilliseconds}ms"
+            );
+        }
+        finally
+        {
+            stopwatch.Stop();
+
+            // Track usage metrics if service is available
+            if (_usageTrackingService != null)
+            {
+                await TrackUsageAsync(
+                    conversationId,
+                    knowledgeId,
+                    provider,
+                    ollamaModel,
+                    startTime,
+                    stopwatch.Elapsed,
+                    totalTokens,
+                    wasSuccessful,
+                    apiTemperature,
+                    usedAgentCapabilities: false,
+                    toolExecutions: 0,
+                    ct
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Agent chat with tool calling and streaming support using Agent Framework.
+    /// </summary>
+    public virtual async IAsyncEnumerable<string> AskWithAgentStreamingAsync(
+        string userMessage,
+        string? knowledgeId,
+        List<ChatMessage> chatHistory,
+        double apiTemperature,
+        AiProvider provider,
+        bool useExtendedInstructions = false,
+        bool enableAgentTools = true,
+        string? ollamaModel = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default
+    )
+    {
+        var startTime = DateTime.UtcNow;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        bool wasSuccessful = false;
+        string? conversationId = Guid.NewGuid().ToString();
+        int totalTokens = 0;
+        var fullResponse = new StringBuilder();
+        var toolExecutionCount = 0;
+        bool usedAgentCapabilities = false;
+
+        try
+        {
+            Console.WriteLine(
+                $"🤖📡 [AF] AskWithAgentStreamingAsync called - Provider: {provider}, Model: {ollamaModel}, EnableTools: {enableAgentTools}"
+            );
+
+            // Get system prompt
+            var systemMessage = await GetSystemPromptAsync(useExtendedInstructions, true);
+
+            // Determine if we should use tools
+            var shouldUseTools = await ShouldEnableToolsAsync(
+                provider,
+                ollamaModel,
+                enableAgentTools,
+                ct
+            );
+
+            // Disable tool calling for Anthropic (third-party connector issue)
+            if (provider == AiProvider.Anthropic && shouldUseTools)
+            {
+                Console.WriteLine(
+                    "⚠️📡 [AF] Disabling tool calling for Anthropic in Agent Framework streaming mode"
+                );
+                shouldUseTools = false;
+            }
+
+            Console.WriteLine(
+                $"🛠️📡 [AF] Tools enabled: {shouldUseTools} for provider {provider}"
+            );
+
+            // Create agent with or without tools
+            AIAgent agent;
+            if (shouldUseTools)
+            {
+                var plugins = RegisterAgentPlugins();
+                agent = _agentFactory.CreateAgentWithPlugins(
+                    provider,
+                    systemMessage,
+                    plugins,
+                    ollamaModel
+                );
+                usedAgentCapabilities = true;
+            }
+            else
+            {
+                agent = _agentFactory.CreateAgent(provider, systemMessage, ollamaModel);
+                usedAgentCapabilities = false;
+            }
+
+            // Build chat history
+            var messages = new List<ChatMessage> { new(ChatRole.System, systemMessage) };
+            messages.AddRange(chatHistory);
+
+            // Perform vector search if knowledge base is specified
+            var searchResults = new List<KnowledgeSearchResult>();
+            if (!string.IsNullOrEmpty(knowledgeId))
+            {
+                Console.WriteLine($"🔍📡 [AF] Searching knowledge base: {knowledgeId}");
+                searchResults = await _knowledgeManager.SearchAsync(
+                    knowledgeId,
+                    userMessage,
+                    limit: 10,
+                    minRelevanceScore: 0.3,
+                    cancellationToken: ct
+                );
+            }
+
+            // Build context from search results
+            var contextChunks = searchResults
+                .OrderBy(r => r.ChunkOrder)
+                .Select(r => r.Text)
+                .Distinct()
+                .ToList();
+
+            var contextBlock = contextChunks.Any()
+                ? string.Join("\n---\n", contextChunks)
+                : null;
+
+            // Build user prompt with context
+            var userPrompt = await GetUserPromptFromTemplateAsync(
+                userMessage,
+                contextChunks.Any() ? contextBlock : null
+            );
+
+            // Add tool usage instructions if tools are enabled
+            if (shouldUseTools)
+            {
+                var (withContextInstruction, withoutContextInstruction) =
+                    await GetContextInstructionsAsync();
+                var toolInstruction = contextChunks.Any()
+                    ? withContextInstruction
+                    : withoutContextInstruction;
+                userPrompt = $"{userPrompt}\n\n{toolInstruction}";
+            }
+
+            messages.Add(new ChatMessage(ChatRole.User, userPrompt));
+
+            Console.WriteLine("🚀📡 [AF] Starting streaming agent chat with tools...");
+
+            // Execute streaming chat using Agent Framework
+            var lastUserMessage = messages.LastOrDefault(m => m.Role == ChatRole.User);
+            var promptText = lastUserMessage?.Text ?? userMessage;
+
+            // Note: Temperature configuration is handled at ChatClient level in AgentFactory
+
+            // Stream the response
+            await foreach (var update in agent.RunStreamingAsync(promptText, cancellationToken: ct))
+            {
+                var textChunk = update?.Text ?? string.Empty;
+                if (!string.IsNullOrEmpty(textChunk))
+                {
+                    fullResponse.Append(textChunk);
+
+                    // Strip thinking sections before yielding
+                    var cleanedChunk = StripThinkingSections(textChunk);
+                    if (!string.IsNullOrEmpty(cleanedChunk))
+                    {
+                        yield return cleanedChunk;
+                    }
+                }
+
+                // Count tool executions if available
+                // Note: Agent Framework may not expose tool execution details in streaming updates
+                // This is a simplified approach - actual tool counting may require different handling
+                if (update?.Contents != null)
+                {
+                    toolExecutionCount = update.Contents.Count(c => c is FunctionCallContent);
+                }
+            }
+
+            var responseText = fullResponse.ToString();
+            wasSuccessful = !string.IsNullOrEmpty(responseText);
+
+            // Estimate token usage (rough approximation)
+            var inputContent = userMessage + systemMessage + (contextBlock ?? "");
+            totalTokens = (inputContent.Length + responseText.Length) / 4;
+
+            Console.WriteLine(
+                $"✅📡 [AF] AskWithAgentStreamingAsync completed - {totalTokens} tokens, {toolExecutionCount} tool calls, {stopwatch.ElapsedMilliseconds}ms"
+            );
+        }
+        finally
+        {
+            stopwatch.Stop();
+
+            // Track usage metrics if service is available
+            if (_usageTrackingService != null)
+            {
+                await TrackUsageAsync(
+                    conversationId,
+                    knowledgeId,
+                    provider,
+                    ollamaModel,
+                    startTime,
+                    stopwatch.Elapsed,
+                    totalTokens,
+                    wasSuccessful,
+                    apiTemperature,
+                    usedAgentCapabilities,
+                    toolExecutionCount,
                     ct
                 );
             }
