@@ -1,40 +1,34 @@
-using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
-using Knowledge.Contracts.Types;
 using KnowledgeEngine.Agents.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.Google;
-
 
 namespace KnowledgeEngine.Services.HealthCheckers;
 
 public class GoogleAIHealthChecker : IComponentHealthChecker
 {
-    private readonly IOptions<ChatCompleteSettings> _settings;
+    private readonly ChatCompleteSettings _settings;
     private readonly ILogger<GoogleAIHealthChecker> _logger;
     public string ComponentName => "Google AI";
     public int Priority => 1;
     public bool IsCriticalComponent => true;
-    
+
     public GoogleAIHealthChecker(
-        IOptions<ChatCompleteSettings> settings, 
+        IOptions<ChatCompleteSettings> settings,
         ILogger<GoogleAIHealthChecker> logger
     )
     {
-        _settings = settings;
+        _settings = settings.Value;
         _logger = logger;
     }
-    
+
     // API Key retrieval (follows existing pattern from analytics services)
     private string? GetApiKey()
     {
         return Environment.GetEnvironmentVariable("GEMINI_API_KEY");
     }
-   
-     [Experimental("SKEXP0070")]
-    public  async Task<ComponentHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+
+    public async Task<ComponentHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
     {
         var apiKey = GetApiKey();
         if (string.IsNullOrEmpty(apiKey))
@@ -50,27 +44,60 @@ public class GoogleAIHealthChecker : IComponentHealthChecker
 
         try
         {
-            // Use KernelFactory to create Google kernel and test connectivity
-            var kernel = new KernelFactory(_settings).Create(AiProvider.Google);
-            var chatService = kernel.GetRequiredService<IChatCompletionService>();
+            // Direct API call for health check - more reliable than SDK
+            using var httpClient = new HttpClient();
 
-            // Make minimal test request
-            var testHistory = new ChatHistory();
-            testHistory.AddUserMessage("test");
+            var requestBody = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[]
+                        {
+                            new { text = "test" }
+                        }
+                    }
+                },
+                generationConfig = new
+                {
+                    maxOutputTokens = 1
+                }
+            };
 
-            var response = await chatService.GetChatMessageContentAsync(
-                testHistory,
-                new GeminiPromptExecutionSettings() { MaxTokens = 1 },
-                cancellationToken: cancellationToken
+            var content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(requestBody),
+                System.Text.Encoding.UTF8,
+                "application/json"
             );
 
-            return new ComponentHealth
+            var response = await httpClient.PostAsync(
+                $"https://generativelanguage.googleapis.com/v1beta/models/{_settings.GoogleModel}:generateContent?key={apiKey}",
+                content,
+                cancellationToken
+            );
+
+            if (response.IsSuccessStatusCode)
             {
-                ComponentName = ComponentName,
-                IsConnected = true,
-                Status = "Healthy",
-                StatusMessage = "Google API accessible and responding"
-            };
+                return new ComponentHealth
+                {
+                    ComponentName = ComponentName,
+                    IsConnected = true,
+                    Status = "Healthy",
+                    StatusMessage = "Google AI API accessible and responding"
+                };
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new ComponentHealth
+                {
+                    ComponentName = ComponentName,
+                    IsConnected = false,
+                    Status = "Failed",
+                    StatusMessage = $"Google AI API returned status {response.StatusCode}: {errorContent}"
+                };
+            }
         }
         catch (Exception ex)
         {
@@ -79,12 +106,11 @@ public class GoogleAIHealthChecker : IComponentHealthChecker
                 ComponentName = ComponentName,
                 IsConnected = false,
                 Status = "Failed",
-                StatusMessage = $"Google API Error: {ex.Message}"
+                StatusMessage = $"Google AI API Error: {ex.Message}"
             };
         }
     }
 
-    [Experimental("SKEXP0070")]
     public async Task<ComponentHealth> QuickHealthCheckAsync(CancellationToken cancellationToken = default)
     {
         // For external API providers, quick check is the same as full check

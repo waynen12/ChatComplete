@@ -36,8 +36,7 @@ internal sealed class FakeChatCompleteAF : ChatCompleteAF
                 OpenAIModel = "gpt-4",
                 Temperature = 0.7,
                 SystemPrompt = "You are a helpful assistant.",
-                SystemPromptWithCoding = "You are a coding assistant.",
-                UseAgentFramework = true
+                SystemPromptWithCoding = "You are a coding assistant."
             },
             serviceProvider: CreateMockServiceProvider())
     {

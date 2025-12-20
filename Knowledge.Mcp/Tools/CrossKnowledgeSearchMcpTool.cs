@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using KnowledgeEngine;
-using KnowledgeEngine.Agents.Plugins;
+using KnowledgeEngine.Agents.AgentFramework;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;

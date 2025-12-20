@@ -12,7 +12,7 @@ using Knowledge.Api.Options;
 using Knowledge.Api.Services;
 using Knowledge.Contracts;
 using KnowledgeEngine;
-using KnowledgeEngine.Agents.Plugins;
+using KnowledgeEngine.Agents.AgentFramework;
 using KnowledgeEngine.Chat;
 using KnowledgeEngine.Extensions;
 using KnowledgeEngine.Logging; // whatever namespace holds LoggerProvider
@@ -100,9 +100,6 @@ else
     throw new InvalidOperationException($"Unsupported embedding provider: {activeProvider}");
 }
 
-// Add modern KernelFactory
-builder.Services.AddSingleton<KernelFactory>();
-
 // Add SQLite persistence for zero-dependency deployment
 // Pass ILoggerFactory for debugging database path resolution
 var loggerFactory = LoggerFactory.Create(logging =>
@@ -135,16 +132,7 @@ builder.Services.AddKnowledgeServices(settings);
 // 3️⃣  Ingest service (scoped to match KnowledgeManager)
 builder.Services.AddScoped<IKnowledgeIngestService, KnowledgeIngestService>();
 
-// Register ChatComplete service (Semantic Kernel version) for MongoChatService dependency (after KnowledgeManager)
-// Changed from Singleton to Scoped to match KnowledgeManager lifetime
-builder.Services.AddScoped<ChatComplete>(sp =>
-{
-    var knowledgeManager = sp.GetRequiredService<KnowledgeManager>();
-    var cfg = sp.GetRequiredService<IOptions<ChatCompleteSettings>>().Value;
-    return new ChatComplete(knowledgeManager, cfg, sp);
-});
-
-// Register ChatCompleteAF service (Agent Framework version) for feature flag routing
+// Register ChatCompleteAF service (Agent Framework version - primary chat engine)
 builder.Services.AddScoped<ChatCompleteAF>(sp =>
 {
     var knowledgeManager = sp.GetRequiredService<KnowledgeManager>();
@@ -152,14 +140,10 @@ builder.Services.AddScoped<ChatCompleteAF>(sp =>
     return new ChatCompleteAF(knowledgeManager, cfg, sp);
 });
 
-// Register Semantic Kernel agent plugins (legacy - for ChatComplete SK version)
-builder.Services.AddScoped<CrossKnowledgeSearchPlugin>();
-builder.Services.AddScoped<ModelRecommendationAgent>();
-builder.Services.AddScoped<KnowledgeAnalyticsAgent>();
+// Register system health service (used by Agent Framework health plugin)
 builder.Services.AddScoped<ISystemHealthService, SystemHealthService>();
-builder.Services.AddScoped<SystemHealthAgent>();
 
-// Register Agent Framework plugins (for ChatCompleteAF)
+// Register Agent Framework plugins
 builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.CrossKnowledgeSearchPlugin>();
 builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.ModelRecommendationPlugin>();
 builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.KnowledgeAnalyticsPlugin>();

@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Knowledge.Analytics.Services;
-using KnowledgeEngine.Agents.Plugins;
+using KnowledgeEngine.Agents.AgentFramework;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
@@ -11,7 +11,7 @@ namespace Knowledge.Mcp.Tools;
 /// <summary>
 /// Model Recommendation MCP Tool - Provides external access to AI model analytics and recommendations
 ///
-/// This tool wraps the existing ModelRecommendationAgent functionality to make model intelligence
+/// This tool wraps the existing ModelRecommendationPlugin functionality to make model intelligence
 /// accessible to external MCP clients like monitoring dashboards, CI/CD pipelines, and developer tools.
 ///
 /// Key Features:
@@ -22,7 +22,7 @@ namespace Knowledge.Mcp.Tools;
 /// - Cost efficiency and optimization recommendations
 ///
 /// Dependencies:
-/// - ModelRecommendationAgent: Existing model analytics logic
+/// - ModelRecommendationPlugin: Existing model analytics logic
 /// - IUsageTrackingService: Real usage data from SQLite database
 /// - Analytics database: Conversation, token, and performance metrics
 ///
@@ -97,7 +97,7 @@ public sealed class ModelRecommendationMcpTool
             var usageTrackingService = serviceProvider.GetRequiredService<IUsageTrackingService>();
 
             // Create model recommendation agent with real usage data
-            var modelAgent = new ModelRecommendationAgent(usageTrackingService);
+            var modelAgent = new ModelRecommendationPlugin(usageTrackingService);
 
             // Execute model popularity analysis
             var results = await modelAgent.GetPopularModelsAsync(count, period, provider);
@@ -197,7 +197,7 @@ public sealed class ModelRecommendationMcpTool
             var usageTrackingService = serviceProvider.GetRequiredService<IUsageTrackingService>();
 
             // Create model recommendation agent
-            var modelAgent = new ModelRecommendationAgent(usageTrackingService);
+            var modelAgent = new ModelRecommendationPlugin(usageTrackingService);
 
             // Execute performance analysis
             var results = await modelAgent.GetModelPerformanceAnalysisAsync(modelName, provider);
@@ -271,7 +271,7 @@ public sealed class ModelRecommendationMcpTool
             var usageTrackingService = serviceProvider.GetRequiredService<IUsageTrackingService>();
 
             // Create model recommendation agent
-            var modelAgent = new ModelRecommendationAgent(usageTrackingService);
+            var modelAgent = new ModelRecommendationPlugin(usageTrackingService);
 
             // Execute model comparison
             var results = await modelAgent.CompareModelsAsync(modelNames, focus);

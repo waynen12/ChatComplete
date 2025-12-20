@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using Knowledge.Analytics.Services;
 using Knowledge.Data;
-using KnowledgeEngine.Agents.Plugins;
+using KnowledgeEngine.Agents.AgentFramework;
 using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +14,7 @@ namespace Knowledge.Mcp.Tools;
 /// <summary>
 /// Knowledge Analytics MCP Tool - Provides external access to knowledge base management and analytics
 ///
-/// This tool wraps the existing KnowledgeAnalyticsAgent functionality to make knowledge base insights
+/// This tool wraps the existing KnowledgeAnalyticsPlugin functionality to make knowledge base insights
 /// accessible to external MCP clients for monitoring, management, and optimization purposes.
 ///
 /// Key Features:
@@ -25,7 +25,7 @@ namespace Knowledge.Mcp.Tools;
 /// - Sorting and filtering options for different management needs
 ///
 /// Dependencies:
-/// - KnowledgeAnalyticsAgent: Existing analytics logic implementation
+/// - KnowledgeAnalyticsPlugin: Existing analytics logic implementation
 /// - IKnowledgeRepository: Knowledge metadata from SQLite database
 /// - IUsageTrackingService: Usage statistics and activity tracking
 /// - ISqliteDbContext: Direct database access for detailed metrics
@@ -105,7 +105,7 @@ public sealed class KnowledgeAnalyticsMcpTool
             var vectorStore = serviceProvider.GetRequiredService<IVectorStoreStrategy>();
 
             // Create knowledge analytics agent with all required dependencies
-            var analyticsAgent = new KnowledgeAnalyticsAgent(
+            var analyticsAgent = new KnowledgeAnalyticsPlugin(
                 knowledgeRepository,
                 usageTrackingService,
                 dbContext,

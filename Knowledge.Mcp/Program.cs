@@ -268,9 +268,9 @@ class Program
                     services.AddScoped<KnowledgeEngine.KnowledgeManager>();
 
                     // Register agent plugins (required for MCP tool implementations)
-                    services.AddScoped<KnowledgeEngine.Agents.Plugins.CrossKnowledgeSearchPlugin>();
-                    services.AddScoped<KnowledgeEngine.Agents.Plugins.ModelRecommendationAgent>();
-                    services.AddScoped<KnowledgeEngine.Agents.Plugins.KnowledgeAnalyticsAgent>();
+                    services.AddScoped<KnowledgeEngine.Agents.AgentFramework.CrossKnowledgeSearchPlugin>();
+                    services.AddScoped<KnowledgeEngine.Agents.AgentFramework.ModelRecommendationPlugin>();
+                    services.AddScoped<KnowledgeEngine.Agents.AgentFramework.KnowledgeAnalyticsPlugin>();
 
                     // Register MCP resource provider (Phase 2B: Resources protocol)
                     // Note: KnowledgeResourceMethods is now an instance class registered via .WithResources<>()
@@ -449,9 +449,9 @@ class Program
         builder.Services.AddScoped<KnowledgeEngine.KnowledgeManager>();
 
         // Register agent plugins
-        builder.Services.AddScoped<KnowledgeEngine.Agents.Plugins.CrossKnowledgeSearchPlugin>();
-        builder.Services.AddScoped<KnowledgeEngine.Agents.Plugins.ModelRecommendationAgent>();
-        builder.Services.AddScoped<KnowledgeEngine.Agents.Plugins.KnowledgeAnalyticsAgent>();
+        builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.CrossKnowledgeSearchPlugin>();
+        builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.ModelRecommendationPlugin>();
+        builder.Services.AddScoped<KnowledgeEngine.Agents.AgentFramework.KnowledgeAnalyticsPlugin>();
 
         // Register MCP resource provider
         builder.Services.AddScoped<Knowledge.Mcp.Resources.KnowledgeResourceProvider>();
