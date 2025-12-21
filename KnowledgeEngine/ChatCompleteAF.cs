@@ -1071,7 +1071,7 @@ public class ChatCompleteAF
 
             var usageMetric = new UsageMetric
             {
-                ConversationId = conversationId ?? Guid.NewGuid().ToString(),
+                ConversationId = conversationId, // Allow NULL - not all usage is tied to a saved conversation
                 KnowledgeId = knowledgeId,
                 Provider = provider,
                 ModelName = modelName,
