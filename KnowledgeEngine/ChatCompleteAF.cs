@@ -243,7 +243,7 @@ public class ChatCompleteAF
         var startTime = DateTime.UtcNow;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         bool wasSuccessful = false;
-        string? conversationId = Guid.NewGuid().ToString();
+        string? conversationId = null; // No conversation tracking - allows NULL in usage metrics
         int totalTokens = 0;
 
         try
@@ -374,7 +374,7 @@ public class ChatCompleteAF
         var startTime = DateTime.UtcNow;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         bool wasSuccessful = false;
-        string? conversationId = Guid.NewGuid().ToString();
+        string? conversationId = null; // No conversation tracking - allows NULL in usage metrics
         int totalTokens = 0;
         var response = new AgentChatResponse();
 
@@ -615,7 +615,7 @@ public class ChatCompleteAF
         var startTime = DateTime.UtcNow;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         bool wasSuccessful = false;
-        string? conversationId = Guid.NewGuid().ToString();
+        string? conversationId = null; // No conversation tracking - allows NULL in usage metrics
         int totalTokens = 0;
         var fullResponse = new StringBuilder();
 
@@ -739,7 +739,7 @@ public class ChatCompleteAF
         var startTime = DateTime.UtcNow;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         bool wasSuccessful = false;
-        string? conversationId = Guid.NewGuid().ToString();
+        string? conversationId = null; // No conversation tracking - allows NULL in usage metrics
         int totalTokens = 0;
         var fullResponse = new StringBuilder();
         var toolExecutionCount = 0;
