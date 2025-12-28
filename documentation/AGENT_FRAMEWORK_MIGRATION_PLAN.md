@@ -1,16 +1,16 @@
 # Semantic Kernel to Microsoft Agent Framework Migration Plan
 
 **Project:** AI Knowledge Manager
-**Status:** 🟡 IN PROGRESS - 22% Complete
-**Last Updated:** 2025-12-20
-**Estimated Remaining Effort:** 48-72 hours (6-9 working days)
+**Status:** 🟡 IN PROGRESS - 35% Complete
+**Last Updated:** 2025-12-28
+**Estimated Remaining Effort:** 41-60 hours (5-8 working days)
 
 ---
 
 ## 📊 Migration Progress
 
 ```
-███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 22% Complete
+███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 35% Complete
 
 ✅ Completed:
 - ChatCompleteAF.cs (950+ lines, 54% code reduction vs SK)
@@ -21,16 +21,17 @@
 - Health checker fixes (Anthropic, OpenAI)
 - Phase 1 (Partial): Deleted 3 obsolete files (KernelHelper, EmbeddingsHelper, Summarizer)
 - Phase 2 (Complete): Streaming support (AskStreamingAsync, AskWithAgentStreamingAsync)
+- Phase 3 (Complete): Deprecated ChatComplete.cs and KernelFactory.cs, deleted 4 SK plugins
 
 🔄 In Progress:
-- Phase 3: API endpoint updates for streaming
+- Phase 4: Infrastructure updates (health checkers, Ollama, TextChunker, Qdrant)
 
 ⏳ Remaining:
-- 4 SK plugin files (blocked until SK ChatComplete deprecated)
-- API endpoint streaming integration
-- SK ChatComplete deprecation
-- TextChunker replacement
-- Test updates
+- Ollama re-enablement (currently broken - package conflict)
+- Health checker migration (3 files)
+- TextChunker replacement decision
+- Qdrant connector investigation
+- Test updates (15+ files)
 - Full cleanup and documentation
 ```
 
@@ -442,11 +443,19 @@ using Microsoft.Extensions.AI; // Already using modern APIs
 
 ---
 
-#### **Phase 4: Infrastructure Updates (12-20 hours)**
+#### **Phase 4: Infrastructure Updates (14-23 hours)**
 
-**Goal:** Refactor supporting infrastructure
+**Goal:** Refactor supporting infrastructure and restore Ollama support
 
 **Tasks:**
+- [ ] **Ollama Re-enablement (2-3h)** 🔴 CRITICAL
+  - [ ] Remove `Microsoft.SemanticKernel.Connectors.Ollama` from KnowledgeEngine.csproj
+  - [ ] Add `OllamaSharp 5.4.11` to KnowledgeEngine.csproj
+  - [ ] Uncomment Ollama implementation in AgentFactory.cs (lines 103-126)
+  - [ ] Test Ollama chat without tools (simple RAG)
+  - [ ] Test Ollama chat with tools (if model supports it)
+  - [ ] Verify tool support detection and database updates work
+
 - [ ] **Health Checkers (9-12h)**
   - [ ] Migrate OpenAIHealthChecker to OpenAI SDK directly
   - [ ] Migrate AnthropicHealthChecker to Anthropic SDK directly
@@ -458,7 +467,7 @@ using Microsoft.Extensions.AI; // Already using modern APIs
   - [ ] If yes: keep it (0h)
   - [ ] If no: implement custom or use third-party (4-8h)
 
-- [ ] **Vector Store (6-10h)**
+- [ ] **Vector Store (0-10h)**
   - [ ] Evaluate QdrantVectorStoreStrategy independence
   - [ ] If dependent: migrate to Qdrant.Client SDK directly
   - [ ] Test vector search functionality
@@ -469,6 +478,7 @@ using Microsoft.Extensions.AI; // Already using modern APIs
   - [ ] Update AutoInvoke.cs if needed
 
 **Deliverables:**
+- ✅ Ollama provider working in AF mode
 - ✅ Health checkers use direct SDKs
 - ✅ Text chunking resolved
 - ✅ Vector store migrated or verified standalone
@@ -535,14 +545,14 @@ using Microsoft.Extensions.AI; // Already using modern APIs
 | Phase 0: Exploration | 1-2 weeks | None | ✅ DONE |
 | Phase 1: Quick Wins | 2-3 hours | None | ✅ PARTIAL (3/7 files deleted) |
 | Phase 2: Streaming | 4-6 hours | Phase 1 | ✅ COMPLETE (streaming implemented) |
-| Phase 3: Core Deprecation | 8-10 hours | Phase 2 | 🟡 READY |
-| Phase 4: Infrastructure | 12-20 hours | Phase 3 | ⏳ BLOCKED |
+| Phase 3: Core Deprecation | 8-10 hours | Phase 2 | ✅ COMPLETE |
+| Phase 4: Infrastructure | 14-23 hours | Phase 3 | 🟡 READY |
 | Phase 5: Tests | 15-18 hours | Phase 4 | ⏳ BLOCKED |
 | Phase 6: Cleanup & Docs | 4-6 hours | Phase 5 | ⏳ BLOCKED |
 
-**Total Remaining:** 39-57 hours (~5-7 working days)
+**Total Remaining:** 41-60 hours (~5-8 working days)
 
-**Current Progress:** 22% (ChatCompleteAF + streaming + 4 plugins + tests + API integration + 3 files deleted)
+**Current Progress:** 35% (Phases 1-3 complete: ChatCompleteAF + streaming + 4 plugins + tests + API integration + SK core deprecated)
 
 ---
 

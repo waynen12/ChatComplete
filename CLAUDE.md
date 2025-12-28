@@ -68,7 +68,7 @@ You must remain critical but friendly at all times. Do not always accept the fir
 ## 🚀 CURRENT PRIORITY: Agent Framework Migration (Milestone #26)
 
 **Status:** 🟡 IN PROGRESS - 35% Complete
-**Estimated Remaining:** 39-57 hours (5-7 working days)
+**Estimated Remaining:** 41-60 hours (5-8 working days)
 **Documentation:** [AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md) ⭐ **READ THIS FIRST**
 
 ### What's Done ✅
@@ -82,7 +82,8 @@ You must remain critical but friendly at all times. Do not always accept the fir
 - Phase 3 (Complete): Deprecated ChatComplete.cs and KernelFactory.cs, deleted 4 SK plugins
 
 ### Next Steps 🎯
-1. **Phase 4 (NEXT):** Refactor health checkers, TextChunker, Qdrant (12-20 hours)
+1. **Phase 4 (NEXT):** Refactor health checkers, TextChunker, Qdrant, Ollama (14-23 hours)
+   - **Ollama Re-enablement (2-3h)** - CRITICAL: Currently broken in AF mode
    - Migrate 3 health checkers to use direct SDKs (9-12h)
    - Decide TextChunker approach: keep SK, custom, or third-party (0-8h)
    - Investigate Qdrant connector independence (0-10h)
@@ -90,6 +91,7 @@ You must remain critical but friendly at all times. Do not always accept the fir
 3. **Phase 6:** Final cleanup and documentation (4-6 hours)
 
 ### Critical Blockers 🔴
+- **Ollama provider disabled** - Package conflict with SK connector (Phase 4)
 - TextChunker replacement decision (keep SK or migrate)
 - Qdrant connector investigation (standalone or migrate)
 
