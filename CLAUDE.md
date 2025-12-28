@@ -67,8 +67,8 @@ You must remain critical but friendly at all times. Do not always accept the fir
 
 ## 🚀 CURRENT PRIORITY: Agent Framework Migration (Milestone #26)
 
-**Status:** 🟡 IN PROGRESS - 22% Complete
-**Estimated Remaining:** 48-72 hours (6-9 working days)
+**Status:** 🟡 IN PROGRESS - 35% Complete
+**Estimated Remaining:** 39-57 hours (5-7 working days)
 **Documentation:** [AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md) ⭐ **READ THIS FIRST**
 
 ### What's Done ✅
@@ -79,15 +79,17 @@ You must remain critical but friendly at all times. Do not always accept the fir
 - Unit tests (6/7 passing)
 - Phase 1 (Partial): Deleted 3 obsolete files (KernelHelper, EmbeddingsHelper, Summarizer)
 - Phase 2 (Complete): Streaming support (AskStreamingAsync, AskWithAgentStreamingAsync)
+- Phase 3 (Complete): Deprecated ChatComplete.cs and KernelFactory.cs, deleted 4 SK plugins
 
 ### Next Steps 🎯
-1. **Phase 3 (READY):** Deprecate SK ChatComplete and KernelFactory + delete 4 SK plugins (8-10 hours)
-2. **Phase 4:** Refactor health checkers, TextChunker, Qdrant (12-20 hours)
-3. **Phase 5:** Update all tests (15-18 hours)
-4. **Phase 6:** Final cleanup and documentation (4-6 hours)
+1. **Phase 4 (NEXT):** Refactor health checkers, TextChunker, Qdrant (12-20 hours)
+   - Migrate 3 health checkers to use direct SDKs (9-12h)
+   - Decide TextChunker approach: keep SK, custom, or third-party (0-8h)
+   - Investigate Qdrant connector independence (0-10h)
+2. **Phase 5:** Update all tests (15-18 hours)
+3. **Phase 6:** Final cleanup and documentation (4-6 hours)
 
 ### Critical Blockers 🔴
-- Streaming support needed in ChatCompleteAF before deprecating SK
 - TextChunker replacement decision (keep SK or migrate)
 - Qdrant connector investigation (standalone or migrate)
 
@@ -109,7 +111,8 @@ You must remain critical but friendly at all times. Do not always accept the fir
 | 23 | MCP OAuth 2.1 | 🔄 M2M working, PKCE blocked |
 | 24 | MCP Client Development | 🔄 STDIO done, HTTP TODO |
 | 25 | UI Modernization | 🔄 Copilot-driven |
-| **26** | **Agent Framework Migration** | **🟡 IN PROGRESS - 15%** |
+| **26** | **Agent Framework Migration** | **🟡 IN PROGRESS - 35%** |
+| 27 | RAG Optimization | 📋 PLANNED |
 
 ## Quick Reference - API & DTOs
 
@@ -220,7 +223,7 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 - `documentation/UI_REVIEW.md` - Current state analysis
 - `documentation/UI_IMPROVEMENTS_ACTION_PLAN.md` - Implementation guide
 
-## Agent Framework Migration (Milestone #26) 🛠️ PLANNING
+## Agent Framework Migration (Milestone #26) 🛠️ IN PROGRESS
 
 **Sandbox:** `/home/wayne/repos/AgentFrameworkSandbox/` (.NET 9 solution created)
 
@@ -234,6 +237,31 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 - TextChunker: Keep SK or find alternative (no AF equivalent)
 
 **Documentation:** `documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md` (comprehensive 40-60 hour plan)
+
+**Progress:** 35% complete - Phases 1-3 done, Phases 4-6 remaining
+
+## RAG Optimization (Milestone #27) 📋 PLANNED
+
+**Status:** Planning phase - performance baseline established
+**Current Performance:** 8.7/10 average on comprehensive knowledge base test
+
+**Test Results (using KNOWLEDGE_BASE_COMPREHENSIVE.md):**
+- Single-section queries: 10/10 (Docker deployment, migration status, architecture)
+- Cross-section queries: 6-7.5/10 (MCP tools, local development setup)
+- Multi-model testing: Gemini provides more comprehensive answers than GPT-4
+
+**Identified Optimization Opportunities:**
+1. **Search Limit:** Increase from 5 to 10 results
+2. **Chunk Size:** Adjust from 1000 to 1500 tokens for better context
+3. **Chunk Overlap:** Increase from 200 to 300 tokens to reduce context fragmentation
+4. **Relevance Threshold:** Lower from 0.3 to 0.25 to capture more relevant results
+
+**Target Improvements:**
+- Cross-section retrieval: 6/10 → 9/10
+- Questions requiring 5+ sections: Better synthesis
+- Overall average: 8.7/10 → 9.5/10
+
+**Estimated Effort:** 6-8 hours (config changes, testing, benchmarking)
 
 ## Recent Progress (November 2025)
 
