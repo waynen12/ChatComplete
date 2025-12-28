@@ -4,7 +4,7 @@ using Knowledge.Contracts.Types;
 using ChatCompletion.Config;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
-// using OllamaSharp; // TODO: Disabled due to SK connector conflict - will be re-enabled after SK migration
+using OllamaSharp;
 using OpenAI;
 
 namespace KnowledgeEngine.Agents.AgentFramework;
@@ -101,15 +101,6 @@ public class AgentFactory
                 break;
 
             case AiProvider.Ollama:
-                // TODO: Ollama support temporarily disabled due to version conflict with SK connector
-                // OllamaSharp 5.4.11 is incompatible with Microsoft.SemanticKernel.Connectors.Ollama 1.64.0
-                // This will be re-enabled after completing the SK migration
-                throw new NotSupportedException(
-                    "Ollama provider is temporarily unavailable in Agent Framework mode. " +
-                    "Use OpenAI, Google, or Anthropic providers instead. " +
-                    "Ollama support will be restored after Semantic Kernel migration is complete.");
-
-                /* Original implementation - will be uncommented after SK removal:
                 if (string.IsNullOrEmpty(_settings.OllamaBaseUrl))
                 {
                     throw new InvalidOperationException(
@@ -123,7 +114,6 @@ public class AgentFactory
 
                 Console.WriteLine($"✅ Created Ollama agent with model: {modelToUse}");
                 break;
-                */
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported AI provider");

@@ -20,8 +20,8 @@
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.64.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.64.0-alpha" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.MongoDb" Version="1.64.0-preview" />
-    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.64.0-alpha" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Qdrant" Version="1.64.0-preview" />
+    <PackageReference Include="OllamaSharp" Version="5.4.11" />
     <PackageReference Include="MongoDB.Driver" Version="2.30.0" />
     <PackageReference Include="Microsoft.SemanticKernel.PromptTemplates.Handlebars" Version="1.64.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Yaml" Version="1.64.0" />
