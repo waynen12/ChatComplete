@@ -1,11 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine.Agents.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.Anthropic;
 
 namespace KnowledgeEngine.Services.HealthCheckers;
 
@@ -32,8 +29,7 @@ public class AnthropicHealthChecker : IComponentHealthChecker
         return Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
     }
    
-     [Experimental("SKEXP0070")]
-    public  async Task<ComponentHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+    public async Task<ComponentHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
     {
         var apiKey = GetApiKey();
         if (string.IsNullOrEmpty(apiKey))
@@ -111,7 +107,6 @@ public class AnthropicHealthChecker : IComponentHealthChecker
         }
     }
 
-    [Experimental("SKEXP0070")]
     public async Task<ComponentHealth> QuickHealthCheckAsync(CancellationToken cancellationToken = default)
     {
         // For external API providers, quick check is the same as full check

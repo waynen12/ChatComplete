@@ -1,12 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine.Agents.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 namespace KnowledgeEngine.Services.HealthCheckers;
 
@@ -35,8 +31,7 @@ public class OpenAIHealthChecker : IComponentHealthChecker
         return Environment.GetEnvironmentVariable("OPENAI_API_KEY");
     }
     
-    [Experimental("SKEXP0070")]
-    public  async Task<ComponentHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+    public async Task<ComponentHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
     {
         var apiKey = GetApiKey();
         if (string.IsNullOrEmpty(apiKey))
@@ -112,7 +107,6 @@ public class OpenAIHealthChecker : IComponentHealthChecker
         }
     }
 
-    [Experimental("SKEXP0070")]
     public async Task<ComponentHealth> QuickHealthCheckAsync(CancellationToken cancellationToken = default)
     {
         // For external API providers, quick check is the same as full check
