@@ -6,9 +6,7 @@ using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Persistence.IndexManagers;
 using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.AI;
-using Microsoft.SemanticKernel.Text;
-
-#pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
+using SemanticChunkerNET;
 
 namespace KnowledgeEngine;
 
@@ -89,45 +87,43 @@ public class KnowledgeManager
             throw new InvalidOperationException($"Failed to convert {documentPath} to text");
         }
 
-        // 3. Chunk the text
-        int maxLine =
-            SettingsProvider.Settings.ChunkLineTokens > 0
-                ? SettingsProvider.Settings.ChunkLineTokens
-                : 60;
-        int maxPara =
+        // 3. Chunk the text using SemanticChunker.NET
+        int tokenLimit =
             SettingsProvider.Settings.ChunkParagraphTokens > 0
                 ? SettingsProvider.Settings.ChunkParagraphTokens
                 : 200;
-        int overlap = Math.Max(0, SettingsProvider.Settings.ChunkOverlap);
 
-        var lines = markdown
-            ? TextChunker.SplitMarkDownLines(rawText, maxLine)
-            : TextChunker.SplitPlainTextLines(rawText, maxLine);
-        var paragraphs = markdown
-            ? TextChunker.SplitMarkdownParagraphs(lines, maxPara, overlap)
-            : TextChunker.SplitPlainTextParagraphs(lines, maxPara, overlap);
+        // Create SemanticChunker with our embedding service
+        var semanticChunker = new SemanticChunker(
+            _embeddingService,
+            tokenLimit: tokenLimit,
+            bufferSize: Math.Max(1, SettingsProvider.Settings.ChunkOverlap)
+        );
+
+        // Generate semantic chunks (already includes embeddings!)
+        IList<Chunk> chunks = await semanticChunker.CreateChunksAsync(rawText);
 
         // 4. Store chunks in vector store
         string source = doc.Source;
         string fileId = Path.GetFileNameWithoutExtension(documentPath);
 
-        for (int i = 0; i < paragraphs.Count; i++)
+        for (int i = 0; i < chunks.Count; i++)
         {
+            var chunk = chunks[i];
             var chunkOrder = i.ToString("D4");
             var chunkId = $"{fileId}-p{chunkOrder}";
-            var chunkText = paragraphs[i];
 
-            // Generate embedding for this chunk
-            var embeddingResult = await _embeddingService.GenerateAsync(new[] { chunkText });
-            var embedding = embeddingResult.First();
+            // SemanticChunker already generated the embedding
+            var embeddingVector = chunk.Embedding.Vector.ToArray();
+            var embedding = new Embedding<float>(embeddingVector);
 
             // Store in vector store with metadata
-            await _vectorStoreStrategy.UpsertAsync(collectionName, chunkId, chunkText, embedding);
+            await _vectorStoreStrategy.UpsertAsync(collectionName, chunkId, chunk.Text, embedding);
         }
 
         LoggerProvider.Logger.Information(
             "✅ Stored {Count} chunks from {File} in {ElapsedMs} ms",
-            paragraphs.Count,
+            chunks.Count,
             documentPath,
             sw.ElapsedMilliseconds
         );
@@ -163,14 +159,14 @@ public class KnowledgeManager
             await _knowledgeRepository.UpdateCollectionStatsAsync(
                 collectionName,
                 1, // documentCount - this is one document
-                paragraphs.Count // chunkCount
+                chunks.Count // chunkCount
             );
 
             LoggerProvider.Logger.Information(
                 "📊 Updated collection metadata for {Collection}: 1 document ({FileName}), {ChunkCount} chunks",
                 collectionName,
                 fileName,
-                paragraphs.Count
+                chunks.Count
             );
         }
         catch (Exception ex)

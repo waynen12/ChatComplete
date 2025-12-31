@@ -178,7 +178,7 @@ export default function KnowledgeListPage() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button>Delete</Button>
+                          <Button size="sm">Delete</Button>
                         </AlertDialogTrigger>
 
                         <AlertDialogContent>
