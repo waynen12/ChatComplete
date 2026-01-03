@@ -8,7 +8,6 @@ using ChatCompletion.Config;
 using KnowledgeEngine.Logging;
 using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
-using Microsoft.SemanticKernel.Data;
 
 namespace KnowledgeEngine.Persistence.IndexManagers;
 

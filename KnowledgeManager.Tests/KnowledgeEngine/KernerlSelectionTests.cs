@@ -1,13 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Threading.Tasks;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
-using KnowledgeEngine;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Xunit;
+
 
 namespace KnowledgeManager.Tests.KnowledgeEngine;
 

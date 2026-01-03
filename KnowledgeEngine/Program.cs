@@ -7,8 +7,6 @@ using Microsoft.Extensions.Configuration;
 
 using Serilog;
 
-#pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
-
 public class Program
 {
     static string CollectionName = "TrackerSpec";

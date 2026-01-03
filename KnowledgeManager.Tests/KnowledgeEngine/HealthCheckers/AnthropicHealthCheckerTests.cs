@@ -6,9 +6,6 @@ using KnowledgeEngine.Agents.Models;
 using KnowledgeEngine.Services.HealthCheckers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.Anthropic;
 using Moq;
 
 namespace KnowledgeManager.Tests.KnowledgeEngine.HealthCheckers;
