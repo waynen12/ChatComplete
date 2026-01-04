@@ -1,8 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
 using Knowledge.Contracts;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine.Chat;
+using KnowledgeManager.Tests.AgentFramework;
 using Microsoft.Extensions.Options;
 
 namespace KnowledgeManager.Tests.KnowledgeEngine;
@@ -11,7 +11,6 @@ namespace KnowledgeManager.Tests.KnowledgeEngine;
 /// Unit tests for SqliteChatService - SQLite-based chat persistence
 /// Tests conversation persistence, history management, and chat flow
 /// </summary>
-[Experimental("SKEXP0001")]
 public class SqliteChatServiceTests
 {
     private const int MaxTurns = 12;
@@ -22,8 +21,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -36,7 +35,7 @@ public class SqliteChatServiceTests
         var reply = await service.GetReplyAsync(request, AiProvider.OpenAi, CancellationToken.None);
 
         // Assert
-        Assert.Equal("stub-reply", reply);
+        Assert.Equal("stub-response", reply);
         Assert.NotNull(request.ConversationId); // Should be populated
     }
 
@@ -45,8 +44,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -64,7 +63,7 @@ public class SqliteChatServiceTests
         Assert.Equal("user", messages[0].Role);
         Assert.Equal("User question", messages[0].Content);
         Assert.Equal("assistant", messages[1].Role);
-        Assert.Equal("stub-reply", messages[1].Content);
+        Assert.Equal("stub-response", messages[1].Content);
     }
 
     [Fact]
@@ -72,8 +71,8 @@ public class SqliteChatServiceTests
     {
         // Arrange - 5 existing messages
         var repo = new FakeConvoRepo(messageCount: 5);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -85,9 +84,9 @@ public class SqliteChatServiceTests
         // Act
         await service.GetReplyAsync(request, AiProvider.OpenAi, CancellationToken.None);
 
-        // Assert - Spy should receive existing 5 messages + user message + system message for conversation ID
-        Assert.NotNull(spy.LastHistoryCount);
-        Assert.True(spy.LastHistoryCount >= 6, $"Expected at least 6 messages (5 existing + 1 user), got {spy.LastHistoryCount}");
+        // Assert - Fake should receive existing 5 messages + user message + system message for conversation ID
+        Assert.NotNull(fake.LastHistoryCount);
+        Assert.True(fake.LastHistoryCount >= 6, $"Expected at least 6 messages (5 existing + 1 user), got {fake.LastHistoryCount}");
     }
 
     [Fact]
@@ -95,8 +94,8 @@ public class SqliteChatServiceTests
     {
         // Arrange - 40 existing messages (exceeds window)
         var repo = new FakeConvoRepo(messageCount: 40);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -109,10 +108,10 @@ public class SqliteChatServiceTests
         await service.GetReplyAsync(request, AiProvider.OpenAi, CancellationToken.None);
 
         // Assert - History should be truncated to window size
-        Assert.NotNull(spy.LastHistoryCount);
+        Assert.NotNull(fake.LastHistoryCount);
         // Should be within window (24 messages) + some buffer for system message
-        Assert.True(spy.LastHistoryCount <= Window + 5,
-            $"Expected ≤{Window + 5}, got {spy.LastHistoryCount}");
+        Assert.True(fake.LastHistoryCount <= Window + 5,
+            $"Expected ≤{Window + 5}, got {fake.LastHistoryCount}");
     }
 
     [Fact]
@@ -120,8 +119,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -134,7 +133,7 @@ public class SqliteChatServiceTests
         await service.GetReplyAsync(request, AiProvider.Google, CancellationToken.None);
 
         // Assert
-        Assert.Equal(AiProvider.Google, spy.LastProvider);
+        Assert.Equal(AiProvider.Google, fake.LastProvider);
     }
 
     [Fact]
@@ -142,8 +141,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -157,7 +156,7 @@ public class SqliteChatServiceTests
         await service.GetReplyAsync(request, AiProvider.OpenAi, CancellationToken.None);
 
         // Assert
-        Assert.Equal(0.8, spy.LastTemperature);
+        Assert.Equal(0.8, fake.LastTemperature);
     }
 
     [Fact]
@@ -165,8 +164,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -181,7 +180,7 @@ public class SqliteChatServiceTests
         await service.GetReplyAsync(request, AiProvider.Ollama, CancellationToken.None);
 
         // Assert
-        Assert.Equal("llama3.2:3b", spy.LastOllamaModel);
+        Assert.Equal("llama3.2:3b", fake.LastOllamaModel);
     }
 
     [Fact]
@@ -189,8 +188,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var conversationId = "conv-multi";
 
@@ -229,8 +228,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -243,7 +242,7 @@ public class SqliteChatServiceTests
         await service.GetReplyAsync(request, AiProvider.OpenAi, CancellationToken.None);
 
         // Assert
-        Assert.Equal("my-knowledge-base", spy.LastKnowledgeId);
+        Assert.Equal("my-knowledge-base", fake.LastKnowledgeId);
     }
 
     [Fact]
@@ -251,8 +250,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -266,7 +265,7 @@ public class SqliteChatServiceTests
         await service.GetReplyAsync(request, AiProvider.OpenAi, CancellationToken.None);
 
         // Assert
-        Assert.True(spy.LastUseExtendedInstructions);
+        Assert.True(fake.LastUseExtendedInstructions);
     }
 
     [Fact]
@@ -274,10 +273,10 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
+        var fake = new FakeChatCompleteAF();
 
         // Act - Create service with ChatMaxTurns = 1 (below minimum of 2)
-        var service = CreateService(spy, repo, maxTurns: 1);
+        var service = CreateService(fake, repo, maxTurns: 1);
 
         // Assert - Service should be created successfully
         // (minimum is enforced internally in SqliteChatService constructor)
@@ -289,8 +288,8 @@ public class SqliteChatServiceTests
     {
         // Arrange
         var repo = new FakeConvoRepo(messageCount: 0);
-        var spy = new SpyChatComplete();
-        var service = CreateService(spy, repo);
+        var fake = new FakeChatCompleteAF();
+        var service = CreateService(fake, repo);
 
         var request = new ChatRequestDto
         {
@@ -303,20 +302,19 @@ public class SqliteChatServiceTests
         var result = await service.GetReplyAsync(request, AiProvider.OpenAi, CancellationToken.None);
 
         // Assert
-        Assert.Equal("stub-reply", result);
+        Assert.Equal("stub-response", result);
     }
 
     // Helper method to create service
     private SqliteChatService CreateService(
-        SpyChatComplete spy,
+        FakeChatCompleteAF fake,
         FakeConvoRepo repo,
         int maxTurns = MaxTurns)
     {
         return new SqliteChatService(
-            spy,
-            null!, // AF version not used when UseAgentFramework = false
+            fake,  // AF version (SK removed in Phase 4)
             repo,
-            Options.Create(new ChatCompleteSettings { ChatMaxTurns = maxTurns, UseAgentFramework = false })
+            Options.Create(new ChatCompleteSettings { ChatMaxTurns = maxTurns })
         );
     }
 }

@@ -13,7 +13,6 @@ using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
 using MongoDB.Driver;
 using Qdrant.Client;

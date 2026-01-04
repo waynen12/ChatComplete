@@ -1,8 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
 using Knowledge.Contracts;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine.Chat;
+using KnowledgeManager.Tests.AgentFramework;
 using Microsoft.Extensions.Options;
 
 namespace KnowledgeManager.Tests.KnowledgeEngine;
@@ -13,18 +13,16 @@ public class MongoChatServiceTests
     private const int Window   = MaxTurns * 2; // msgs
 
     [Fact]
-    [Experimental("SKEXP0001")]
     public async Task MongoChatService_sends_bounded_history_to_ChatComplete()
     {
         // Arrange: 35 existing messages (> window)
         var repo = new FakeConvoRepo(messageCount: 35);
-        var spy  = new SpyChatComplete();
+        var fake = new FakeChatCompleteAF();
 
         var svc  = new MongoChatService(
-            spy,
-            null!, // AF version not used when UseAgentFramework = false
+            fake,  // AF version (SK removed in Phase 4)
             repo,
-            Options.Create(new ChatCompleteSettings { ChatMaxTurns = MaxTurns, UseAgentFramework = false }));
+            Options.Create(new ChatCompleteSettings { ChatMaxTurns = MaxTurns }));
 
         var dto = new ChatRequestDto
         {
@@ -35,8 +33,8 @@ public class MongoChatServiceTests
         // Act
         await svc.GetReplyAsync(dto, AiProvider.OpenAi, CancellationToken.None);
 
-        // Assert – Spy recorded the actual length handed to ChatComplete
-        Assert.NotNull(spy.LastHistoryCount);
-        Assert.True(spy.LastHistoryCount <= Window, $"Expected ≤{Window}, got {spy.LastHistoryCount}");
+        // Assert – Fake recorded the actual length handed to ChatComplete
+        Assert.NotNull(fake.LastHistoryCount);
+        Assert.True(fake.LastHistoryCount <= Window, $"Expected ≤{Window}, got {fake.LastHistoryCount}");
     }
 }
