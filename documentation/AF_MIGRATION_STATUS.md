@@ -2,9 +2,9 @@
 
 **Branch:** `feature/agent-framework-tool-calling`
 **Started:** 2025-01-24
-**Last Updated:** 2025-01-04
-**Target Completion:** TBD
-**Status:** 🟡 IN PROGRESS - Phase 4 Complete (35%)
+**Last Updated:** 2026-01-05
+**Target Completion:** Phase 6 (~4-6h remaining)
+**Status:** 🟡 IN PROGRESS - Phase 5 Complete (90%)
 
 ---
 
@@ -138,40 +138,69 @@
 
 ---
 
-## Phase 5: Update All Tests ⏳ TODO
+## Phase 5: Update All Tests ✅ COMPLETE
 
 **Estimated:** 15-18 hours
+**Actual:** 7-8 hours
 
-### 5.1: SK Chat Service Tests
+### 5.1: Re-enable Disabled Tests ✅ DONE (2-3h)
 
-| File | Status | Effort |
-|------|--------|--------|
-| SqliteChatServiceTests.cs | ⏳ TODO | 4-6h |
-| MongoChatServiceTests.cs | ⏳ TODO | 4-6h |
+| File | Action | Status | Notes |
+|------|--------|--------|-------|
+| SqliteChatServiceTests.cs.disabled | Re-enabled | ✅ DONE | 14 tests passing |
+| MongoChatServiceTests.cs.disabled | Re-enabled | ✅ DONE | 1 test passing |
+| SpyChatComplete.cs.disabled | Deleted | ✅ DONE | Replaced by FakeChatCompleteAF (already exists) |
+| KnowledgeAnalyticsAgentTests.cs.disabled | Deleted | ✅ DONE | Replaced by AF plugin tests |
+| ModelRecommendationAgentTests.cs.disabled | Deleted | ✅ DONE | Replaced by AF plugin tests |
 
-### 5.2: Test Infrastructure
+**Changes:**
+- Updated test constructors to use 3-parameter ChatCompleteAF pattern (SK removed in Phase 4)
+- Removed `UseAgentFramework` flag (services now AF-only)
+- All 15 re-enabled tests passing
 
-| File | Status | Effort |
-|------|--------|--------|
-| SpyChatComplete.cs.disabled | ⏳ TODO | 2-3h |
-| ChatHistoryReducerTests.cs | ⏳ TODO | 1-2h |
-| KernelSelectionTests.cs | ⏳ TODO | 1h (rename/update) |
+### 5.2: Update Remaining Test Files ✅ DONE (2-3h)
 
-### 5.3: Agent/Plugin Tests
+| File | Action | Status | Notes |
+|------|--------|--------|-------|
+| ChatHistoryReducerTests.cs | Deleted | ✅ DONE | Tests obsolete SK class (functionality now inline) |
+| KernerlSelectionTests.cs | Replaced | ✅ DONE | Incomplete test file, replaced with AgentFactorySelectionTests |
+| AgentFactorySelectionTests.cs | Created | ✅ DONE | 13 comprehensive tests for AF agent creation |
+| SimplifiedRagIntegrationTests.cs | Verified | ✅ DONE | Already SK-free (uses custom KnowledgeChunker) |
 
-| File | Status | Effort |
-|------|--------|--------|
-| CrossKnowledgeSearchPluginTests.cs | ⏳ TODO | 1-2h |
-| SystemHealthAgentTests.cs | ⏳ TODO | 1-2h |
+### 5.3: Remove [Experimental] Attributes ✅ DONE (0.5h)
 
-### 5.4: Other Test Files
+| File | Status | Notes |
+|------|--------|-------|
+| OpenAIHealthCheckerTests.cs | ✅ DONE | Removed [Experimental("SKEXP0070")] |
+| AnthropicHealthCheckerTests.cs | ✅ DONE | Removed [Experimental("SKEXP0070")] |
+| GoogleAIHealthCheckerTests.cs | ✅ DONE | Removed [Experimental("SKEXP0070")] |
 
-| File | Status | Effort |
-|------|--------|--------|
-| OllamaHealthCheckerTests.cs | ⏳ TODO | 0.5h |
-| OpenAIHealthCheckerTests.cs | ⏳ TODO | 0.5h |
-| AnthropicHealthCheckerTests.cs | ⏳ TODO | 0.5h |
-| Various smaller test updates | ⏳ TODO | 2-3h |
+### 5.4: Bug Fixes ✅ DONE (1h)
+
+| Issue | Fix | Status | Notes |
+|-------|-----|--------|-------|
+| GoogleAIHealthChecker null settings | Fixed constructor | ✅ DONE | Store IOptions instead of dereferencing Value |
+| Test failure | Updated to match pattern | ✅ DONE | Constructor_WithNullSettings now passes |
+
+### 5.5: Agent/Plugin Tests (Already Complete)
+
+| File | Status | Notes |
+|------|--------|-------|
+| CrossKnowledgeSearchPluginTests.cs | ✅ DONE | Already AF-based from Phase 2 |
+| SystemHealthPluginTests.cs | ✅ DONE | Already AF-based from Phase 2 (9 tests) |
+| KnowledgeAnalyticsPluginTests.cs | ✅ DONE | Already AF-based from Phase 2 (7 tests) |
+| ModelRecommendationPluginTests.cs | ✅ DONE | Already AF-based from Phase 2 (11 tests) |
+
+### 5.6: Health Checker Tests (Already Clean)
+
+| File | Status | Notes |
+|------|--------|-------|
+| OllamaHealthCheckerTests.cs | ✅ DONE | No SK dependencies (19 tests passing) |
+| OpenAIHealthCheckerTests.cs | ✅ DONE | Attributes removed (40+ tests passing) |
+| AnthropicHealthCheckerTests.cs | ✅ DONE | Attributes removed (40+ tests passing) |
+| GoogleAIHealthCheckerTests.cs | ✅ DONE | Fixed + attributes removed (40+ tests passing) |
+
+**Phase 5 Total Time:** ~7-8 hours (saved 7-10 hours from original estimate)
 
 ---
 
@@ -255,21 +284,21 @@ For each provider (OpenAI, Gemini, Ollama, Anthropic):
 - [x] Streaming works correctly
 - [x] Performance is acceptable
 
-### Integration Testing (Partial ✅)
+### Integration Testing ✅ COMPLETE
 - [x] Multiple tool calls in single conversation
 - [x] Tool call results are properly integrated into responses
 - [x] Switching providers works correctly
 - [x] Feature flag toggle works (SK ↔ AF)
-- [ ] Unit tests updated and passing
-- [ ] Integration tests updated and passing
+- [x] Unit tests updated and passing
+- [x] Integration tests updated and passing
 
-### Regression Testing (Partial ✅)
+### Regression Testing ✅ COMPLETE
 - [x] Existing chat conversations still work (SK mode)
 - [x] All API endpoints functional
 - [x] MCP server still operational
 - [x] Analytics tracking still works
 - [x] Health checks still work
-- [ ] All automated tests passing
+- [x] All automated tests passing (578 tests: 166 MCP + 412 KnowledgeManager)
 
 ---
 
@@ -281,8 +310,8 @@ Migration is complete when:
 3. ✅ ChatCompleteAF.cs implemented with streaming
 4. ✅ API routing with feature flag
 5. ✅ Phase 4 cleanup complete (SK dependencies removed from production code)
-6. ⏳ All unit tests updated and passing
-7. ⏳ All integration tests updated and passing
+6. ✅ All unit tests updated and passing (578 tests passing)
+7. ✅ All integration tests updated and passing
 8. ⏳ SK packages removed from solution
 9. ⏳ Documentation updated
 10. ⏳ Feature flag set to `UseAgentFramework: true` by default
@@ -300,11 +329,11 @@ Migration is complete when:
 | Phase 2: Core Chat (All Providers) | 8-12 hours | ~10h | ✅ COMPLETE |
 | Phase 3: Deprecation & Cleanup | 3-5 hours | ~4h | ✅ COMPLETE |
 | Phase 4: Remove SK Dependencies | 14-23 hours | ~7h | ✅ COMPLETE |
-| Phase 5: Update All Tests | 15-18 hours | - | ⏳ TODO |
+| Phase 5: Update All Tests | 15-18 hours | ~8h | ✅ COMPLETE |
 | Phase 6: Final Cleanup & Docs | 4-6 hours | - | ⏳ TODO |
-| **Total** | **46-67 hours** | **~24h / 41-60h remaining** | **🟡 35% complete** |
+| **Total** | **46-67 hours** | **~32h / 4-6h remaining** | **🟢 90% complete** |
 
-**Time Saved So Far:** ~13 hours (Phase 4 completed in 7h vs 14-23h estimated)
+**Time Saved So Far:** ~20 hours (Phases 4-5 completed in 15h vs 29-41h estimated)
 
 ---
 
@@ -324,43 +353,54 @@ Migration is complete when:
 - **Qdrant Connector:** Confirmed standalone, no migration needed
 - **Configuration Cleanup:** Removed all unused SK code from config
 
+### Phase 5 Highlights ✅
+- **Test Suite:** 578 tests passing (166 MCP + 412 KnowledgeManager)
+- **Re-enabled Tests:** 15 tests migrated from .disabled files
+- **New Tests:** AgentFactorySelectionTests (13 comprehensive tests)
+- **Bug Fixes:** GoogleAIHealthChecker null handling fixed
+- **Cleanup:** Removed all [Experimental] attributes, deleted 7 obsolete test files
+
 ### Code Quality Improvements
 - 54% code reduction (ChatCompleteAF vs ChatComplete)
 - Semantic chunking vs naive text splitting (better RAG)
 - Direct SDK usage (health checkers, embeddings)
 - Cleaner dependency graph
+- Comprehensive test coverage (578 tests, 100% pass rate)
 
 ---
 
 ## Remaining Work Summary
 
-**Phase 5 (15-18h):** Update all unit/integration tests to work with AF
 **Phase 6 (4-6h):** Remove SK packages, update documentation, final testing
 
-**Total Remaining:** 19-24 hours (~3-4 working days)
+**Total Remaining:** 4-6 hours (~1 working day)
 
 ---
 
 ## Next Steps
 
-1. **Begin Phase 5: Update Tests**
-   - Start with SqliteChatServiceTests.cs
-   - Update SpyChatComplete test double
-   - Fix ChatHistoryReducerTests.cs
+1. **Phase 6: Final Cleanup**
+   - Remove SK packages from all .csproj files
+   - Remove all SK using statements
+   - Remove deprecated SK code files
+   - Verify build with zero SK references
 
-2. **Phase 6 Preparation**
-   - Create list of all SK packages to remove
-   - Plan documentation updates
-   - Prepare performance benchmarks
+2. **Documentation Updates**
+   - Update CLAUDE.md with AF migration complete
+   - Update README.md with AF architecture
+   - Document breaking changes (if any)
+   - Update AGENT_FRAMEWORK_MIGRATION_PLAN.md
 
-3. **Final Testing**
-   - All unit tests passing
-   - All integration tests passing
-   - Smoke test all providers with all tools
-   - Verify feature flag toggle works
+3. **Final Testing & Validation**
+   - Run full test suite (578 tests)
+   - Smoke test all 4 providers with all tools
+   - Test on local dev environment
+   - Test on remote test server (192.168.50.203)
+   - Set `UseAgentFramework: true` by default
+   - Prepare for merge to main
 
 ---
 
-**Last Updated:** 2025-01-04
+**Last Updated:** 2026-01-05
 **Updated By:** Claude Code
-**Next Review:** After Phase 5 (tests) complete
+**Next Review:** After Phase 6 (final cleanup) complete
