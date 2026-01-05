@@ -7,7 +7,7 @@ namespace KnowledgeEngine.Services.HealthCheckers;
 
 public class GoogleAIHealthChecker : IComponentHealthChecker
 {
-    private readonly ChatCompleteSettings _settings;
+    private readonly IOptions<ChatCompleteSettings> _settings;
     private readonly ILogger<GoogleAIHealthChecker> _logger;
     public string ComponentName => "Google AI";
     public int Priority => 1;
@@ -18,7 +18,7 @@ public class GoogleAIHealthChecker : IComponentHealthChecker
         ILogger<GoogleAIHealthChecker> logger
     )
     {
-        _settings = settings.Value;
+        _settings = settings;
         _logger = logger;
     }
 
@@ -72,7 +72,7 @@ public class GoogleAIHealthChecker : IComponentHealthChecker
             );
 
             var response = await httpClient.PostAsync(
-                $"https://generativelanguage.googleapis.com/v1beta/models/{_settings.GoogleModel}:generateContent?key={apiKey}",
+                $"https://generativelanguage.googleapis.com/v1beta/models/{_settings.Value.GoogleModel}:generateContent?key={apiKey}",
                 content,
                 cancellationToken
             );
