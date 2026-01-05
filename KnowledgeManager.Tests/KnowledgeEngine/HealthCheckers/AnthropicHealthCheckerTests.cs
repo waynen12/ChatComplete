@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using ChatCompletion.Config;
 using Knowledge.Contracts.Types;
 using KnowledgeEngine;
@@ -10,7 +9,6 @@ using Moq;
 
 namespace KnowledgeManager.Tests.KnowledgeEngine.HealthCheckers;
 
-[Experimental("SKEXP0070")]
 public class AnthropicHealthCheckerTests : IDisposable
 {
     private readonly Mock<IOptions<ChatCompleteSettings>> _mockSettings;
