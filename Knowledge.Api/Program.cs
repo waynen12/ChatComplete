@@ -86,14 +86,20 @@ if (activeProvider == "ollama")
 }
 else if (activeProvider == "openai")
 {
-    // OpenAI embedding service
+    // OpenAI embedding service (Agent Framework - uses existing OpenAiEmbeddingService)
     if (string.IsNullOrEmpty(openAiKey))
     {
         throw new InvalidOperationException(
             "OpenAI API key is required when using OpenAI embedding provider. Set OPENAI_API_KEY environment variable.");
     }
-    var openAiConfig = settings.EmbeddingProviders.OpenAI;
-    builder.Services.AddOpenAIEmbeddingGenerator(openAiConfig.ModelName, openAiKey);
+
+    builder.Services.AddHttpClient<OpenAiEmbeddingService>();
+    builder.Services.AddScoped<IEmbeddingGenerator<string, Embedding<float>>>(serviceProvider =>
+    {
+        var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+        var httpClient = httpClientFactory.CreateClient(nameof(OpenAiEmbeddingService));
+        return new OpenAiEmbeddingService(openAiKey, httpClient);
+    });
 }
 else
 {
