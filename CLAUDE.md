@@ -60,42 +60,47 @@ You must remain critical but friendly at all times. Do not always accept the fir
 
 | Layer | Tech |
 |-------|------|
-| Backend | ASP.NET 8 Minimal APIs · Serilog · SQLite · Semantic Kernel 1.6 |
+| Backend | ASP.NET 8 Minimal APIs · Serilog · SQLite · Microsoft.Extensions.AI |
 | Vector Store | Qdrant |
 | Frontend | React + Vite · shadcn/ui (Radix + Tailwind) |
 | CI/Deploy | Self-hosted GitHub Actions on Mint Linux → /opt/knowledge-api/out |
 
 ## 🚀 CURRENT PRIORITY: Agent Framework Migration (Milestone #26)
 
-**Status:** 🟡 IN PROGRESS - 35% Complete
-**Estimated Remaining:** 41-60 hours (5-8 working days)
-**Documentation:** [AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md) ⭐ **READ THIS FIRST**
+**Status:** ✅ COMPLETE - 95% (Code 100%, Documentation Pending)
+**Total Time:** ~34 hours (vs 46-67h estimated - 12-33h saved)
+**Documentation:** [AF_MIGRATION_STATUS.md](documentation/AF_MIGRATION_STATUS.md) · [AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md)
 
-### What's Done ✅
-- ChatCompleteAF.cs (950+ lines, 54% code reduction vs SK)
-- 4 AF plugins migrated (CrossKnowledgeSearch, ModelRecommendation, KnowledgeAnalytics, SystemHealth)
-- AgentFactory.cs for agent creation
-- API integration with feature flag routing (`UseAgentFramework`)
-- Unit tests (6/7 passing)
-- Phase 1 (Partial): Deleted 3 obsolete files (KernelHelper, EmbeddingsHelper, Summarizer)
-- Phase 2 (Complete): Streaming support (AskStreamingAsync, AskWithAgentStreamingAsync)
-- Phase 3 (Complete): Deprecated ChatComplete.cs and KernelFactory.cs, deleted 4 SK plugins
+### ✅ Migration Complete (Phases 1-6)
+- **Phase 1-3:** Full AF implementation with all 4 providers (OpenAI, Gemini, Anthropic, Ollama)
+  - ChatCompleteAF.cs (950+ lines, 54% code reduction vs SK)
+  - 4 AF plugins with 11 total functions
+  - AgentFactory.cs for multi-provider support
+  - Streaming support (AskStreamingAsync, AskWithAgentStreamingAsync)
+- **Phase 4:** SK dependencies removed (~7h vs 14-23h estimated)
+  - Ollama re-enabled with OllamaSharp 5.4.11
+  - Health checkers using direct SDKs (already clean)
+  - TextChunker migrated to SemanticChunker.NET (semantic chunking)
+  - Qdrant/MongoDB connectors kept (framework-agnostic)
+- **Phase 5:** All 578 tests passing (~8h vs 15-18h estimated)
+  - 166 MCP tests + 412 KnowledgeManager tests
+  - Re-enabled 15 disabled tests
+  - Created AgentFactorySelectionTests (13 tests)
+- **Phase 6:** SK packages removed (~2h vs 4-6h estimated)
+  - Removed 7 SK packages from solution
+  - Build verification: 0 errors
+  - Kept vector store connectors (MongoDB, Qdrant)
 
-### Next Steps 🎯
-1. **Phase 4 (NEXT):** Refactor health checkers, TextChunker, Qdrant, Ollama (14-23 hours)
-   - **Ollama Re-enablement (2-3h)** - CRITICAL: Currently broken in AF mode
-   - Migrate 3 health checkers to use direct SDKs (9-12h)
-   - Decide TextChunker approach: keep SK, custom, or third-party (0-8h)
-   - Investigate Qdrant connector independence (0-10h)
-2. **Phase 5:** Update all tests (15-18 hours)
-3. **Phase 6:** Final cleanup and documentation (4-6 hours)
+### 📋 Remaining Work (Phase 6.3 - Documentation)
+1. ⏳ Update CLAUDE.md (this file) - IN PROGRESS
+2. ⏳ Update AGENT_FRAMEWORK_MIGRATION_PLAN.md
+3. ⏳ Update README.md with AF architecture
+4. ⏳ Document breaking changes (if any)
+5. ⏳ Performance testing/benchmarks
 
-### Critical Blockers 🔴
-- **Ollama provider disabled** - Package conflict with SK connector (Phase 4)
-- TextChunker replacement decision (keep SK or migrate)
-- Qdrant connector investigation (standalone or migrate)
+**Estimated:** 4.5 hours remaining
 
-**📖 For complete details, see [documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md)**
+**📖 For complete details, see [documentation/AF_MIGRATION_STATUS.md](documentation/AF_MIGRATION_STATUS.md)**
 
 ---
 
@@ -113,7 +118,7 @@ You must remain critical but friendly at all times. Do not always accept the fir
 | 23 | MCP OAuth 2.1 | 🔄 M2M working, PKCE blocked |
 | 24 | MCP Client Development | 🔄 STDIO done, HTTP TODO |
 | 25 | UI Modernization | 🔄 Copilot-driven |
-| **26** | **Agent Framework Migration** | **🟡 IN PROGRESS - 35%** |
+| 26 | Agent Framework Migration | ✅ COMPLETE (docs pending) |
 | 27 | RAG Optimization | 📋 PLANNED |
 
 ## Quick Reference - API & DTOs
@@ -225,22 +230,31 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 - `documentation/UI_REVIEW.md` - Current state analysis
 - `documentation/UI_IMPROVEMENTS_ACTION_PLAN.md` - Implementation guide
 
-## Agent Framework Migration (Milestone #26) 🛠️ IN PROGRESS
+## Agent Framework Migration (Milestone #26) ✅ COMPLETE
 
-**Sandbox:** `/home/wayne/repos/AgentFrameworkSandbox/` (.NET 9 solution created)
+**Status:** Code migration complete, documentation pending
+**Branch:** `feature/agent-framework-tool-calling`
+**Total Time:** ~34 hours (vs 46-67h estimated)
 
-**Purpose:** Explore Microsoft Agent Framework (replacement for Semantic Kernel + AutoGen)
+**What Changed:**
+- Migrated from Semantic Kernel 1.6 to Microsoft.Extensions.AI (Agent Framework)
+- `Kernel` → `ChatClient` (direct provider SDKs)
+- `KernelFunction` → `AIFunction` (tool calling)
+- `ChatHistory` → `List<ChatMessage>` (AF conversation pattern)
+- Removed 7 SK packages, kept vector store connectors (framework-agnostic)
+- TextChunker: Migrated to SemanticChunker.NET (semantic chunking)
 
-**Key Points:**
-- `Kernel` abstraction removed → use `ChatClient` directly
-- `KernelFunction` → `AIFunction`
-- `ChatHistory` → `AgentThread`
-- Qdrant connector stays (SK by name only, no AF equivalent)
-- TextChunker: Keep SK or find alternative (no AF equivalent)
+**Architecture:**
+- **ChatCompleteAF.cs**: Multi-provider chat with tool calling (950+ lines, 54% smaller than SK version)
+- **AgentFactory.cs**: Creates ChatClient instances for all 4 providers
+- **AgentToolRegistration.cs**: Reflection-based tool discovery and registration
+- **4 AF Plugins**: 11 total functions (search, analytics, recommendations, health)
 
-**Documentation:** `documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md` (comprehensive 40-60 hour plan)
+**Test Coverage:** 578 tests passing (166 MCP + 412 KnowledgeManager)
 
-**Progress:** 35% complete - Phases 1-3 done, Phases 4-6 remaining
+**Documentation:**
+- [AF_MIGRATION_STATUS.md](documentation/AF_MIGRATION_STATUS.md) - Detailed progress tracker
+- [AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md) - Original migration plan
 
 ## RAG Optimization (Milestone #27) 📋 PLANNED
 
@@ -265,20 +279,25 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 
 **Estimated Effort:** 6-8 hours (config changes, testing, benchmarking)
 
-## Recent Progress (November 2025)
+## Recent Progress
 
-### This Session
+### January 2026 - Agent Framework Migration Complete
+- ✅ **Phase 1-3:** ChatCompleteAF.cs implementation with all 4 providers
+- ✅ **Phase 4:** Removed all SK dependencies (~7h vs 14-23h estimated)
+  - Ollama re-enabled with OllamaSharp 5.4.11
+  - TextChunker migrated to SemanticChunker.NET
+  - Qdrant/MongoDB connectors kept (framework-agnostic)
+- ✅ **Phase 5:** All 578 tests passing (~8h vs 15-18h estimated)
+- ✅ **Phase 6:** Removed 7 SK packages from solution (~2h vs 4-6h estimated)
+- 🟡 **Phase 6.3:** Documentation updates in progress
+
+### November 2025
 - ✅ Fixed fail-fast CI/CD for docker-build.yml workflow
 - ✅ Fixed Knowledge.Api.csproj (BOM character, invalid XML comment)
 - ✅ Reviewed Playwright-MCP documentation (9.5/10 rating)
-- ✅ Confirmed MCP OAuth DCR not implemented, created spec
 - ✅ Created Agent Framework migration plan
-- ✅ Created AgentFrameworkSandbox solution (.NET 9)
-
-### Previous Sessions
 - ✅ Database path fix (moved outside `/out` directory)
 - ✅ Analytics dashboard fixes (usage tracking, Ollama integration)
-- ✅ Ollama model management (progress bars, auto-sync)
 
 ## Current System Status
 
@@ -287,15 +306,16 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 - ✅ Docker Hub: `waynen12/ai-knowledge-manager:latest`
 
 **Active Work:**
-1. UI Modernization - Copilot Cloud (branch: `copilot/review-ui-in-webclient`)
-2. MCP OAuth 2.1 - Blocked on PKCE/JWE issue
-3. MCP Client - HTTP transport TODO
-4. Agent Framework - Exploration phase
+1. Agent Framework - Documentation updates (Phase 6.3, 4.5h remaining)
+2. UI Modernization - Copilot Cloud (branch: `copilot/review-ui-in-webclient`)
+3. MCP OAuth 2.1 - Blocked on PKCE/JWE issue
+4. MCP Client - HTTP transport TODO
 
 **Known Issues:**
 1. OAuth PKCE Flow - Auth0 returns JWE tokens
 2. MCP Client Phase 2 - HTTP transport pending
 3. UI Bundle Size - 1.15 MB, needs optimization
+4. Agent Framework - Feature flag still at `UseAgentFramework: false` (pending final validation)
 
 ## Bootstrap Instructions for New Chat
 
@@ -309,7 +329,8 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 
 | File | Description |
 |------|-------------|
-| `documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md` | SK → AF migration (40-60 hours) |
+| `documentation/AF_MIGRATION_STATUS.md` | Agent Framework migration progress (95% complete) |
+| `documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md` | Original AF migration plan (40-60 hours) |
 | `documentation/DCR_IMPLEMENTATION_SPEC.md` | OAuth DCR spec (42 hours, on hold) |
 | `documentation/MASTER_TEST_PLAN.md` | Test coverage tracking |
 | `documentation/FAILFAST_CI_IMPLEMENTATION.md` | CI/CD fail-fast documentation |
