@@ -62,6 +62,7 @@ internal sealed class FakeChatCompleteAF : ChatCompleteAF
         AiProvider provider,
         bool useExtendedInstructions = false,
         string? ollamaModel = null,
+        string? conversationId = null,
         CancellationToken ct = default)
     {
         if (ShouldThrowException)
@@ -89,6 +90,7 @@ internal sealed class FakeChatCompleteAF : ChatCompleteAF
         bool useExtendedInstructions = false,
         bool enableAgentTools = true,
         string? ollamaModel = null,
+        string? conversationId = null,
         CancellationToken ct = default)
     {
         if (ShouldThrowException)

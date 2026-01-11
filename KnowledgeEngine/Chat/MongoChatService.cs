@@ -82,6 +82,7 @@ public sealed class MongoChatService : IChatService
                 dto.UseExtendedInstructions,
                 enableAgentTools: true,
                 dto.OllamaModel,
+                dto.ConversationId,
                 ct
             );
             replyText = agentResponse.Response;
@@ -96,6 +97,7 @@ public sealed class MongoChatService : IChatService
                 provider,
                 dto.UseExtendedInstructions,
                 dto.OllamaModel,
+                dto.ConversationId,
                 ct
             );
         }

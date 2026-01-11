@@ -237,13 +237,13 @@ public class ChatCompleteAF
         AiProvider provider,
         bool useExtendedInstructions = false,
         string? ollamaModel = null,
+        string? conversationId = null,
         CancellationToken ct = default
     )
     {
         var startTime = DateTime.UtcNow;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         bool wasSuccessful = false;
-        string? conversationId = null; // No conversation tracking - allows NULL in usage metrics
         int totalTokens = 0;
 
         try
@@ -368,13 +368,13 @@ public class ChatCompleteAF
         bool useExtendedInstructions = false,
         bool enableAgentTools = true,
         string? ollamaModel = null,
+        string? conversationId = null,
         CancellationToken ct = default
     )
     {
         var startTime = DateTime.UtcNow;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         bool wasSuccessful = false;
-        string? conversationId = null; // No conversation tracking - allows NULL in usage metrics
         int totalTokens = 0;
         var response = new AgentChatResponse();
 
@@ -511,6 +511,7 @@ public class ChatCompleteAF
                     provider,
                     useExtendedInstructions,
                     ollamaModel,
+                    conversationId,
                     ct
                 );
                 return new AgentChatResponse
@@ -560,6 +561,7 @@ public class ChatCompleteAF
                 provider,
                 useExtendedInstructions,
                 ollamaModel,
+                conversationId,
                 ct
             );
             response.UsedAgentCapabilities = false;
@@ -609,13 +611,13 @@ public class ChatCompleteAF
         AiProvider provider,
         bool useExtendedInstructions = false,
         string? ollamaModel = null,
+        string? conversationId = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default
     )
     {
         var startTime = DateTime.UtcNow;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         bool wasSuccessful = false;
-        string? conversationId = null; // No conversation tracking - allows NULL in usage metrics
         int totalTokens = 0;
         var fullResponse = new StringBuilder();
 
@@ -733,13 +735,13 @@ public class ChatCompleteAF
         bool useExtendedInstructions = false,
         bool enableAgentTools = true,
         string? ollamaModel = null,
+        string? conversationId = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default
     )
     {
         var startTime = DateTime.UtcNow;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         bool wasSuccessful = false;
-        string? conversationId = null; // No conversation tracking - allows NULL in usage metrics
         int totalTokens = 0;
         var fullResponse = new StringBuilder();
         var toolExecutionCount = 0;

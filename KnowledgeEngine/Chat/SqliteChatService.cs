@@ -86,6 +86,7 @@ public sealed class SqliteChatService : IChatService
                 dto.UseExtendedInstructions,
                 enableAgentTools: true,
                 dto.OllamaModel,
+                dto.ConversationId,
                 ct
             );
             replyText = agentResponse.Response;
@@ -100,6 +101,7 @@ public sealed class SqliteChatService : IChatService
                 provider,
                 dto.UseExtendedInstructions,
                 dto.OllamaModel,
+                dto.ConversationId,
                 ct
             );
         }
