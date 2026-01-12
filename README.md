@@ -85,7 +85,8 @@ open http://localhost:8080
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
 │         │                  │                  │          │
 │  ┌──────▼──────────────────▼──────────────────▼───────┐ │
-│  │        Semantic Kernel 1.6 (Agent/Plugins)         │ │
+│  │   Microsoft.Extensions.AI (Agent Framework)        │ │
+│  │   AgentFactory + 4 AF Plugins (11 tools)           │ │
 │  └─────────────────────┬────────────────────────────── ┘ │
 └────────────────────────┼─────────────────────────────────┘
                          │
@@ -101,10 +102,29 @@ open http://localhost:8080
 **Tech Stack:**
 - **Frontend**: React 18 + Vite + shadcn/ui (Radix + Tailwind)
 - **Backend**: ASP.NET 8 Minimal APIs + Serilog
-- **AI Framework**: Semantic Kernel 1.6
+- **AI Framework**: Microsoft.Extensions.AI (Agent Framework) - *migrated from Semantic Kernel 1.6*
 - **Vector DB**: Qdrant (gRPC for performance)
 - **Storage**: SQLite (configuration, chat history, analytics)
 - **LLM Integration**: OpenAI, Anthropic, Google AI, Ollama
+
+### Agent Framework Architecture
+
+The system uses **Microsoft.Extensions.AI (Agent Framework)** for AI orchestration:
+
+**Core Components:**
+- **ChatCompleteAF.cs**: Multi-provider chat with tool calling (950+ lines, 54% smaller than SK version)
+- **AgentFactory.cs**: Creates `ChatClient` instances for all 4 providers
+- **AgentToolRegistration.cs**: Reflection-based tool discovery and registration
+- **4 AF Plugins**: 11 total functions (search, analytics, recommendations, health)
+
+**Key Features:**
+- ✅ Direct provider SDK usage (no abstraction overhead)
+- ✅ Tool calling support for all providers
+- ✅ Streaming chat completion
+- ✅ Conversation tracking and analytics
+- ✅ Semantic chunking with embeddings (SemanticChunker.NET)
+
+**Migration Details:** See [AF_MIGRATION_STATUS.md](documentation/AF_MIGRATION_STATUS.md) for complete migration documentation (41.5 hours, completed Jan 2026)
 
 ## 📦 Installation
 
