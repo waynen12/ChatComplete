@@ -65,42 +65,14 @@ You must remain critical but friendly at all times. Do not always accept the fir
 | Frontend | React + Vite · shadcn/ui (Radix + Tailwind) |
 | CI/Deploy | Self-hosted GitHub Actions on Mint Linux → /opt/knowledge-api/out |
 
-## 🚀 CURRENT PRIORITY: Agent Framework Migration (Milestone #26)
+## 🚀 CURRENT PRIORITIES
 
-**Status:** ✅ COMPLETE - 95% (Code 100%, Documentation Pending)
-**Total Time:** ~34 hours (vs 46-67h estimated - 12-33h saved)
-**Documentation:** [AF_MIGRATION_STATUS.md](documentation/AF_MIGRATION_STATUS.md) · [AGENT_FRAMEWORK_MIGRATION_PLAN.md](documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md)
-
-### ✅ Migration Complete (Phases 1-6)
-- **Phase 1-3:** Full AF implementation with all 4 providers (OpenAI, Gemini, Anthropic, Ollama)
-  - ChatCompleteAF.cs (950+ lines, 54% code reduction vs SK)
-  - 4 AF plugins with 11 total functions
-  - AgentFactory.cs for multi-provider support
-  - Streaming support (AskStreamingAsync, AskWithAgentStreamingAsync)
-- **Phase 4:** SK dependencies removed (~7h vs 14-23h estimated)
-  - Ollama re-enabled with OllamaSharp 5.4.11
-  - Health checkers using direct SDKs (already clean)
-  - TextChunker migrated to SemanticChunker.NET (semantic chunking)
-  - Qdrant/MongoDB connectors kept (framework-agnostic)
-- **Phase 5:** All 578 tests passing (~8h vs 15-18h estimated)
-  - 166 MCP tests + 412 KnowledgeManager tests
-  - Re-enabled 15 disabled tests
-  - Created AgentFactorySelectionTests (13 tests)
-- **Phase 6:** SK packages removed (~2h vs 4-6h estimated)
-  - Removed 7 SK packages from solution
-  - Build verification: 0 errors
-  - Kept vector store connectors (MongoDB, Qdrant)
-
-### 📋 Remaining Work (Phase 6.3 - Documentation)
-1. ⏳ Update CLAUDE.md (this file) - IN PROGRESS
-2. ⏳ Update AGENT_FRAMEWORK_MIGRATION_PLAN.md
-3. ⏳ Update README.md with AF architecture
-4. ⏳ Document breaking changes (if any)
-5. ⏳ Performance testing/benchmarks
-
-**Estimated:** 4.5 hours remaining
-
-**📖 For complete details, see [documentation/AF_MIGRATION_STATUS.md](documentation/AF_MIGRATION_STATUS.md)**
+| Priority | Milestone | Status |
+|---|---|---|
+| 1 | RAG Optimization (#27) | 📋 Ready to start |
+| 2 | MCP Client HTTP transport (#24) | 🔄 SSE + reconnection TODO |
+| 3 | UI Modernization (#25) | 🔄 Copilot-driven, branch active |
+| 4 | MCP OAuth 2.1 PKCE (#23) | ⚠️ Blocked on Auth0 JWE issue |
 
 ---
 
@@ -118,7 +90,7 @@ You must remain critical but friendly at all times. Do not always accept the fir
 | 23 | MCP OAuth 2.1 | 🔄 M2M working, PKCE blocked |
 | 24 | MCP Client Development | 🔄 STDIO done, HTTP TODO |
 | 25 | UI Modernization | 🔄 Copilot-driven |
-| 26 | Agent Framework Migration | ✅ COMPLETE (docs pending) |
+| 26 | Agent Framework Migration | ✅ COMPLETE - merged to main |
 | 27 | RAG Optimization | 📋 PLANNED |
 
 ## Quick Reference - API & DTOs
@@ -232,9 +204,8 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 
 ## Agent Framework Migration (Milestone #26) ✅ COMPLETE
 
-**Status:** Code migration complete, documentation pending
-**Branch:** `feature/agent-framework-tool-calling`
-**Total Time:** ~34 hours (vs 46-67h estimated)
+**Status:** 100% complete — merged to main (March 2026)
+**Total Time:** ~41.5 hours (vs 46-67h estimated)
 
 **What Changed:**
 - Migrated from Semantic Kernel 1.6 to Microsoft.Extensions.AI (Agent Framework)
@@ -289,7 +260,7 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
   - Qdrant/MongoDB connectors kept (framework-agnostic)
 - ✅ **Phase 5:** All 578 tests passing (~8h vs 15-18h estimated)
 - ✅ **Phase 6:** Removed 7 SK packages from solution (~2h vs 4-6h estimated)
-- 🟡 **Phase 6.3:** Documentation updates in progress
+- ✅ **Phase 6.3:** Documentation complete, merged to main
 
 ### November 2025
 - ✅ Fixed fail-fast CI/CD for docker-build.yml workflow
@@ -302,11 +273,11 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 ## Current System Status
 
 **Production:**
-- ✅ Test Machine (192.168.50.203): API + MCP running
+- ⚠️ Test Machine (192.168.50.203): OFFLINE (apartment flood, remote working)
 - ✅ Docker Hub: `waynen12/ai-knowledge-manager:latest`
 
 **Active Work:**
-1. Agent Framework - Documentation updates (Phase 6.3, 4.5h remaining)
+1. RAG Optimization - Ready to start (#27)
 2. UI Modernization - Copilot Cloud (branch: `copilot/review-ui-in-webclient`)
 3. MCP OAuth 2.1 - Blocked on PKCE/JWE issue
 4. MCP Client - HTTP transport TODO
@@ -315,7 +286,6 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 1. OAuth PKCE Flow - Auth0 returns JWE tokens
 2. MCP Client Phase 2 - HTTP transport pending
 3. UI Bundle Size - 1.15 MB, needs optimization
-4. Agent Framework - Feature flag still at `UseAgentFramework: false` (pending final validation)
 
 ## Bootstrap Instructions for New Chat
 
@@ -329,7 +299,7 @@ See `documentation/SUDOERS_SERVICE_USER_GUIDE.md` for sudoers configuration.
 
 | File | Description |
 |------|-------------|
-| `documentation/AF_MIGRATION_STATUS.md` | Agent Framework migration progress (95% complete) |
+| `documentation/AF_MIGRATION_STATUS.md` | Agent Framework migration progress (100% complete, merged) |
 | `documentation/AGENT_FRAMEWORK_MIGRATION_PLAN.md` | Original AF migration plan (40-60 hours) |
 | `documentation/DCR_IMPLEMENTATION_SPEC.md` | OAuth DCR spec (42 hours, on hold) |
 | `documentation/MASTER_TEST_PLAN.md` | Test coverage tracking |
