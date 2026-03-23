@@ -5,10 +5,16 @@ using ChatCompletion.Config;
 
 public static class KnowledgeChunker
 {
-    private static readonly Regex HeadingPattern = new(@"^#{1,3}(?:\s+|$)", RegexOptions.Compiled);
-    private static readonly Regex HeadingPrefixPattern = new(@"^#{1,6}\s*", RegexOptions.Compiled);
-    private static readonly Regex TokenPattern = new(@"\S+", RegexOptions.Compiled);
-    private static readonly Regex SlugNonAlphaNumericPattern = new(@"[^a-z0-9]+", RegexOptions.Compiled);
+    private const int FallbackTokenLimit = 200;
+    private const string FallbackSectionTitle = "Introduction";
+    private const string FallbackSectionSlug = "untitled";
+
+    private static readonly Regex HeadingRegex = new(@"^#{1,3}(?:\s+|$)", RegexOptions.Compiled);
+    private static readonly Regex HeadingPrefixRegex = new(@"^#{1,6}\s*", RegexOptions.Compiled);
+    private static readonly Regex TokenRegex = new(@"\S+", RegexOptions.Compiled);
+    private static readonly Regex SlugNonAlphaNumericRegex = new(@"[^a-z0-9]+", RegexOptions.Compiled);
+    private static readonly Regex MultipleDashesRegex = new(@"-+", RegexOptions.Compiled);
+    private static readonly Regex TagPunctuationRegex = new(@"[^a-z0-9\-]", RegexOptions.Compiled);
 
     public static List<KnowledgeChunk> ChunkFromMarkdown(
         string markdown,
@@ -106,7 +112,7 @@ public static class KnowledgeChunker
         var normalized = markdown.Replace("\r\n", "\n");
         var lines = normalized.Split('\n');
         var currentSection = new StringBuilder();
-        string currentTitle = "Introduction";
+        string currentTitle = GetDefaultSectionTitle();
 
         for (var i = 0; i < lines.Length; i++)
         {
@@ -147,7 +153,7 @@ public static class KnowledgeChunker
             sections.Add(
                 new MarkdownSection
                 {
-                    Title = "Introduction",
+                    Title = GetDefaultSectionTitle(),
                     Content = markdown.Trim(),
                 }
             );
@@ -326,13 +332,13 @@ public static class KnowledgeChunker
         }
 
         var trimmed = line.TrimStart();
-        return HeadingPattern.IsMatch(trimmed);
+        return HeadingRegex.IsMatch(trimmed);
     }
 
     private static string ExtractHeadingTitle(string headingLine)
     {
-        var title = HeadingPrefixPattern.Replace(headingLine.Trim(), string.Empty).Trim();
-        return string.IsNullOrWhiteSpace(title) ? "Untitled Section" : title;
+        var title = HeadingPrefixRegex.Replace(headingLine.Trim(), string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(title) ? GetDefaultSectionTitle() : title;
     }
 
     private static int EstimateTokenCount(string text)
@@ -342,7 +348,7 @@ public static class KnowledgeChunker
             return 0;
         }
 
-        return TokenPattern.Matches(text).Count;
+        return TokenRegex.Count(text);
     }
 
     private static IEnumerable<string> SplitTextByTokenLimit(string text, int maxTokens)
@@ -352,7 +358,7 @@ public static class KnowledgeChunker
             yield break;
         }
 
-        var words = TokenPattern.Matches(text).Select(match => match.Value).ToArray();
+        var words = TokenRegex.Matches(text).Select(match => match.Value).ToArray();
         if (words.Length == 0)
         {
             yield break;
@@ -387,6 +393,12 @@ public static class KnowledgeChunker
 
     private static int ResolveTokenLimit(int? tokenLimit)
     {
+        // Priority order:
+        // 1) explicit method parameter
+        // 2) configured ChunkParagraphTokens
+        // 3) configured DefaultChunkTokenLimit
+        // 4) hard fallback constant
+        // Settings access uses null-conditionals because tests/early startup may execute before SettingsProvider.Initialize().
         if (tokenLimit is > 0)
         {
             return tokenLimit.Value;
@@ -397,12 +409,13 @@ public static class KnowledgeChunker
             return SettingsProvider.Settings.ChunkParagraphTokens;
         }
 
-        return 200;
+        var configuredFallback = SettingsProvider.Settings?.DefaultChunkTokenLimit ?? 0;
+        return configuredFallback > 0 ? configuredFallback : FallbackTokenLimit;
     }
 
     private sealed class MarkdownSection
     {
-        public string Title { get; set; } = "Untitled Section";
+        public string Title { get; set; } = GetDefaultSectionTitle();
         public string Content { get; set; } = string.Empty;
     }
 
@@ -414,7 +427,7 @@ public static class KnowledgeChunker
         var wordTags = cleanedTitle
             .ToLowerInvariant()
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(t => t.Trim().Replace(":", "").Replace(",", ""))
+            .Select(t => TagPunctuationRegex.Replace(t.Trim(), string.Empty))
             .Where(t => t.Length > 0);
 
         return wordTags.Append(sectionTag).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -422,8 +435,22 @@ public static class KnowledgeChunker
 
     private static string Slugify(string value)
     {
+        // normalize -> replace non-alphanumeric -> collapse multiple dashes -> trim edge dashes
         var normalized = value.ToLowerInvariant();
-        var slug = SlugNonAlphaNumericPattern.Replace(normalized, "-").Trim('-');
-        return string.IsNullOrWhiteSpace(slug) ? "untitled" : slug;
+        var slug = SlugNonAlphaNumericRegex.Replace(normalized, "-");
+        slug = MultipleDashesRegex.Replace(slug, "-").Trim('-');
+        return string.IsNullOrWhiteSpace(slug) ? GetDefaultSectionSlug() : slug;
+    }
+
+    private static string GetDefaultSectionTitle()
+    {
+        var configured = SettingsProvider.Settings?.DefaultSectionTitle;
+        return string.IsNullOrWhiteSpace(configured) ? FallbackSectionTitle : configured;
+    }
+
+    private static string GetDefaultSectionSlug()
+    {
+        var configured = SettingsProvider.Settings?.DefaultSectionSlug;
+        return string.IsNullOrWhiteSpace(configured) ? FallbackSectionSlug : configured;
     }
 }

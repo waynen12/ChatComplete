@@ -44,25 +44,23 @@ public class KnowledgeManagerSaveToMemoryTests
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<Embedding<float>>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string[]>(),
+                    It.IsAny<IVectorStoreStrategy.ChunkMetadata>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .Callback<
-                string,
-                string,
-                string,
-                Embedding<float>,
-                string,
-                string,
-                string[],
-                CancellationToken
-            >((_, _, text, _, source, section, tags, _) =>
+            .Callback<string, string, string, Embedding<float>, IVectorStoreStrategy.ChunkMetadata, CancellationToken>(
+                (_, _, text, _, metadata, _) =>
             {
-                capturedUpserts.Add((text, source, section, tags));
-            })
+                    capturedUpserts.Add(
+                        (
+                            text,
+                            metadata.Source,
+                            metadata.Section,
+                            metadata.Tags
+                        )
+                    );
+                }
+            )
             .Returns(Task.CompletedTask);
 
         var manager = new global::KnowledgeEngine.KnowledgeManager(

@@ -122,9 +122,11 @@ public class KnowledgeManager
                 chunkId,
                 chunk.Content,
                 embedding,
-                chunk.Metadata.Source,
-                chunk.Metadata.Section,
-                chunk.Metadata.Tags
+                new IVectorStoreStrategy.ChunkMetadata(
+                    chunk.Metadata.Source,
+                    chunk.Metadata.Section,
+                    chunk.Metadata.Tags
+                )
             );
         }
 

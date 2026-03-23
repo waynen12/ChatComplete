@@ -19,6 +19,9 @@ namespace ChatCompletion.Config
         public int ChunkLineTokens { get; set; }
         public int ChunkParagraphTokens { get; set; }
         public int ChunkOverlap { get; set; }
+        public int DefaultChunkTokenLimit { get; set; } = 200;
+        public string DefaultSectionTitle { get; set; } = "Introduction";
+        public string DefaultSectionSlug { get; set; } = "untitled";
         public string FilePath { get; set; } = string.Empty;
 
         public int LogFileSizeLimit { get; set; } = 10485760; // 10 MB

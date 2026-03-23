@@ -47,9 +47,7 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
-        string source,
-        string section,
-        string[] tags,
+        IVectorStoreStrategy.ChunkMetadata metadata,
         CancellationToken cancellationToken = default
     )
     {
@@ -79,19 +77,8 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
             }
 
             // Parse chunk order from key (format: "fileId-p0001")
-            var chunkOrder = 0;
-            var sourceValue = source;
-            if (key.Contains("-p"))
-            {
-                var parts = key.Split("-p");
-                if (parts.Length > 1 && int.TryParse(parts[1], out var order))
-                {
-                    chunkOrder = order;
-                }
-            }
-            sourceValue = string.IsNullOrWhiteSpace(sourceValue) ? key : sourceValue;
-            var tagsValue = tags is { Length: > 0 } ? string.Join(",", tags) : string.Empty;
-            var sectionValue = section ?? string.Empty;
+            var chunkOrder = ChunkKeyParser.ParseChunkOrder(key);
+            var normalizedMetadata = ChunkKeyParser.FlattenMetadataForStorage(key, metadata);
 
             // Get collection reference from vector store (using Guid keys)
             var collection = _vectorStore.GetCollection<Guid, QdrantRecord>(collectionName);
@@ -106,10 +93,10 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
                 DocumentKey = key, // Store original string key for lookup
                 Text = text,
                 Vector = embedding.Vector.ToArray(),
-                Source = sourceValue,
+                Source = normalizedMetadata.Source,
                 ChunkOrder = chunkOrder,
-                Section = sectionValue,
-                Tags = tagsValue,
+                Section = normalizedMetadata.Section,
+                Tags = normalizedMetadata.Tags,
             };
 
             // Upsert the record (Semantic Kernel handles the REST API calls)

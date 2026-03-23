@@ -13,6 +13,11 @@ namespace KnowledgeEngine.Persistence.VectorStores;
 public interface IVectorStoreStrategy
 {
     /// <summary>
+    /// Metadata payload passed during upsert operations.
+    /// </summary>
+    public sealed record ChunkMetadata(string Source, string Section, string[] Tags);
+
+    /// <summary>
     /// Upserts a chunk into the vector store with metadata.
     /// Matches the signature from KnowledgeManager.UpsertAsync()
     /// </summary>
@@ -27,9 +32,7 @@ public interface IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
-        string source,
-        string section,
-        string[] tags,
+        ChunkMetadata metadata,
         CancellationToken cancellationToken = default);
 
     /// <summary>
