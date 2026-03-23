@@ -8,6 +8,9 @@
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="KnowledgeManager.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="ConnectingApps.Refit.OpenAI" Version="1.9.0" />
     <PackageReference Include="Lost.SemanticKernel.Connectors.Anthropic" Version="1.25.0-alpha3" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
