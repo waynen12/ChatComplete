@@ -164,6 +164,9 @@ public record QdrantRecord
     
     [VectorStoreData]
     public int ChunkOrder { get; init; }
+
+    [VectorStoreData]
+    public string Section { get; init; } = string.Empty;
     
     [VectorStoreData]
     public string Tags { get; init; } = string.Empty;

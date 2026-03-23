@@ -27,6 +27,10 @@ public interface IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
+        string source,
+        int chunkOrder,
+        string section,
+        string tags,
         CancellationToken cancellationToken = default);
 
     /// <summary>

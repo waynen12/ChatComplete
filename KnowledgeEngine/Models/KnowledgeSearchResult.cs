@@ -19,6 +19,11 @@ public record KnowledgeSearchResult
     /// The order/position of this chunk within the source document.
     /// </summary>
     public int ChunkOrder { get; init; }
+
+    /// <summary>
+    /// The markdown section title this chunk belongs to.
+    /// </summary>
+    public string Section { get; init; } = string.Empty;
     
     /// <summary>
     /// Tags or metadata associated with this search result.

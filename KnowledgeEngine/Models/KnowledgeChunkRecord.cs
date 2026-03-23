@@ -32,6 +32,11 @@ public record KnowledgeChunkRecord
     /// Order of this chunk within the source document
     /// </summary>
     public int ChunkOrder { get; init; }
+
+    /// <summary>
+    /// Markdown section title for this chunk
+    /// </summary>
+    public string Section { get; init; } = string.Empty;
     
     /// <summary>
     /// Tags associated with this chunk (comma-separated)

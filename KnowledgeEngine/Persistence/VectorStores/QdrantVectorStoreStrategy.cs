@@ -47,6 +47,10 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
+        string source,
+        int chunkOrder,
+        string section,
+        string tags,
         CancellationToken cancellationToken = default
     )
     {
@@ -75,19 +79,6 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
                 await _indexManager.CreateIndexAsync(collectionName, cancellationToken);
             }
 
-            // Parse chunk order from key (format: "fileId-p0001")
-            var chunkOrder = 0;
-            var source = key;
-            if (key.Contains("-p"))
-            {
-                var parts = key.Split("-p");
-                source = parts[0];
-                if (parts.Length > 1 && int.TryParse(parts[1], out var order))
-                {
-                    chunkOrder = order;
-                }
-            }
-
             // Get collection reference from vector store (using Guid keys)
             var collection = _vectorStore.GetCollection<Guid, QdrantRecord>(collectionName);
 
@@ -103,7 +94,8 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
                 Vector = embedding.Vector.ToArray(),
                 Source = source,
                 ChunkOrder = chunkOrder,
-                Tags = string.Empty,
+                Section = section,
+                Tags = tags,
             };
 
             // Upsert the record (Semantic Kernel handles the REST API calls)
@@ -221,6 +213,7 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
                         Text = result.Record.Text,
                         Source = result.Record.Source,
                         ChunkOrder = result.Record.ChunkOrder,
+                        Section = result.Record.Section,
                         Tags = result.Record.Tags,
                         Score = score,
                     };
