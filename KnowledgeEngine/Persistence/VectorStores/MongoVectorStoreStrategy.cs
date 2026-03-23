@@ -38,6 +38,9 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
+        string source,
+        string section,
+        string[] tags,
         CancellationToken cancellationToken = default)
     {
         try
@@ -54,16 +57,18 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
             }
             // Parse chunk order from key (format: "fileId-p0001")
             var chunkOrder = 0;
-            var source = key;
+            var sourceValue = source;
             if (key.Contains("-p"))
             {
                 var parts = key.Split("-p");
-                source = parts[0];
                 if (parts.Length > 1 && int.TryParse(parts[1], out var order))
                 {
                     chunkOrder = order;
                 }
             }
+            sourceValue = string.IsNullOrWhiteSpace(sourceValue) ? key : sourceValue;
+            var tagsValue = tags is { Length: > 0 } ? string.Join(",", tags) : string.Empty;
+            var sectionValue = section ?? string.Empty;
             
             // Create MongoDB document matching existing structure
             var document = new BsonDocument
@@ -71,9 +76,10 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
                 ["_id"] = key,
                 ["text"] = text,
                 ["vector"] = new BsonArray(embedding.Vector.ToArray()),
-                ["source"] = source,
+                ["source"] = sourceValue,
                 ["chunkOrder"] = chunkOrder,
-                ["tags"] = ""
+                ["section"] = sectionValue,
+                ["tags"] = tagsValue
             };
 
             // Get MongoDB collection directly

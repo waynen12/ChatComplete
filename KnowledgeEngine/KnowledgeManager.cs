@@ -6,7 +6,6 @@ using KnowledgeEngine.Persistence;
 using KnowledgeEngine.Persistence.IndexManagers;
 using KnowledgeEngine.Persistence.VectorStores;
 using Microsoft.Extensions.AI;
-using SemanticChunkerNET;
 
 namespace KnowledgeEngine;
 
@@ -87,24 +86,24 @@ public class KnowledgeManager
             throw new InvalidOperationException($"Failed to convert {documentPath} to text");
         }
 
-        // 3. Chunk the text using SemanticChunker.NET
+        // 3. Chunk text using markdown-aware chunker
         int tokenLimit =
             SettingsProvider.Settings.ChunkParagraphTokens > 0
                 ? SettingsProvider.Settings.ChunkParagraphTokens
                 : 200;
 
-        // Create SemanticChunker with our embedding service
-        var semanticChunker = new SemanticChunker(
-            _embeddingService,
-            tokenLimit: tokenLimit,
-            bufferSize: Math.Max(1, SettingsProvider.Settings.ChunkOverlap)
-        );
+        var sourceFileName = Path.GetFileName(documentPath);
+        var chunks = markdown
+            ? KnowledgeChunker.ChunkFromMarkdown(rawText, sourceFileName, tokenLimit)
+            : KnowledgeChunker.ChunkFromPlainText(rawText, sourceFileName);
 
-        // Generate semantic chunks (already includes embeddings!)
-        IList<Chunk> chunks = await semanticChunker.CreateChunksAsync(rawText);
+        if (chunks.Count == 0)
+        {
+            LoggerProvider.Logger.Warning("No chunks were generated for {File}", documentPath);
+            throw new InvalidOperationException($"Failed to chunk {documentPath}");
+        }
 
         // 4. Store chunks in vector store
-        string source = doc.Source;
         string fileId = Path.GetFileNameWithoutExtension(documentPath);
 
         for (int i = 0; i < chunks.Count; i++)
@@ -113,12 +112,20 @@ public class KnowledgeManager
             var chunkOrder = i.ToString("D4");
             var chunkId = $"{fileId}-p{chunkOrder}";
 
-            // SemanticChunker already generated the embedding
-            var embeddingVector = chunk.Embedding.Vector.ToArray();
-            var embedding = new Embedding<float>(embeddingVector);
+            // Generate embedding for this chunk
+            var embeddingResult = await _embeddingService.GenerateAsync(new[] { chunk.Content });
+            var embedding = embeddingResult.First();
 
             // Store in vector store with metadata
-            await _vectorStoreStrategy.UpsertAsync(collectionName, chunkId, chunk.Text, embedding);
+            await _vectorStoreStrategy.UpsertAsync(
+                collectionName,
+                chunkId,
+                chunk.Content,
+                embedding,
+                chunk.Metadata.Source,
+                chunk.Metadata.Section,
+                chunk.Metadata.Tags
+            );
         }
 
         LoggerProvider.Logger.Information(
