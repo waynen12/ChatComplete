@@ -47,6 +47,10 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
+        string? source = null,
+        int chunkOrder = 0,
+        string? section = null,
+        string? tags = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -75,16 +79,16 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
                 await _indexManager.CreateIndexAsync(collectionName, cancellationToken);
             }
 
-            // Parse chunk order from key (format: "fileId-p0001")
-            var chunkOrder = 0;
-            var source = key;
-            if (key.Contains("-p"))
+            // Use explicit metadata when provided, otherwise parse from key
+            var effectiveSource = source ?? key;
+            var effectiveChunkOrder = chunkOrder;
+            if (source == null && key.Contains("-p"))
             {
                 var parts = key.Split("-p");
-                source = parts[0];
+                effectiveSource = parts[0];
                 if (parts.Length > 1 && int.TryParse(parts[1], out var order))
                 {
-                    chunkOrder = order;
+                    effectiveChunkOrder = order;
                 }
             }
 
@@ -94,16 +98,16 @@ public class QdrantVectorStoreStrategy : IVectorStoreStrategy
             // Generate a deterministic GUID from the string key for consistent mapping
             var guidId = CreateDeterministicGuid(key);
 
-            // Create record matching MongoDB document structure
+            // Create record with metadata
             var record = new QdrantRecord
             {
                 Id = guidId,
-                DocumentKey = key, // Store original string key for lookup
+                DocumentKey = key,
                 Text = text,
                 Vector = embedding.Vector.ToArray(),
-                Source = source,
-                ChunkOrder = chunkOrder,
-                Tags = string.Empty,
+                Source = effectiveSource,
+                ChunkOrder = effectiveChunkOrder,
+                Tags = tags ?? string.Empty,
             };
 
             // Upsert the record (Semantic Kernel handles the REST API calls)
