@@ -97,6 +97,157 @@ public class KnowledgeChunkerTests
     }
 
     [Fact]
+    public void ChunkFromMarkdown_PreservesPreambleBeforeFirstHeading()
+    {
+        var markdown = """
+            Intro text before any heading.
+
+            Still in the preamble.
+
+            # First Heading
+
+            Section content.
+            """;
+
+        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "guide.md", TestSettings);
+
+        Assert.Equal(2, chunks.Count);
+        Assert.Equal("Preamble", chunks[0].Metadata.Section);
+        Assert.Contains("Intro text before any heading.", chunks[0].Content, StringComparison.Ordinal);
+        Assert.Equal("First Heading", chunks[1].Metadata.Section);
+    }
+
+    [Fact]
+    public void ChunkFromMarkdown_FallsBackToSingleDocumentChunk_WhenNoHeadingsExist()
+    {
+        var markdown = """
+            Plain markdown text without headings.
+
+            Another paragraph stays with it.
+            """;
+
+        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "notes.md", new ChatCompleteSettings
+        {
+            ChunkParagraphTokens = 20
+        });
+
+        var chunk = Assert.Single(chunks);
+        Assert.Equal("Document", chunk.Metadata.Section);
+        Assert.Contains("Plain markdown text without headings.", chunk.Content, StringComparison.Ordinal);
+        Assert.Contains("Another paragraph stays with it.", chunk.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChunkFromMarkdown_ReturnsEmpty_ForEmptyInput()
+    {
+        Assert.Empty(KnowledgeChunker.ChunkFromMarkdown(string.Empty, "empty.md", TestSettings));
+        Assert.Empty(KnowledgeChunker.ChunkFromMarkdown("   \n\t   ", "empty.md", TestSettings));
+    }
+
+    [Fact]
+    public void ChunkFromMarkdown_DoesNotSplitOnH4Headings()
+    {
+        var markdown = """
+            # Top
+
+            Intro paragraph.
+
+            #### Deep Heading
+
+            Deep content stays in the same section.
+            """;
+
+        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "deep.md", TestSettings);
+
+        Assert.True(chunks.Count >= 1);
+        Assert.All(chunks, chunk => Assert.Equal("Top", chunk.Metadata.Section));
+        Assert.Contains(chunks, chunk => chunk.Content.Contains("#### Deep Heading", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ChunkFromMarkdown_SplitsOversizedParagraphsByWord_AndKeepsHeading()
+    {
+        var markdown = """
+            ## Oversized
+
+            alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon phi chi psi omega
+            """;
+
+        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "oversized.md", new ChatCompleteSettings
+        {
+            ChunkParagraphTokens = 8
+        });
+
+        Assert.True(chunks.Count > 1);
+        Assert.All(chunks, chunk =>
+        {
+            Assert.StartsWith("## Oversized", chunk.Content, StringComparison.Ordinal);
+            Assert.Equal("Oversized", chunk.Metadata.Section);
+        });
+    }
+
+    [Fact]
+    public void ChunkFromMarkdown_UsesWordCountInsteadOfCharacterHeuristic()
+    {
+        var markdown = """
+            ## Tokens
+
+            supercalifragilisticexpialidocious pneumonoultramicroscopicsilicovolcanoconiosis hippopotomonstrosesquipedaliophobia
+            """;
+
+        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "tokens.md", new ChatCompleteSettings
+        {
+            ChunkParagraphTokens = 5
+        });
+
+        var chunk = Assert.Single(chunks);
+        Assert.Contains("supercalifragilisticexpialidocious", chunk.Content, StringComparison.Ordinal);
+        Assert.Contains("pneumonoultramicroscopicsilicovolcanoconiosis", chunk.Content, StringComparison.Ordinal);
+        Assert.Contains("hippopotomonstrosesquipedaliophobia", chunk.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChunkFromMarkdown_SplitsSingleWordOverflowAcrossMultipleChunks()
+    {
+        var markdown = """
+            ## SingleWord
+
+            alpha beta gamma delta epsilon zeta
+
+            supercalifragilisticexpialidocious
+            """;
+
+        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "single-word.md", new ChatCompleteSettings
+        {
+            ChunkParagraphTokens = 3
+        });
+
+        Assert.True(chunks.Count >= 3);
+        Assert.All(chunks, chunk => Assert.StartsWith("## SingleWord", chunk.Content, StringComparison.Ordinal));
+        Assert.Contains(chunks, chunk => chunk.Content.Contains("supercalifragilisticexpialidocious", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ChunkFromMarkdown_PreservesHeadingAcrossParagraphBasedSubChunks()
+    {
+        var markdown = """
+            ## Section
+
+            First paragraph has enough words to stand on its own for the chosen token limit.
+
+            Second paragraph also has enough words to force a second chunk in the same section.
+            """;
+
+        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "section.md", new ChatCompleteSettings
+        {
+            ChunkParagraphTokens = 12
+        });
+
+        Assert.True(chunks.Count >= 2);
+        Assert.All(chunks, chunk => Assert.StartsWith("## Section", chunk.Content, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ChunkFromPlainText_SubChunksOversizedContent_WithFallbackMetadata()
     {
         var text =
@@ -111,5 +262,13 @@ public class KnowledgeChunkerTests
             Assert.Equal("Document", chunk.Metadata.Section);
             Assert.DoesNotContain('#', chunk.Content);
         });
+    }
+
+    [Fact]
+    public void ChunkFromPlainText_ReturnsEmpty_ForEmptyInput()
+    {
+        Assert.Empty(KnowledgeChunker.ChunkFromPlainText(null, "notes.txt", TestSettings));
+        Assert.Empty(KnowledgeChunker.ChunkFromPlainText(string.Empty, "notes.txt", TestSettings));
+        Assert.Empty(KnowledgeChunker.ChunkFromPlainText("   \n\t   ", "notes.txt", TestSettings));
     }
 }

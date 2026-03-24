@@ -5,6 +5,7 @@ using ChatCompletion.Config;
 public static partial class KnowledgeChunker
 {
     private const string FallbackSectionTitle = "Document";
+    private const string PreambleSectionTitle = "Preamble";
     private static readonly Regex HeadingRegex = CreateHeadingRegex();
     private static readonly Regex ParagraphSplitRegex = CreateParagraphSplitRegex();
     private static readonly Regex TokenSplitRegex = CreateTokenSplitRegex();
@@ -210,7 +211,7 @@ public static partial class KnowledgeChunker
             var intro = normalized[..matches[0].Index].Trim();
             if (!string.IsNullOrWhiteSpace(intro))
             {
-                yield return new MarkdownSection(null, FallbackSectionTitle, intro);
+                yield return new MarkdownSection(null, PreambleSectionTitle, intro);
             }
         }
 
