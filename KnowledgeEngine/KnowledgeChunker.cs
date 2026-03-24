@@ -193,7 +193,7 @@ public static partial class KnowledgeChunker
 
     private static List<string> SplitByTokens(string text, int tokenLimit)
     {
-        var words = text.Split((char[])null!, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var words = TokenCountRegex.Matches(text).Select(m => m.Value).ToArray();
         if (words.Length == 0)
             return new List<string>();
 

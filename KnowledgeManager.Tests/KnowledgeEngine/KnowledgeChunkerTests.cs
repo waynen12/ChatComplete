@@ -153,13 +153,15 @@ public class KnowledgeChunkerTests
     [Fact]
     public void ChunkFromMarkdown_OversizedSingleParagraph_SplitAtWordBoundaries()
     {
-        // 25 distinct words — with a limit of 8 tokens, the paragraph must produce multiple chunks
+        // 25 distinct single-word tokens; heading "## Oversized" = 2 tokens.
+        // With maxTokens=6 the body limit per sub-chunk is 4 tokens, so we get at least
+        // ceil(25/4) = 7 sub-chunks — well above 1.
         var words = string.Join(" ", Enumerable.Range(1, 25).Select(i => $"word{i}"));
         var markdown = $"## Oversized\n\n{words}";
 
-        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "oversized.md", maxTokens: 10);
+        var chunks = KnowledgeChunker.ChunkFromMarkdown(markdown, "oversized.md", maxTokens: 6);
 
-        Assert.True(chunks.Count >= 2, $"Expected word-level sub-chunks, got {chunks.Count}");
+        Assert.True(chunks.Count >= 3, $"Expected word-level sub-chunks, got {chunks.Count}");
         Assert.All(chunks, c => Assert.Equal("Oversized", c.Metadata.Section));
         Assert.All(chunks, c => Assert.StartsWith("## Oversized", c.Content));
     }
@@ -206,8 +208,7 @@ public class KnowledgeChunkerTests
     [Fact]
     public void ChunkFromMarkdown_ZeroMaxTokens_UsesSettingsChunkParagraphTokens()
     {
-        SettingsProvider.Initialize(new ChatCompleteSettings { ChunkParagraphTokens = 10 });
-        try
+        WithSettings(new ChatCompleteSettings { ChunkParagraphTokens = 10 }, () =>
         {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("# Section");
@@ -222,11 +223,7 @@ public class KnowledgeChunkerTests
             var chunks = KnowledgeChunker.ChunkFromMarkdown(sb.ToString(), "test.md");
 
             Assert.True(chunks.Count > 1, "Should sub-chunk when settings limit is small");
-        }
-        finally
-        {
-            SettingsProvider.Initialize(new ChatCompleteSettings { ChunkParagraphTokens = 200 });
-        }
+        });
     }
 
     // ── ChunkFromMarkdown — multiple H2 under H1 ─────────────────────────────────
@@ -271,8 +268,7 @@ public class KnowledgeChunkerTests
     [Fact]
     public void ChunkFromPlainText_LargeText_ProducesMultipleChunks()
     {
-        SettingsProvider.Initialize(new ChatCompleteSettings { ChunkParagraphTokens = 15 });
-        try
+        WithSettings(new ChatCompleteSettings { ChunkParagraphTokens = 15 }, () =>
         {
             var sb = new System.Text.StringBuilder();
             for (int i = 0; i < 10; i++)
@@ -285,11 +281,7 @@ public class KnowledgeChunkerTests
 
             Assert.True(chunks.Count > 1, $"Expected multiple chunks, got {chunks.Count}");
             Assert.All(chunks, c => Assert.Equal("Document", c.Metadata.Section));
-        }
-        finally
-        {
-            SettingsProvider.Initialize(new ChatCompleteSettings { ChunkParagraphTokens = 200 });
-        }
+        });
     }
 
     // ── CountTokens ───────────────────────────────────────────────────────────────
@@ -403,5 +395,29 @@ Deploy using Docker Compose for the easiest setup.
 
         Assert.True(chunks.Count >= 5, $"Too few chunks ({chunks.Count})");
         Assert.True(chunks.Count <= 60, $"Too many chunks ({chunks.Count}) — over-fragmented");
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Runs <paramref name="action"/> with a temporary settings override,
+    /// restoring the default settings afterwards (even if the action throws).
+    /// </summary>
+    private static void WithSettings(ChatCompleteSettings settings, Action action)
+    {
+        SettingsProvider.Initialize(settings);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            SettingsProvider.Initialize(new ChatCompleteSettings
+            {
+                ChunkParagraphTokens = 200,
+                ChunkCharacterLimit = 4096,
+                ChunkOverlap = 40
+            });
+        }
     }
 }
