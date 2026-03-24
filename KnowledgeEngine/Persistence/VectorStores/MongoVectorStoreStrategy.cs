@@ -38,6 +38,10 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
+        string source,
+        int chunkOrder,
+        string section,
+        string tags,
         CancellationToken cancellationToken = default)
     {
         try
@@ -52,19 +56,7 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
                     $"expects {activeProvider.Dimensions} dimensions."
                 );
             }
-            // Parse chunk order from key (format: "fileId-p0001")
-            var chunkOrder = 0;
-            var source = key;
-            if (key.Contains("-p"))
-            {
-                var parts = key.Split("-p");
-                source = parts[0];
-                if (parts.Length > 1 && int.TryParse(parts[1], out var order))
-                {
-                    chunkOrder = order;
-                }
-            }
-            
+
             // Create MongoDB document matching existing structure
             var document = new BsonDocument
             {
@@ -73,18 +65,19 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
                 ["vector"] = new BsonArray(embedding.Vector.ToArray()),
                 ["source"] = source,
                 ["chunkOrder"] = chunkOrder,
-                ["tags"] = ""
+                ["section"] = section,
+                ["tags"] = tags
             };
 
             // Get MongoDB collection directly
             var mongoCollection = _mongoDatabase.GetCollection<BsonDocument>(collectionName);
-            
+
             // Use ReplaceOne with upsert option
             var filter = Builders<BsonDocument>.Filter.Eq("_id", key);
             var options = new ReplaceOptions { IsUpsert = true };
-            
+
             await mongoCollection.ReplaceOneAsync(filter, document, options, cancellationToken);
-            
+
             LoggerProvider.Logger.Information(
                 "Successfully upserted chunk {Key} to MongoDB collection {Collection}",
                 key, collectionName);

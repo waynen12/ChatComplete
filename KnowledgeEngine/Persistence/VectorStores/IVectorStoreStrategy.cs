@@ -20,6 +20,10 @@ public interface IVectorStoreStrategy
     /// <param name="key">Unique identifier for the chunk</param>
     /// <param name="text">The text content of the chunk</param>
     /// <param name="embedding">The vector embedding for the text</param>
+    /// <param name="source">Source document filename</param>
+    /// <param name="chunkOrder">Zero-based order of the chunk within the document</param>
+    /// <param name="section">Section heading the chunk belongs to</param>
+    /// <param name="tags">Comma-separated tags derived from the section title</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Task representing the async operation</returns>
     Task UpsertAsync(
@@ -27,6 +31,10 @@ public interface IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
+        string source,
+        int chunkOrder,
+        string section,
+        string tags,
         CancellationToken cancellationToken = default);
 
     /// <summary>
