@@ -38,6 +38,10 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
         string key,
         string text,
         Embedding<float> embedding,
+        string? source = null,
+        int chunkOrder = 0,
+        string? section = null,
+        string? tags = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -52,28 +56,29 @@ public class MongoVectorStoreStrategy : IVectorStoreStrategy
                     $"expects {activeProvider.Dimensions} dimensions."
                 );
             }
-            // Parse chunk order from key (format: "fileId-p0001")
-            var chunkOrder = 0;
-            var source = key;
-            if (key.Contains("-p"))
+
+            // Use explicit metadata when provided, otherwise parse from key
+            var effectiveSource = source ?? key;
+            var effectiveChunkOrder = chunkOrder;
+            if (source == null && key.Contains("-p"))
             {
                 var parts = key.Split("-p");
-                source = parts[0];
+                effectiveSource = parts[0];
                 if (parts.Length > 1 && int.TryParse(parts[1], out var order))
                 {
-                    chunkOrder = order;
+                    effectiveChunkOrder = order;
                 }
             }
-            
-            // Create MongoDB document matching existing structure
+
+            // Create MongoDB document with metadata
             var document = new BsonDocument
             {
                 ["_id"] = key,
                 ["text"] = text,
                 ["vector"] = new BsonArray(embedding.Vector.ToArray()),
-                ["source"] = source,
-                ["chunkOrder"] = chunkOrder,
-                ["tags"] = ""
+                ["source"] = effectiveSource,
+                ["chunkOrder"] = effectiveChunkOrder,
+                ["tags"] = tags ?? ""
             };
 
             // Get MongoDB collection directly
