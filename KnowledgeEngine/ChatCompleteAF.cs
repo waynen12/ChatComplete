@@ -481,7 +481,7 @@ public class ChatCompleteAF
             Console.WriteLine("🚀 [AF] Starting agent chat completion with tools...");
 
             // Execute chat using Agent Framework
-            AgentRunResponse agentResult;
+            AgentResponse agentResult;
             try
             {
                 // Build a simple prompt from the last user message for RunAsync

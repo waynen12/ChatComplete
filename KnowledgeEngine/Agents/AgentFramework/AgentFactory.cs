@@ -58,11 +58,11 @@ public class AgentFactory
                 }
 
                 var openAiClient = new OpenAIClient(openAiApiKey);
-                var chatClient = openAiClient.GetChatClient(_settings.OpenAIModel);
+                var chatClient = openAiClient.GetChatClient(_settings.OpenAIModel).AsIChatClient();
 
                 agent = tools != null
-                    ? chatClient.CreateAIAgent(instructions: systemPrompt, tools: [.. tools])
-                    : chatClient.CreateAIAgent(instructions: systemPrompt);
+                    ? chatClient.AsAIAgent(instructions: systemPrompt, tools: [.. tools])
+                    : chatClient.AsAIAgent(instructions: systemPrompt);
 
                 Console.WriteLine($"✅ Created OpenAI agent with model: {_settings.OpenAIModel}");
                 break;
@@ -78,8 +78,8 @@ public class AgentFactory
 
                 var googleClient = new GenerativeAIChatClient(geminiApiKey, _settings.GoogleModel);
                 agent = tools != null
-                    ? googleClient.CreateAIAgent(instructions: systemPrompt, tools: [.. tools])
-                    : googleClient.CreateAIAgent(instructions: systemPrompt);
+                    ? googleClient.AsAIAgent(instructions: systemPrompt, tools: [.. tools])
+                    : googleClient.AsAIAgent(instructions: systemPrompt);
 
                 Console.WriteLine($"✅ Created Google agent with model: {_settings.GoogleModel}");
                 break;
@@ -98,8 +98,8 @@ public class AgentFactory
                     .Build();
 
                 agent = tools != null
-                    ? anthropicClient.CreateAIAgent(instructions: systemPrompt, tools: [.. tools])
-                    : anthropicClient.CreateAIAgent(instructions: systemPrompt);
+                    ? anthropicClient.AsAIAgent(instructions: systemPrompt, tools: [.. tools])
+                    : anthropicClient.AsAIAgent(instructions: systemPrompt);
 
                 Console.WriteLine($"✅ Created Anthropic agent with model: {_settings.AnthropicModel}");
                 break;
@@ -115,8 +115,8 @@ public class AgentFactory
                 var modelToUse = ollamaModel ?? _settings.OllamaModel;
                 var ollamaClient = new OllamaApiClient(_settings.OllamaBaseUrl, modelToUse);
                 agent = tools != null
-                    ? ollamaClient.CreateAIAgent(instructions: systemPrompt, tools: [.. tools])
-                    : ollamaClient.CreateAIAgent(instructions: systemPrompt);
+                    ? ollamaClient.AsAIAgent(instructions: systemPrompt, tools: [.. tools])
+                    : ollamaClient.AsAIAgent(instructions: systemPrompt);
 
                 Console.WriteLine($"✅ Created Ollama agent with model: {modelToUse}");
                 break;
