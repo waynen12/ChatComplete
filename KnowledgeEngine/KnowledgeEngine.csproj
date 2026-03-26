@@ -29,10 +29,10 @@
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="Anthropic.SDK" Version="5.8.0" />
-    <PackageReference Include="Google_GenerativeAI.Microsoft" Version="3.4.1" />
-    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.0.0-preview.251114.1" />
-    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.0.0-preview.1.25560.10" />
+    <PackageReference Include="Anthropic.SDK" Version="5.10.0" />
+    <PackageReference Include="Google_GenerativeAI.Microsoft" Version="3.6.3" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.0.0-rc4" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.4.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.0" />
   </ItemGroup>
   <ItemGroup>
