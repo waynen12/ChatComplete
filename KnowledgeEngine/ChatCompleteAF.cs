@@ -307,7 +307,8 @@ public class ChatCompleteAF
             var lastUserMessage = messages.LastOrDefault(m => m.Role == ChatRole.User);
             var promptText = lastUserMessage?.Text ?? userMessage;
 
-            var agentResponse = await agent.RunAsync(promptText, cancellationToken: ct);
+            var agentSession = await agent.CreateSessionAsync("chat");
+            var agentResponse = await agent.RunAsync(promptText, agentSession, cancellationToken: ct);
 
             var responseText = agentResponse?.ToString() ?? "There was no response from the AI.";
 
@@ -406,7 +407,7 @@ public class ChatCompleteAF
 
             Console.WriteLine($"🔧 [AF] Tool decision: shouldUseTools = {shouldUseTools}");
 
-            AIAgent agent;
+            ChatClientAgent agent;
             if (shouldUseTools)
             {
                 // Create agent with plugins
@@ -481,14 +482,15 @@ public class ChatCompleteAF
             Console.WriteLine("🚀 [AF] Starting agent chat completion with tools...");
 
             // Execute chat using Agent Framework
-            AgentRunResponse agentResult;
+            AgentResponse agentResult;
             try
             {
                 // Build a simple prompt from the last user message for RunAsync
                 var lastUserMessage = messages.LastOrDefault(m => m.Role == ChatRole.User);
                 var promptText = lastUserMessage?.Text ?? userMessage;
 
-                agentResult = await agent.RunAsync(promptText, cancellationToken: ct);
+                var agentSession = await agent.CreateSessionAsync("chat");
+                agentResult = await agent.RunAsync(promptText, agentSession, cancellationToken: ct);
             }
             catch (Exception ex)
                 when (ex.Message.Contains("does not support tools")
@@ -677,7 +679,7 @@ public class ChatCompleteAF
             // Agent Framework doesn't support per-request temperature in RunStreamingAsync
 
             // Stream the response
-            await foreach (var update in agent.RunStreamingAsync(promptText, cancellationToken: ct))
+            await foreach (var update in agent.RunStreamingAsync(promptText, await agent.CreateSessionAsync("chat"), cancellationToken: ct))
             {
                 var textChunk = update?.Text ?? string.Empty;
                 if (!string.IsNullOrEmpty(textChunk))
@@ -778,7 +780,7 @@ public class ChatCompleteAF
             );
 
             // Create agent with or without tools
-            AIAgent agent;
+            ChatClientAgent agent;
             if (shouldUseTools)
             {
                 var plugins = RegisterAgentPlugins();
@@ -853,7 +855,7 @@ public class ChatCompleteAF
             // Note: Temperature configuration is handled at ChatClient level in AgentFactory
 
             // Stream the response
-            await foreach (var update in agent.RunStreamingAsync(promptText, cancellationToken: ct))
+            await foreach (var update in agent.RunStreamingAsync(promptText, await agent.CreateSessionAsync("chat"), cancellationToken: ct))
             {
                 var textChunk = update?.Text ?? string.Empty;
                 if (!string.IsNullOrEmpty(textChunk))
