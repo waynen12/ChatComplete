@@ -481,7 +481,7 @@ public class ChatCompleteAF
             Console.WriteLine("🚀 [AF] Starting agent chat completion with tools...");
 
             // Execute chat using Agent Framework
-            AgentRunResponse agentResult;
+            AgentResponse agentResult;
             try
             {
                 // Build a simple prompt from the last user message for RunAsync
@@ -523,7 +523,7 @@ public class ChatCompleteAF
                 };
             }
 
-            var responseText = agentResult?.ToString() ?? "There was no response from the AI.";
+            var responseText = agentResult?.Text ?? "There was no response from the AI.";
 
             Console.WriteLine(
                 $"🔍 [AF] Chat result received. Content length: {responseText.Length}"
